@@ -1,0 +1,19 @@
+{
+  "name": "execute",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "start": "pnpm --filter web start",
+    "lint": "pnpm --filter web lint",
+    "db:generate": "pnpm --filter db generate",
+    "db:migrate": "pnpm --filter db migrate",
+    "db:studio": "pnpm --filter db studio"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.9",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "pnpm@10.28.1"
+}
