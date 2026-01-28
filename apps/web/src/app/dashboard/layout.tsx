@@ -1,10 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Terminal, LayoutDashboard, GitBranch, Activity, Settings, LogOut, User } from "lucide-react";
+import { Terminal, LayoutDashboard, GitBranch, Activity, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/providers/auth-provider";
+import Link from "next/link";
 
 const navItems = [
   {
@@ -30,6 +31,19 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { user, signOut, loading } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white/60">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black">
@@ -73,24 +87,28 @@ export default function DashboardLayout({
           </Link>
 
           <div className="mt-2 flex items-center gap-3 rounded-lg px-4 py-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
-              <User className="h-4 w-4 text-white" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500">
+              <span className="text-sm font-semibold text-white">
+                {user?.name?.charAt(0).toUpperCase() || user?.email.charAt(0).toUpperCase()}
+              </span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">John Doe</p>
-              <p className="text-xs text-white/40 truncate">john@example.com</p>
+              <p className="text-sm font-medium text-white truncate">
+                {user?.name || 'User'}
+              </p>
+              <p className="text-xs text-white/40 truncate">{user?.email}</p>
             </div>
           </div>
 
-          <Link href="/login">
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-3 text-white/60 hover:text-white hover:bg-white/5 rounded-lg mt-2"
-            >
-              <LogOut className="h-5 w-5" />
-              Sign Out
-            </Button>
-          </Link>
+          {/* Sign Out Button - Functional */}
+          <Button
+            onClick={handleSignOut}
+            variant="ghost"
+            className="w-full justify-start gap-3 text-white/60 hover:text-white hover:bg-white/5 rounded-lg mt-2"
+          >
+            <LogOut className="h-5 w-5" />
+            Sign Out
+          </Button>
         </div>
       </aside>
 
