@@ -53,15 +53,25 @@ export const ParsedWorkflowResponseSchema = z.object({
 
 export type ParsedWorkflowResponse = z.infer<typeof ParsedWorkflowResponseSchema>;
 
-// Input instruction
+// Input instruction (legacy - simple string)
 export interface ParseInstructionInput {
   instruction: string;
   userId: string;
 }
 
-// Provider configuration
-export interface LLMProviderConfig {
-  provider: 'anthropic' | 'openai';
-  apiKey?: string;
-  model?: string;
+// Structured input (new - guided UX)
+export interface StructuredInput {
+  what: string;
+  when: 'now' | 'schedule' | 'event';
+  schedule?: {
+    frequency: 'daily' | 'weekly' | 'monthly';
+    day?: string;
+    time: string;
+  };
+  event?: string;
+  additionalContext?: string;
+  userId: string;
 }
+
+// Union type for both input formats
+export type WorkflowInput = ParseInstructionInput | StructuredInput;

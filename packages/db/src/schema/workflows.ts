@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp, jsonb, boolean, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, jsonb, boolean, integer, index } from 'drizzle-orm/pg-core';
 import { users } from './users';
 
 export const workflows = pgTable('workflows', {

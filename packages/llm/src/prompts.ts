@@ -88,6 +88,36 @@ Response:
 - If instruction is too vague, return success: false with error message
 - Use template variables like {{variable}} for dynamic data`;
 
-export const buildParsePrompt = (instruction: string): string => {
+export const buildParsePrompt = (input: {
+  what: string;
+  when: string;
+  schedule?: string;
+  event?: string;
+  additionalContext?: string;
+}): string => {
+  let prompt = `Parse this workflow request into a structured definition:\n\n`;
+  prompt += `## User Intent\n"${input.what}"\n\n`;
+  prompt += `## Trigger Type\n${input.when}\n\n`;
+
+  if (input.when === 'schedule' && input.schedule) {
+    prompt += `## Schedule\n${input.schedule}\n\n`;
+  }
+
+  if (input.when === 'event' && input.event) {
+    prompt += `## Event Trigger\n${input.event}\n\n`;
+  }
+
+  if (input.additionalContext) {
+    prompt += `## Additional Context\n${input.additionalContext}\n\n`;
+  }
+
+  prompt += `## Allowed Actions\nsend_email, send_slack, send_sms, http_request, create_task, add_to_list, delay, conditional, loop\n\n`;
+  prompt += `Convert this into a workflow with proper trigger and action steps.\n`;
+  prompt += `Return only valid JSON as your response.`;
+
+  return prompt;
+};
+
+export const buildSimpleParsePrompt = (instruction: string): string => {
   return `Parse this workflow instruction into a structured definition:\n\n"${instruction}"\n\nReturn only valid JSON as your response.`;
 };

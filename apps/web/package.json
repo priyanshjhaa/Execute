@@ -12,6 +12,7 @@
   "dependencies": {
     "@execute/db": "workspace:*",
     "@execute/llm": "workspace:*",
+    "@execute/validation": "workspace:*",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.93.1",
     "@types/node": "^25.0.9",
@@ -31,6 +32,7 @@
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^3.4.19",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "zod": "^3.25.76"
   }
 }

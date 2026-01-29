@@ -1,29 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { db } from '@execute/db';
-import { workflows } from '@execute/db';
-import { WorkflowParser, WorkflowParser as ParserClass, StepType } from '@execute/llm';
+import { db, workflows, users } from '@execute/db';
+import { createParser } from '@execute/llm';
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 
-// Request schema validation
-const GenerateRequestSchema = z.object({
+// Request schema validation for new structured input
+const StructuredRequestSchema = z.object({
+  what: z.string().min(5, 'Description must be at least 5 characters'),
+  when: z.enum(['now', 'schedule', 'event']),
+  schedule: z.object({
+    frequency: z.enum(['daily', 'weekly', 'monthly']),
+    day: z.string().optional(),
+    time: z.string(),
+  }).optional(),
+  event: z.string().optional(),
+  additionalContext: z.string().optional(),
+}).refine(
+  (data) => {
+    if (data.when === 'schedule') return !!data.schedule;
+    if (data.when === 'event') return !!data.event;
+    return true;
+  },
+  {
+    message: 'Schedule or event must be provided based on "when" selection',
+  }
+);
+
+// Legacy request schema (for backward compatibility)
+const LegacyRequestSchema = z.object({
   instruction: z.string().min(10, 'Instruction must be at least 10 characters'),
 });
-
-// Helper function to get trigger type from steps
-function getTriggerType(steps: any[]): 'webhook' | 'schedule' | 'event' {
-  const triggerStep = steps[0];
-  if (!triggerStep) return 'webhook';
-
-  switch (triggerStep.type) {
-    case StepType.WEBHOOK:
-      return 'webhook';
-    case StepType.SCHEDULE:
-      return 'schedule';
-    default:
-      return 'event';
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,47 +47,35 @@ export async function POST(request: NextRequest) {
 
     // 2. Parse and validate request body
     const body = await request.json();
-    const validatedData = GenerateRequestSchema.parse(body);
 
-    // 3. Validate instruction clarity
-    const validation = WorkflowParser.validateInstruction(validatedData.instruction);
-    if (!validation.valid) {
-      return NextResponse.json(
-        {
-          error: 'Instruction validation failed',
-          details: validation.reason,
-        },
-        { status: 400 }
-      );
+    // Detect if this is structured or legacy input
+    const isStructuredInput = 'what' in body && 'when' in body;
+
+    let validatedData: any;
+    let parseInput: any;
+
+    if (isStructuredInput) {
+      // New structured input
+      validatedData = StructuredRequestSchema.parse(body);
+      parseInput = {
+        ...validatedData,
+        userId: user.id,
+      };
+    } else {
+      // Legacy simple instruction
+      validatedData = LegacyRequestSchema.parse(body);
+      parseInput = {
+        instruction: validatedData.instruction,
+        userId: user.id,
+      };
     }
 
-    // 4. Check for API keys
-    const anthropicKey = process.env.ANTHROPIC_API_KEY;
-    const openaiKey = process.env.OPENAI_API_KEY;
+    // 3. Create parser and generate workflow (uses OpenRouter)
+    const parser = createParser();
 
-    if (!anthropicKey && !openaiKey) {
-      return NextResponse.json(
-        {
-          error: 'LLM service not configured',
-          details: 'Please configure ANTHROPIC_API_KEY or OPENAI_API_KEY in environment variables',
-        },
-        { status: 500 }
-      );
-    }
+    const result = await parser.parseInstruction(parseInput);
 
-    // 5. Create parser and generate workflow
-    const provider = anthropicKey ? 'anthropic' : 'openai';
-    const parser = new ParserClass({
-      provider,
-      apiKey: provider === 'anthropic' ? anthropicKey : openaiKey,
-    });
-
-    const result = await parser.parseInstruction({
-      instruction: validatedData.instruction,
-      userId: user.id,
-    });
-
-    // 6. Handle parsing failure
+    // 4. Handle parsing failure
     if (!result.success || !result.workflow) {
       return NextResponse.json(
         {
@@ -92,24 +87,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 7. Save workflow to database
+    // 5. Save workflow to database
+    // Get trigger type from the first step (which is always the trigger)
+    if (!result.workflow) {
+      throw new Error('Workflow is undefined');
+    }
+
+    const triggerStep = result.workflow.steps.find(step => step.id === result.workflow.triggerStepId);
+    const triggerType = triggerStep?.type || 'webhook';
+
+    // Find or create internal user record
+    let [internalUser] = await db.select().from(users).where(eq(users.supabaseId, user.id));
+
+    // Create user if doesn't exist
+    if (!internalUser) {
+      [internalUser] = await db.insert(users)
+        .values({
+          supabaseId: user.id,
+          email: user.email!,
+          name: user.user_metadata?.name || user.email?.split('@')[0],
+        })
+        .returning();
+    }
+
     const workflowData = {
-      userId: user.id,
+      userId: internalUser.id,
       name: result.workflow.name,
       description: result.workflow.description,
       definition: {
         steps: result.workflow.steps,
         triggerStepId: result.workflow.triggerStepId,
       },
-      triggerType: getTriggerType(result.workflow.steps),
-      triggerConfig: result.workflow.steps[0]?.config || {},
+      triggerType: triggerType,
+      triggerConfig: triggerStep?.config || {},
       status: 'draft',
       totalExecutions: 0,
       successRate: 0,
     };
 
-    // Note: We need to sync the user first to get our internal user ID
-    // For now, we'll use the Supabase user ID
     const [workflow] = await db.insert(workflows)
       .values(workflowData as any)
       .returning();
