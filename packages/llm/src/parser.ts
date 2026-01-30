@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import Groq from 'groq-sdk';
 import { v4 as uuidv4 } from 'uuid';
 import {
   ParseInstructionInput,
@@ -9,24 +10,48 @@ import {
 } from './types.js';
 import { SYSTEM_PROMPT, buildParsePrompt, buildSimpleParsePrompt } from './prompts.js';
 
+interface ModelConfig {
+  provider: 'groq' | 'openrouter';
+  model: string;
+  client: OpenAI | Groq;
+}
+
 /**
- * WorkflowParser using OpenRouter
- * Simplified single-client implementation that cycles through models
+ * WorkflowParser using Groq (primary) with OpenRouter fallback
+ * Groq provides very fast inference with free models
  */
 export class WorkflowParser {
-  private client: OpenAI;
-  private models: string[];
+  models: ModelConfig[];
 
-  constructor(apiKey: string, models: string[]) {
-    this.client = new OpenAI({
-      apiKey,
-      baseURL: 'https://openrouter.ai/api/v1',
-      defaultHeaders: {
-        'HTTP-Referer': process.env.SITE_URL || 'http://localhost:3000',
-        'X-Title': 'Execute Workflow Automation',
-      },
-    });
-    this.models = models;
+  constructor(groqKey: string, openrouterKey: string) {
+    this.models = [];
+
+    // Groq models (primary - very fast)
+    if (groqKey) {
+      const groq = new Groq({ apiKey: groqKey });
+      this.models.push(
+        { provider: 'groq', model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile', client: groq },
+        { provider: 'groq', model: 'llama-3.3-8b-8192', client: groq },
+        { provider: 'groq', model: 'gemma2-9b-it', client: groq },
+      );
+    }
+
+    // OpenRouter models (fallback)
+    if (openrouterKey) {
+      const openrouter = new OpenAI({
+        apiKey: openrouterKey,
+        baseURL: 'https://openrouter.ai/api/v1',
+        defaultHeaders: {
+          'HTTP-Referer': process.env.SITE_URL || 'http://localhost:3000',
+          'X-Title': 'Execute Workflow Automation',
+        },
+      });
+      this.models.push(
+        { provider: 'openrouter', model: 'google/gemma-3-4b-it', client: openrouter },
+        { provider: 'openrouter', model: 'google/gemma-3-12b-it', client: openrouter },
+        { provider: 'openrouter', model: 'meta-llama/llama-3.2-3b-instruct:free', client: openrouter },
+      );
+    }
   }
 
   /**
@@ -34,7 +59,7 @@ export class WorkflowParser {
    * Supports both legacy (string) and new (structured) input formats
    */
   async parseInstruction(input: ParseInstructionInput | StructuredInput): Promise<ParsedWorkflowResponse> {
-    const errors: Array<{ model: string; error: string }> = [];
+    const errors: Array<{ provider: string; model: string; error: string }> = [];
 
     // Determine if input is structured or legacy
     const isStructured = 'what' in input && 'when' in input;
@@ -53,26 +78,34 @@ export class WorkflowParser {
       : buildSimpleParsePrompt((input as ParseInstructionInput).instruction);
 
     // Try each model in priority order
-    for (const model of this.models) {
+    for (const { provider, model, client } of this.models) {
       try {
-        console.log(`Attempting to parse with model: ${model}`);
+        console.log(`Attempting to parse with ${provider}: ${model}`);
 
-        const response = await this.client.chat.completions.create({
-          model,
-          messages: [
-            {
-              role: 'system',
-              content: SYSTEM_PROMPT,
-            },
-            {
-              role: 'user',
-              content: userPrompt,
-            },
-          ],
-          temperature: 0.7,
-          max_tokens: 4096,
-          response_format: { type: 'json_object' },
-        });
+        let response;
+        if (provider === 'groq') {
+          response = await (client as Groq).chat.completions.create({
+            model,
+            messages: [
+              { role: 'system', content: SYSTEM_PROMPT },
+              { role: 'user', content: userPrompt },
+            ],
+            temperature: 0.1,
+            max_tokens: 2048,
+            response_format: { type: 'json_object' },
+          });
+        } else {
+          response = await (client as OpenAI).chat.completions.create({
+            model,
+            messages: [
+              { role: 'system', content: SYSTEM_PROMPT },
+              { role: 'user', content: userPrompt },
+            ],
+            temperature: 0.1,
+            max_tokens: 2048,
+            response_format: { type: 'json_object' },
+          });
+        }
 
         const content = response.choices[0]?.message?.content;
         if (!content) {
@@ -89,15 +122,16 @@ export class WorkflowParser {
           validated.workflow = this.ensureValidUUIDs(validated.workflow);
         }
 
-        console.log(`Successfully parsed with model: ${model}`);
+        console.log(`Successfully parsed with ${provider}: ${model}`);
         return {
           ...validated,
-          reasoning: validated.reasoning || `Parsed using ${model}`,
+          reasoning: validated.reasoning || `Parsed using ${provider}/${model}`,
         };
 
       } catch (error: any) {
-        console.error(`Failed to parse with ${model}:`, error.message);
+        console.error(`Failed to parse with ${provider}/${model}:`, error.message);
         errors.push({
+          provider,
           model,
           error: error.message,
         });
@@ -112,7 +146,7 @@ export class WorkflowParser {
     return {
       success: false,
       error: 'All LLM models failed',
-      reasoning: `Tried ${this.models.length} model(s). Errors: ${errors.map(e => `${e.model}: ${e.error}`).join('; ')}`,
+      reasoning: `Tried ${this.models.length} model(s). Errors: ${errors.map(e => `${e.provider}/${e.model}: ${e.error}`).join('; ')}`,
     };
   }
 
@@ -150,7 +184,6 @@ export class WorkflowParser {
     // Update step references in config
     workflow.steps = workflow.steps.map((step: any) => {
       if (step.type === 'conditional' && step.config) {
-        // Update true_steps and false_steps references if any
         if (Array.isArray(step.config.true_steps)) {
           step.config.true_steps = step.config.true_steps.map((oldId: string) =>
             idMap.get(oldId) || oldId
@@ -167,100 +200,31 @@ export class WorkflowParser {
 
     return workflow;
   }
-
-  /**
-   * Validate if instruction is clear enough to parse
-   */
-  static validateInstruction(instruction: string): { valid: boolean; reason?: string } {
-    if (!instruction || instruction.trim().length < 10) {
-      return {
-        valid: false,
-        reason: 'Instruction is too short. Please provide more details.',
-      };
-    }
-
-    // Check for trigger words
-    const triggerIndicators = [
-      'when',
-      'whenever',
-      'on',
-      'after',
-      'once',
-      'schedule',
-      'every',
-      'trigger',
-    ];
-
-    const hasTrigger = triggerIndicators.some((indicator) =>
-      instruction.toLowerCase().includes(indicator)
-    );
-
-    if (!hasTrigger) {
-      return {
-        valid: false,
-        reason: 'Please specify when this workflow should trigger (e.g., "when user signs up", "every day at 9am")',
-      };
-    }
-
-    // Check for action verbs
-    const actionIndicators = [
-      'send',
-      'create',
-      'add',
-      'update',
-      'delete',
-      'notify',
-      'post',
-      'call',
-      'execute',
-    ];
-
-    const hasAction = actionIndicators.some((indicator) =>
-      instruction.toLowerCase().includes(indicator)
-    );
-
-    if (!hasAction) {
-      return {
-        valid: false,
-        reason: 'Please specify what action should be taken (e.g., "send email", "create task")',
-      };
-    }
-
-    return { valid: true };
-  }
 }
 
 /**
  * Factory function to create parser with environment config
- * Uses OpenRouter with free models
+ * Uses Groq (fast, free) as primary with OpenRouter as fallback
  */
 export function createParser(): WorkflowParser {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const groqKey = process.env.GROQ_API_KEY;
+  const openrouterKey = process.env.OPENROUTER_API_KEY;
 
-  if (!apiKey) {
+  if (!groqKey && !openrouterKey) {
     throw new Error(
-      'OpenRouter API key not found. Please set OPENROUTER_API_KEY environment variable.\n' +
-      'Get your free API key from: https://openrouter.ai/keys'
+      'No LLM API keys found. Please set GROQ_API_KEY or OPENROUTER_API_KEY environment variable.\n' +
+      'Get Groq key from: https://console.groq.com/keys\n' +
+      'Get OpenRouter key from: https://openrouter.ai/keys'
     );
   }
 
-  // Models in priority order
-  const models = [
-    // Primary: Google Gemma 3 12B (fast, good quality, small cost)
-    process.env.PRIMARY_MODEL || 'google/gemma-3-12b-it',
+  console.log('Initializing LLM parser...');
+  if (groqKey) console.log('  - Groq: enabled (primary)');
+  if (openrouterKey) console.log('  - OpenRouter: enabled (fallback)');
 
-    // Fallback 1: Google Gemma 3 4B (faster, cheaper)
-    'google/gemma-3-4b-it',
+  const parser = new WorkflowParser(groqKey || '', openrouterKey || '');
+  console.log('Parser ready with', parser.models.length, 'model options');
+  parser.models.forEach((m, i) => console.log(`  ${i + 1}. ${m.provider}/${m.model}`));
 
-    // Fallback 2: Qwen 3 4B (free tier, fast)
-    'qwen/qwen3-4b:free',
-  ];
-
-  console.log('Using OpenRouter API');
-  console.log('Configured models (in priority order):');
-  models.forEach((model, index) => {
-    console.log(`  ${index + 1}. ${model}`);
-  });
-
-  return new WorkflowParser(apiKey, models);
+  return parser;
 }

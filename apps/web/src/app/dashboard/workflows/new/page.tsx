@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Wand2, Clock, Calendar, Zap } from "lucide-react";
+import { ArrowLeft, Loader2, Wand2, Clock, Calendar, Zap, Check } from "lucide-react";
 import { SchedulePicker } from "@/components/workflows/schedule-picker";
 import { EventTriggerSelector } from "@/components/workflows/event-trigger-selector";
 
@@ -15,6 +15,15 @@ interface ScheduleData {
   day?: string;
   time: string;
 }
+
+type ProgressStep = 'understanding' | 'parsing' | 'validating' | 'complete';
+
+const PROGRESS_STEPS: { key: ProgressStep; label: string }[] = [
+  { key: 'understanding', label: 'Understanding your request...' },
+  { key: 'parsing', label: 'Converting to executable steps...' },
+  { key: 'validating', label: 'Validating workflow...' },
+  { key: 'complete', label: 'Complete!' },
+];
 
 export default function NewWorkflowPage() {
   const router = useRouter();
@@ -28,12 +37,47 @@ export default function NewWorkflowPage() {
   const [event, setEvent] = useState('');
   const [additionalContext, setAdditionalContext] = useState('');
   const [loading, setLoading] = useState(false);
+  const [progressStep, setProgressStep] = useState<ProgressStep>('understanding');
   const [error, setError] = useState<string | null>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const clearProgressInterval = () => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+  };
+
+  // Animate through progress steps during loading
+  const startProgressAnimation = () => {
+    clearProgressInterval();
+
+    const steps: ProgressStep[] = ['understanding', 'parsing', 'validating'];
+    let currentIndex = 0;
+
+    // Set first step immediately
+    setProgressStep('understanding');
+
+    progressIntervalRef.current = setInterval(() => {
+      if (currentIndex < steps.length) {
+        setProgressStep(steps[currentIndex]);
+        currentIndex++;
+      } else {
+        clearProgressInterval();
+      }
+    }, 2000);
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => clearProgressInterval();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    startProgressAnimation();
 
     try {
       // Build the request payload
@@ -67,12 +111,14 @@ export default function NewWorkflowPage() {
         throw new Error(data.details || data.error || 'Failed to generate workflow');
       }
 
-      // TODO: Save workflow to database and redirect to edit page
-      console.log('Generated workflow:', data.workflow);
+      // Stop progress animation and show complete
+      clearProgressInterval();
+      setProgressStep('complete');
 
-      // For now, just redirect to workflows list
+      // Redirect to workflows list
       router.push('/dashboard/workflows');
     } catch (err: any) {
+      clearProgressInterval();
       setError(err.message || 'Failed to create workflow');
       setLoading(false);
     }
@@ -83,6 +129,20 @@ export default function NewWorkflowPage() {
     (when === 'schedule' && schedule.time) ||
     (when === 'event' && event.trim())
   );
+
+  const getCurrentStepIndex = () => {
+    return PROGRESS_STEPS.findIndex(step => step.key === progressStep);
+  };
+
+  const isStepComplete = (stepKey: ProgressStep) => {
+    const currentIndex = getCurrentStepIndex();
+    const stepIndex = PROGRESS_STEPS.findIndex(s => s.key === stepKey);
+    return stepIndex < currentIndex;
+  };
+
+  const isStepActive = (stepKey: ProgressStep) => {
+    return progressStep === stepKey;
+  };
 
   return (
     <div className="min-h-screen bg-black">
@@ -243,25 +303,52 @@ export default function NewWorkflowPage() {
             </div>
           )}
 
-          {/* Submit Button */}
-          <Button
-            type="submit"
-            size="lg"
-            disabled={loading || !isFormValid}
-            className="text-base btn-gradient px-8 py-6 rounded-full"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Generating Workflow...
-              </>
-            ) : (
-              <>
-                <Wand2 className="h-5 w-5 mr-2" />
-                Generate Workflow
-              </>
-            )}
-          </Button>
+          {/* Progress Indicator - shown during loading */}
+          {loading && (
+            <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-6">
+              <div className="space-y-4">
+                {PROGRESS_STEPS.map((step, index) => (
+                  <div key={step.key} className="flex items-center gap-4">
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full transition-all ${
+                      isStepComplete(step.key)
+                        ? 'bg-green-500 text-white'
+                        : isStepActive(step.key)
+                        ? 'bg-blue-500 text-white animate-pulse'
+                        : 'bg-white/10 text-white/40'
+                    }`}>
+                      {isStepComplete(step.key) ? (
+                        <Check className="h-4 w-4" />
+                      ) : isStepActive(step.key) ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <span className="text-sm">{index + 1}</span>
+                      )}
+                    </div>
+                    <span className={`text-sm transition-all ${
+                      isStepComplete(step.key) || isStepActive(step.key)
+                        ? 'text-white'
+                        : 'text-white/40'
+                    }`}>
+                      {step.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Submit Button - hide when loading */}
+          {!loading && (
+            <Button
+              type="submit"
+              size="lg"
+              disabled={!isFormValid}
+              className="text-base btn-gradient px-8 py-6 rounded-full"
+            >
+              <Wand2 className="h-5 w-5 mr-2" />
+              Generate Workflow
+            </Button>
+          )}
         </form>
       </div>
     </div>
