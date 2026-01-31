@@ -158,6 +158,8 @@ export default function WorkflowDetailPage() {
           setError("Workflow not found");
         } else if (response.status === 403) {
           setError("You don't have access to this workflow");
+        } else if (response.status === 400) {
+          setError("Invalid workflow ID format. This workflow may be from an old schema version.");
         } else {
           setError("Failed to fetch workflow");
         }

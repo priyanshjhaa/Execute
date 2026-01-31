@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { WorkflowValidator, createDefaultContext } from '@execute/validation';
+import type { ValidationResult } from '@execute/validation';
 import { z } from 'zod';
 
 // Request schema validation

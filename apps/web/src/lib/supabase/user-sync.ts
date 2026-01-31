@@ -1,5 +1,5 @@
 import { db } from '@execute/db'
-import { users } from '@execute/db/schema'
+import { users } from '@execute/db'
 import { eq } from 'drizzle-orm'
 
 export async function syncUser(supabaseId: string, email: string, name?: string) {

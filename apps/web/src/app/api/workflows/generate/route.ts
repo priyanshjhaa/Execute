@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       throw new Error('Workflow is undefined');
     }
 
-    const triggerStep = result.workflow.steps.find(step => step.id === result.workflow.triggerStepId);
+    const triggerStep = result.workflow.steps.find(step => step.id === result.workflow!.triggerStepId);
     const triggerType = triggerStep?.type || 'webhook';
 
     // Find or create internal user record
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
       description: result.workflow.description,
       definition: {
         steps: result.workflow.steps,
-        triggerStepId: result.workflow.triggerStepId,
+        triggerStepId: result.workflow!.triggerStepId,
       },
       triggerType: triggerType,
       triggerConfig: triggerStep?.config || {},

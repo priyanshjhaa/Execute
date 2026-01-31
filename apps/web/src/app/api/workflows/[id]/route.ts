@@ -3,6 +3,12 @@ import { createClient } from '@/lib/supabase/server';
 import { db, workflows, users } from '@execute/db';
 import { eq, and } from 'drizzle-orm';
 
+// Validate UUID format
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -10,6 +16,14 @@ export async function GET(
   try {
     // Await params (Next.js 16 requires this)
     const { id } = await params;
+
+    // Validate UUID format
+    if (!isValidUUID(id)) {
+      return NextResponse.json(
+        { error: 'Invalid workflow ID format' },
+        { status: 400 }
+      );
+    }
 
     // 1. Authenticate user
     const supabase = await createClient();
@@ -85,6 +99,14 @@ export async function PATCH(
   try {
     // Await params (Next.js 16 requires this)
     const { id } = await params;
+
+    // Validate UUID format
+    if (!isValidUUID(id)) {
+      return NextResponse.json(
+        { error: 'Invalid workflow ID format' },
+        { status: 400 }
+      );
+    }
 
     // 1. Authenticate user
     const supabase = await createClient();

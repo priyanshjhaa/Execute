@@ -24,7 +24,13 @@ async function runMigrations() {
     // Split migration 2 into parts - execute only the workflows creation first
     const lines = migration2.split('\n');
     const workflowsCreation = lines.slice(0, 26).join('\n'); // Lines 1-26 create workflows table
-    await client.unsafe(workflowsCreation);
+    try {
+      await client.unsafe(workflowsCreation);
+    } catch (e: any) {
+      if (!e.message.includes('already exists')) {
+        throw e;
+      }
+    }
     console.log('✓ Workflows table created');
 
     console.log('Creating executions table...');
@@ -56,8 +62,61 @@ async function runMigrations() {
 
     // Now run the rest of migration 2 (triggers and remaining parts)
     const remainingMigration = lines.slice(26).join('\n');
-    await client.unsafe(remainingMigration);
+    try {
+      await client.unsafe(remainingMigration);
+    } catch (e: any) {
+      if (!e.message.includes('already exists')) {
+        throw e;
+      }
+    }
     console.log('✓ Triggers and remaining migrations completed');
+
+    // Create steps table
+    console.log('Creating steps table...');
+    const createSteps = `
+      CREATE TABLE IF NOT EXISTS steps (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
+        step_order INTEGER NOT NULL,
+        step_type VARCHAR(100) NOT NULL,
+        description TEXT,
+        input_params JSONB NOT NULL,
+        output_result JSONB,
+        status VARCHAR(50) NOT NULL,
+        started_at TIMESTAMP WITH TIME ZONE,
+        completed_at TIMESTAMP WITH TIME ZONE,
+        error_message TEXT,
+        retry_count INTEGER DEFAULT 0,
+        depends_on JSONB,
+        rollback_step JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS steps_execution_id_idx ON steps(execution_id);
+      CREATE INDEX IF NOT EXISTS steps_status_idx ON steps(status);
+    `;
+    await client.unsafe(createSteps);
+    console.log('✓ Steps table created');
+
+    // Create execution_logs table
+    console.log('Creating execution_logs table...');
+    const createExecutionLogs = `
+      CREATE TABLE IF NOT EXISTS execution_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        execution_id UUID NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
+        step_id UUID REFERENCES steps(id) ON DELETE CASCADE,
+        level VARCHAR(20) NOT NULL,
+        message TEXT NOT NULL,
+        metadata JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS execution_logs_execution_id_idx ON execution_logs(execution_id);
+      CREATE INDEX IF NOT EXISTS execution_logs_created_at_idx ON execution_logs(created_at);
+    `;
+    await client.unsafe(createExecutionLogs);
+    console.log('✓ Execution logs table created');
 
     console.log('\n✓ All migrations completed successfully!');
   } catch (error: any) {

@@ -18,9 +18,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
     console.log('Supabase client created:', supabase)
 
-    // Get initial session
+    // Get initial session and sync user
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ? transformUser(session.user) : null)
+      const currentUser = session?.user ? transformUser(session.user) : null
+      setUser(currentUser)
+
+      // Sync existing user to database on page load
+      if (session?.user) {
+        fetch('/api/auth/sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            supabaseId: session.user.id,
+            email: session.user.email!,
+            name: session.user.user_metadata?.name
+          })
+        }).catch(err => console.error('Failed to sync user:', err))
+      }
+
       setLoading(false)
     })
 

@@ -33,7 +33,7 @@ export const sendEmailValidator: StepValidator = {
     } else {
       const subjectVars = validateTemplateVariables(config.subject, context.availableVariables);
       if (!subjectVars.valid) {
-        errors.push(`Missing variables in subject: ${subjectVars.missing.join(', ')}`);
+        errors.push(`Missing variables in subject: ${subjectVars.missing?.join(', ')}`);
       }
     }
 
@@ -43,7 +43,7 @@ export const sendEmailValidator: StepValidator = {
     } else {
       const bodyVars = validateTemplateVariables(config.body, context.availableVariables);
       if (!bodyVars.valid) {
-        errors.push(`Missing variables in body: ${bodyVars.missing.join(', ')}`);
+        errors.push(`Missing variables in body: ${bodyVars.missing?.join(', ')}`);
       }
     }
 
@@ -91,7 +91,7 @@ export const sendSlackValidator: StepValidator = {
     } else {
       const msgVars = validateTemplateVariables(config.message, context.availableVariables);
       if (!msgVars.valid) {
-        errors.push(`Missing variables in message: ${msgVars.missing.join(', ')}`);
+        errors.push(`Missing variables in message: ${msgVars.missing?.join(', ')}`);
       }
     }
 
@@ -139,7 +139,7 @@ export const sendSmsValidator: StepValidator = {
     } else {
       const bodyVars = validateTemplateVariables(config.body, context.availableVariables);
       if (!bodyVars.valid) {
-        errors.push(`Missing variables in message: ${bodyVars.missing.join(', ')}`);
+        errors.push(`Missing variables in message: ${bodyVars.missing?.join(', ')}`);
       }
     }
 
@@ -182,7 +182,7 @@ export const httpRequestValidator: StepValidator = {
     } else {
       const urlVars = validateTemplateVariables(config.url, context.availableVariables);
       if (!urlVars.valid) {
-        errors.push(`Missing variables in URL: ${urlVars.missing.join(', ')}`);
+        errors.push(`Missing variables in URL: ${urlVars.missing?.join(', ')}`);
       }
     }
 
@@ -249,7 +249,7 @@ export const createTaskValidator: StepValidator = {
     } else {
       const titleVars = validateTemplateVariables(config.title, context.availableVariables);
       if (!titleVars.valid) {
-        errors.push(`Missing variables in title: ${titleVars.missing.join(', ')}`);
+        errors.push(`Missing variables in title: ${titleVars.missing?.join(', ')}`);
       }
     }
 
@@ -257,7 +257,7 @@ export const createTaskValidator: StepValidator = {
     if (config.description) {
       const descVars = validateTemplateVariables(config.description, context.availableVariables);
       if (!descVars.valid) {
-        errors.push(`Missing variables in description: ${descVars.missing.join(', ')}`);
+        errors.push(`Missing variables in description: ${descVars.missing?.join(', ')}`);
       }
     }
 

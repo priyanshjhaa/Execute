@@ -2,6 +2,7 @@
  * Validation result for a single field or configuration
  */
 export interface ValidationResult {
+  missing?: string[];
   valid: boolean;
   errors?: string[];
   warnings?: string[];

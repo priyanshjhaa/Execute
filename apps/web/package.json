@@ -11,6 +11,7 @@
   "packageManager": "pnpm@10.28.1",
   "dependencies": {
     "@execute/db": "workspace:*",
+    "@execute/execution": "workspace:*",
     "@execute/llm": "workspace:*",
     "@execute/validation": "workspace:*",
     "@supabase/ssr": "^0.8.0",

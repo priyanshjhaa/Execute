@@ -53,12 +53,20 @@ export default function WorkflowsPage() {
   const fetchWorkflows = async () => {
     try {
       const response = await fetch('/api/workflows');
-      if (!response.ok) throw new Error('Failed to fetch workflows');
+      if (!response.ok) {
+        // If unauthorized, just set empty workflows (user might need to sync)
+        if (response.status === 401) {
+          setWorkflows([]);
+          return;
+        }
+        throw new Error('Failed to fetch workflows');
+      }
 
       const data = await response.json();
       setWorkflows(data.workflows || []);
     } catch (error) {
       console.error('Error fetching workflows:', error);
+      setWorkflows([]);
     } finally {
       setLoading(false);
     }

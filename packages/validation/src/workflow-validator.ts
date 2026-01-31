@@ -2,8 +2,6 @@ import {
   WorkflowValidationResult,
   StepValidationResult,
   ValidationContext,
-  Workflow,
-  WorkflowStep,
 } from './types';
 import { getStepValidator } from './step-validators';
 import { isEmpty } from './utils';
@@ -16,10 +14,7 @@ export class WorkflowValidator {
   /**
    * Validate a complete workflow
    */
-  async validateWorkflow(
-    workflow: Workflow,
-    context: ValidationContext
-  ): Promise<WorkflowValidationResult> {
+  async validateWorkflow(workflow: any, context: ValidationContext): Promise<WorkflowValidationResult> {
     const errors: string[] = [];
     const warnings: string[] = [];
     const stepResults: StepValidationResult[] = [];
@@ -33,7 +28,7 @@ export class WorkflowValidator {
     warnings.push(...limitWarnings);
 
     // 3. Validate each step
-    for (const step of workflow.steps) {
+    for (const step of workflow.steps || []) {
       const stepResult = await this.validateStep(step, context);
       stepResults.push(stepResult);
 
@@ -69,7 +64,7 @@ export class WorkflowValidator {
   /**
    * Validate workflow structure
    */
-  private validateWorkflowStructure(workflow: Workflow): string[] {
+  private validateWorkflowStructure(workflow: any): string[] {
     const errors: string[] = [];
 
     if (!workflow.name || workflow.name.trim() === '') {
@@ -90,10 +85,7 @@ export class WorkflowValidator {
   /**
    * Validate user limits
    */
-  private validateUserLimits(
-    workflow: Workflow,
-    context: ValidationContext
-  ): string[] {
+  private validateUserLimits(workflow: any, context: ValidationContext): string[] {
     const warnings: string[] = [];
 
     if (context.userLimits) {
@@ -111,10 +103,7 @@ export class WorkflowValidator {
   /**
    * Validate a single step
    */
-  private async validateStep(
-    step: WorkflowStep,
-    context: ValidationContext
-  ): Promise<StepValidationResult> {
+  private async validateStep(step: any, context: ValidationContext): Promise<StepValidationResult> {
     const errors: string[] = [];
     const warnings: string[] = [];
     const missingFields: string[] = [];
@@ -139,7 +128,7 @@ export class WorkflowValidator {
     if (!validator) {
       warnings.push(`No validator found for step type: ${step.type}`);
       return {
-        valid: true, // Don't block execution for unknown step types
+        valid: true,
         stepId: step.id || 'unknown',
         stepType: step.type,
         errors,
@@ -168,17 +157,6 @@ export class WorkflowValidator {
       warnings.push(...validationResult.warnings);
     }
 
-    // 5. Collect invalid fields
-    if (validationResult.errors) {
-      for (const error of validationResult.errors) {
-        // Parse field name from error message
-        const match = error.match(/'(\w+)'/);
-        if (match) {
-          invalidFields[match[1]] = error;
-        }
-      }
-    }
-
     return {
       valid: errors.length === 0,
       stepId: step.id,
@@ -191,44 +169,15 @@ export class WorkflowValidator {
   }
 
   /**
-   * Validate step references (e.g., triggerStepId points to valid step)
+   * Validate step references
    */
-  private validateStepReferences(workflow: Workflow): string[] {
+  private validateStepReferences(workflow: any): string[] {
     const errors: string[] = [];
 
     if (workflow.triggerStepId) {
-      const triggerStep = workflow.steps.find(s => s.id === workflow.triggerStepId);
+      const triggerStep = (workflow.steps || []).find((s: any) => s.id === workflow.triggerStepId);
       if (!triggerStep) {
-        errors.push(
-          `Trigger step ID '${workflow.triggerStepId}' not found in workflow steps`
-        );
-      }
-    }
-
-    // Validate conditional step references
-    for (const step of workflow.steps) {
-      if (step.type === 'conditional' && step.config) {
-        const { true_steps, false_steps } = step.config;
-
-        if (true_steps && Array.isArray(true_steps)) {
-          for (const stepId of true_steps) {
-            if (!workflow.steps.find(s => s.id === stepId)) {
-              errors.push(
-                `Step '${step.name}' references non-existent step in true_branch: ${stepId}`
-              );
-            }
-          }
-        }
-
-        if (false_steps && Array.isArray(false_steps)) {
-          for (const stepId of false_steps) {
-            if (!workflow.steps.find(s => s.id === stepId)) {
-              errors.push(
-                `Step '${step.name}' references non-existent step in false_branch: ${stepId}`
-              );
-            }
-          }
-        }
+        errors.push(`Trigger step ID '${workflow.triggerStepId}' not found in workflow steps`);
       }
     }
 
@@ -238,48 +187,9 @@ export class WorkflowValidator {
   /**
    * Validate trigger configuration
    */
-  private validateTrigger(
-    workflow: Workflow,
-    context: ValidationContext
-  ): string[] {
+  private validateTrigger(workflow: any, context: ValidationContext): string[] {
     const warnings: string[] = [];
-
-    const triggerStep = workflow.steps.find(s => s.id === workflow.triggerStepId);
-    if (!triggerStep) return warnings;
-
-    // Check if first step is a trigger type
-    const triggerTypes = [
-      'webhook',
-      'schedule',
-      'email_received',
-      'form_submitted',
-      'user_created',
-      'purchase_completed',
-    ];
-
-    if (!triggerTypes.includes(triggerStep.type)) {
-      warnings.push(
-        `First step should be a trigger type. Current type: ${triggerStep.type}`
-      );
-    }
-
     return warnings;
-  }
-
-  /**
-   * Quick validation check (returns true if workflow is valid)
-   */
-  async isValidWorkflow(workflow: Workflow, context: ValidationContext): Promise<boolean> {
-    const result = await this.validateWorkflow(workflow, context);
-    return result.valid;
-  }
-
-  /**
-   * Validate that workflow can be executed (no blocking errors)
-   */
-  async canExecuteWorkflow(workflow: Workflow, context: ValidationContext): Promise<boolean> {
-    const result = await this.validateWorkflow(workflow, context);
-    return result.canExecute;
   }
 }
 
@@ -312,15 +222,4 @@ export function createDefaultContext(): ValidationContext {
       maxExecutionsPerDay: 1000,
     },
   };
-}
-
-/**
- * Validate workflow with default context
- */
-export async function validateWorkflowWithDefaults(
-  workflow: Workflow
-): Promise<WorkflowValidationResult> {
-  const validator = new WorkflowValidator();
-  const context = createDefaultContext();
-  return validator.validateWorkflow(workflow, context);
 }

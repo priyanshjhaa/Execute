@@ -2,6 +2,8 @@
  * Common validation utilities
  */
 
+import type { ValidationResult } from './types';
+
 /**
  * Validate email format
  */
@@ -11,7 +13,7 @@ export function isValidEmail(email: string): boolean {
 }
 
 /**
- * Validate URL format
+ * Check if value is a valid URL
  */
 export function isValidUrl(url: string): boolean {
   try {
@@ -23,89 +25,76 @@ export function isValidUrl(url: string): boolean {
 }
 
 /**
- * Validate phone number (E.164 format)
+ * Check if value is a valid UUID
  */
-export function isValidPhoneNumber(phone: string): boolean {
-  const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-  return phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''));
+export function isValidUuid(value: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(value);
 }
 
 /**
- * Extract template variables from a string
- * Example: "Hi {{name}}, welcome!" → ['name']
+ * Check if cron expression is valid
  */
-export function extractTemplateVariables(str: string): string[] {
-  const regex = /\{\{([^}]+)\}\}/g;
-  const variables: string[] = [];
-  let match;
-
-  while ((match = regex.exec(str)) !== null) {
-    variables.push(match[1].trim());
-  }
-
-  return variables;
-}
-
-/**
- * Check if all template variables are available in context
- */
-export function validateTemplateVariables(
-  str: string,
-  availableVariables: Record<string, any>
-): { valid: boolean; missing: string[] } {
-  const required = extractTemplateVariables(str);
-  const missing = required.filter(v => {
-    const keys = v.split('.');
-    let current = availableVariables;
-
-    for (const key of keys) {
-      if (!current || !(key in current)) {
-        return true;
-      }
-      current = current[key];
-    }
-
-    return false;
-  });
-
-  return {
-    valid: missing.length === 0,
-    missing,
-  };
-}
-
-/**
- * Validate cron expression
- */
-export function isValidCronExpression(cron: string): boolean {
-  // Basic cron validation: 5 or 6 parts separated by spaces
+export function isValidCron(cron: string): boolean {
   const parts = cron.trim().split(/\s+/);
-  return parts.length === 5 || parts.length === 6;
+  if (parts.length !== 5 && parts.length !== 6) return false;
+  return true; // Basic validation
 }
 
 /**
- * Check if value is empty (null, undefined, empty string, empty array)
+ * Check if string is empty
  */
 export function isEmpty(value: any): boolean {
   if (value === null || value === undefined) return true;
-  if (typeof value === 'string' && value.trim() === '') return true;
-  if (Array.isArray(value) && value.length === 0) return true;
-  if (typeof value === 'object' && Object.keys(value).length === 0) return true;
+  if (typeof value === 'string') return value.trim().length === 0;
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === 'object') return Object.keys(value).length === 0;
   return false;
 }
 
 /**
- * Deep clone an object
+ * Check if value is a valid phone number (basic validation)
  */
-export function deepClone<T>(obj: T): T {
-  return JSON.parse(JSON.stringify(obj));
+export function isValidPhoneNumber(phone: string): boolean {
+  const phoneRegex = /^\+?[\d\s\-\(\)]+$/;
+  return phoneRegex.test(phone) && phone.replace(/\D/g, '').length >= 10;
 }
 
 /**
- * Format error messages
+ * Validate template variables in a string
  */
-export function formatErrors(errors: string[]): string {
-  return errors.map((e, i) => `${i + 1}. ${e}`).join('\n');
+export function validateTemplateVariables(template: string, availableVars: Record<string, any>): ValidationResult {
+  const missing: string[] = [];
+  const warnings: string[] = [];
+
+  // Find all {{variable}} patterns
+  const varPattern = /\{\{([^}]+)\}\}/g;
+  let match;
+  const usedVars = new Set<string>();
+
+  while ((match = varPattern.exec(template)) !== null) {
+    const varPath = match[1];
+    usedVars.add(varPath);
+
+    // Check if variable exists
+    const parts = varPath.split('.');
+    let current: any = availableVars;
+
+    for (const part of parts) {
+      if (current === null || current === undefined || !(part in current)) {
+        missing.push(varPath);
+        break;
+      }
+      current = current[part];
+    }
+  }
+
+  return {
+    valid: missing.length === 0,
+    missing: missing.length > 0 ? missing : undefined,
+    errors: missing.length > 0 ? missing.map(m => `Unknown variable: {{${m}}}`) : undefined,
+    warnings: warnings.length > 0 ? warnings : undefined,
+  };
 }
 
 /**
@@ -114,11 +103,13 @@ export function formatErrors(errors: string[]): string {
 export function mergeValidationResults(results: ValidationResult[]): ValidationResult {
   const allErrors = results.flatMap(r => r.errors || []);
   const allWarnings = results.flatMap(r => r.warnings || []);
+  const allMissing = results.flatMap(r => r.missing || []);
   const hasErrors = allErrors.length > 0;
 
   return {
     valid: !hasErrors,
-    errors: hasErrors ? allErrors : undefined,
+    missing: allMissing.length > 0 ? allMissing : undefined,
+    errors: allErrors.length > 0 ? allErrors : undefined,
     warnings: allWarnings.length > 0 ? allWarnings : undefined,
   };
 }

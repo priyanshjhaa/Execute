@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db, workflows, users } from '@execute/db';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
+
+// Validate UUID format
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,10 +36,13 @@ export async function GET(request: NextRequest) {
     const userWorkflows = await db.select()
       .from(workflows)
       .where(eq(workflows.userId, internalUser.id))
-      .orderBy(workflows.createdAt, 'desc');
+      .orderBy(desc(workflows.createdAt));
+
+    // 4. Filter out any workflows with invalid UUIDs (from old schema)
+    const validWorkflows = userWorkflows.filter(workflow => isValidUUID(workflow.id));
 
     return NextResponse.json({
-      workflows: userWorkflows,
+      workflows: validWorkflows,
     });
 
   } catch (error: any) {
