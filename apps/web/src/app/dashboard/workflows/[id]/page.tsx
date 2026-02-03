@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -146,11 +146,7 @@ export default function WorkflowDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
 
-  useEffect(() => {
-    fetchWorkflow();
-  }, [params.id]);
-
-  const fetchWorkflow = async () => {
+  const fetchWorkflow = useCallback(async () => {
     try {
       const response = await fetch(`/api/workflows/${params.id}`);
       if (!response.ok) {
@@ -173,25 +169,41 @@ export default function WorkflowDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
 
-  const handleRun = async () => {
-    if (!workflow) return;
+  useEffect(() => {
+    fetchWorkflow();
+  }, [fetchWorkflow]);
+
+  const handleRun = useCallback(async () => {
+    console.log("handleRun called", { workflow, workflowId: workflow?.id, workflowStatus: workflow?.status });
+    if (!workflow) {
+      console.log("No workflow, returning");
+      return;
+    }
     setRunning(true);
     try {
+      console.log("Calling run API for workflow:", workflow.id);
       const response = await fetch(`/api/workflows/${workflow.id}/run`, {
         method: "POST",
       });
+      console.log("Run API response:", response.status);
       if (response.ok) {
-        // Refresh workflow data to update stats
-        fetchWorkflow();
+        const data = await response.json();
+        console.log("Run successful, executionId:", data.executionId);
+        // Navigate to the execution page to see the running execution
+        router.push(`/dashboard/executions/${data.executionId}`);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        console.error("Error running workflow:", errorData.error);
+        // Show error to user (you could add a toast notification here)
+        setRunning(false);
       }
     } catch (err) {
       console.error("Error running workflow:", err);
-    } finally {
       setRunning(false);
     }
-  };
+  }, [workflow, router]);
 
   if (loading) {
     return (
@@ -279,7 +291,7 @@ export default function WorkflowDetailPage() {
                 size="lg"
                 className="text-base btn-gradient text-black px-6 py-5 rounded-full"
                 onClick={handleRun}
-                disabled={running || workflow.status !== "active"}
+                disabled={running}
               >
                 {running ? (
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />

@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, integer, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, integer, timestamp, jsonb, index, boolean } from 'drizzle-orm/pg-core';
 import { users } from './users';
 import { workflows } from './workflows';
 
@@ -15,6 +15,7 @@ export const executions = pgTable('executions', {
     data: any;
   }>(),
   status: varchar('status', { length: 50 }).notNull(), // pending, running, completed, failed, cancelled
+  cancelRequested: boolean('cancel_requested').notNull().default(false), // Flag for cancellation requests
   startedAt: timestamp('started_at'),
   completedAt: timestamp('completed_at'),
   totalSteps: integer('total_steps'),
@@ -28,6 +29,7 @@ export const executions = pgTable('executions', {
   userIdIdx: index('executions_user_id_idx').on(table.userId),
   statusIdx: index('executions_status_idx').on(table.status),
   createdAtIdx: index('executions_created_at_idx').on(table.createdAt),
+  cancelRequestedIdx: index('executions_cancel_requested_idx').on(table.cancelRequested),
 }));
 
 export type Execution = typeof executions.$inferSelect;

@@ -91,7 +91,12 @@ export class WorkflowExecutor {
           break;
         }
 
-        const result = await this.executeStep(step, context, options);
+        // Notify step start
+        if (options.onStepStart) {
+          await options.onStepStart(step.id);
+        }
+
+        const result = await this.executeStep(step, context);
         steps.push(result);
         context.stepResults.set(step.id, result);
 
@@ -142,18 +147,12 @@ export class WorkflowExecutor {
    */
   private async executeStep(
     step: Step,
-    context: ExecutionContext,
-    options: ExecutionOptions
+    context: ExecutionContext
   ): Promise<StepResult> {
     const startedAt = new Date();
     let status: StepStatus = 'running';
     let data: any;
     let error: string | undefined;
-
-    // Notify step start
-    if (options.onStepStart) {
-      await options.onStepStart(step.id);
-    }
 
     try {
       // Get handler for this step type

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { db, workflows, users, executions } from '@execute/db';
+import { db, workflows, users, executions, steps } from '@execute/db';
 import { eq, and } from 'drizzle-orm';
 import { createExecutor, getAllHandlers } from '@execute/execution';
 
@@ -50,9 +50,7 @@ export async function POST(
       return NextResponse.json({ error: 'Workflow not found' }, { status: 404 });
     }
 
-    if (workflow.status !== 'active') {
-      return NextResponse.json({ error: 'Workflow is not active' }, { status: 400 });
-    }
+    // Removed status check to allow running workflows in draft mode for testing
 
     const [runningExecution] = await db.select()
       .from(executions)
@@ -69,6 +67,7 @@ export async function POST(
       workflowId: workflow.id,
       userId: internalUser.id,
       status: 'running',
+      cancelRequested: false,
       triggerData: { type: 'manual', source: 'api', data: {} },
       startedAt: new Date(),
     });
@@ -78,6 +77,10 @@ export async function POST(
     for (const handler of handlers) {
       executor.registerHandler(handler);
     }
+
+    // Track step order for database logging
+    let stepOrder = 0;
+    const stepDbIds = new Map<string, string>(); // stepId -> db step record id
 
     const result = await executor.execute(
       {
@@ -91,32 +94,99 @@ export async function POST(
         scheduleExpression: workflow.scheduleExpression || undefined,
       },
       { id: internalUser.id, email: internalUser.email, name: internalUser.name || undefined },
-      executionId
+      executionId,
+      {
+        onStepStart: async (stepId) => {
+          const stepDef = workflow.definition.steps.find((s: any) => s.id === stepId);
+          const [stepRecord] = await db.insert(steps).values({
+            executionId,
+            stepOrder: stepOrder++,
+            stepType: stepDef?.type || 'unknown',
+            description: stepDef?.name || stepId,
+            inputParams: stepDef || {},
+            status: 'running',
+            startedAt: new Date(),
+          }).returning();
+          stepDbIds.set(stepId, stepRecord.id);
+        },
+        onStepComplete: async (stepResult) => {
+          const dbStepId = stepDbIds.get(stepResult.stepId);
+          if (dbStepId) {
+            await db.update(steps)
+              .set({
+                status: stepResult.status,
+                outputResult: { data: stepResult.data, error: stepResult.error },
+                completedAt: stepResult.completedAt || new Date(),
+                errorMessage: stepResult.error,
+              })
+              .where(eq(steps.id, dbStepId));
+          }
+        },
+        // Check database for cancellation requests
+        shouldContinue: async () => {
+          const [execution] = await db.select()
+            .from(executions)
+            .where(eq(executions.id, executionId))
+            .limit(1);
+
+          // If cancel_requested is true, stop execution
+          if (execution?.cancelRequested) {
+            // Update execution status to cancelled
+            await db.update(executions)
+              .set({
+                status: 'cancelled',
+                cancelRequested: false, // Reset the flag
+                completedAt: new Date(),
+                errorMessage: 'Execution cancelled by user',
+              })
+              .where(eq(executions.id, executionId));
+            return false;
+          }
+
+          return true;
+        },
+      }
     );
 
-    const now = new Date();
-    await db.update(executions)
-      .set({
-        status: result.status,
-        completedAt: now,
-        errorMessage: result.error,
-      })
-      .where(eq(executions.id, executionId));
+    // Only update if execution wasn't cancelled (shouldContinue handles that case)
+    const [currentExecution] = await db.select()
+      .from(executions)
+      .where(eq(executions.id, executionId))
+      .limit(1);
 
-    if (result.status === 'completed') {
-      await db.update(workflows)
+    if (currentExecution?.status !== 'cancelled') {
+      const now = new Date();
+      await db.update(executions)
         .set({
-          lastExecutedAt: now,
-          totalExecutions: (workflow.totalExecutions || 0) + 1,
+          status: result.status,
+          completedAt: now,
+          errorMessage: result.error,
+          totalSteps: result.steps.length,
+          completedSteps: result.steps.filter((s) => s.status === 'completed').length,
         })
-        .where(eq(workflows.id, workflow.id));
+        .where(eq(executions.id, executionId));
+
+      if (result.status === 'completed') {
+        await db.update(workflows)
+          .set({
+            lastExecutedAt: now,
+            totalExecutions: (workflow.totalExecutions || 0) + 1,
+          })
+          .where(eq(workflows.id, workflow.id));
+      }
     }
+
+    // Get final execution status for response
+    const [finalExecution] = await db.select()
+      .from(executions)
+      .where(eq(executions.id, executionId))
+      .limit(1);
 
     return NextResponse.json({
       executionId,
       workflowId: workflow.id,
-      status: result.status,
-      error: result.error,
+      status: finalExecution?.status || result.status,
+      error: finalExecution?.errorMessage || result.error,
       duration: result.duration,
     });
   } catch (error: any) {

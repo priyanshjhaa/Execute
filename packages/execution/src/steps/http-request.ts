@@ -3,10 +3,12 @@
  *
  * Makes HTTP requests to external APIs.
  * This is the "escape hatch" - can connect to ANY service.
+ * Supports automatic retry with exponential backoff.
  */
 
 import type { StepHandler, Step, StepResult, ExecutionContext } from '../types.js';
 import { templateResolver } from '../context.js';
+import { fetchWithRetry, parseRetryConfig } from '../retry.js';
 
 export class HttpRequestStepHandler implements StepHandler {
   type = 'http_request';
@@ -50,18 +52,31 @@ export class HttpRequestStepHandler implements StepHandler {
       // Set timeout
       const timeout = config.timeout ? parseInt(config.timeout, 10) * 1000 : 30000;
 
-      // Make request with AbortController for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      // Get retry config from step config
+      const retryConfig = parseRetryConfig(config);
 
-      const response = await fetch(url, {
+      // Make request with retry logic
+      const result = await this.makeRequest(
+        url,
         method,
         headers,
         body,
-        signal: controller.signal,
-      });
+        timeout,
+        retryConfig
+      );
 
-      clearTimeout(timeoutId);
+      if (!result.success) {
+        return {
+          stepId: step.id,
+          status: 'failed',
+          error: result.error || 'HTTP request failed',
+          data: result.attempts > 1 ? { attempts: result.attempts, totalDelay: result.totalDelay } : undefined,
+          startedAt,
+          completedAt: new Date(),
+        };
+      }
+
+      const response = result.data as Response;
 
       // Get response body
       let responseBody: any;
@@ -82,6 +97,8 @@ export class HttpRequestStepHandler implements StepHandler {
             status: response.status,
             statusText: response.statusText,
             body: responseBody,
+            attempts: result.attempts,
+            totalDelay: result.totalDelay,
           },
           startedAt,
           completedAt: new Date(),
@@ -95,6 +112,8 @@ export class HttpRequestStepHandler implements StepHandler {
           status: response.status,
           statusText: response.statusText,
           body: responseBody,
+          attempts: result.attempts > 1 ? result.attempts : undefined,
+          totalDelay: result.totalDelay > 0 ? result.totalDelay : undefined,
         },
         startedAt,
         completedAt: new Date(),
@@ -107,6 +126,46 @@ export class HttpRequestStepHandler implements StepHandler {
         startedAt,
         completedAt: new Date(),
       };
+    }
+  }
+
+  /**
+   * Make HTTP request with optional retry logic
+   */
+  private async makeRequest(
+    url: string,
+    method: string,
+    headers: Record<string, string>,
+    body: string | undefined,
+    timeout: number,
+    retryConfig?: ReturnType<typeof parseRetryConfig>
+  ) {
+    if (retryConfig) {
+      // Use retry logic
+      return fetchWithRetry(
+        url,
+        {
+          method,
+          headers,
+          body,
+          // Create AbortSignal for timeout
+          signal: AbortSignal.timeout(timeout),
+        },
+        retryConfig
+      );
+    }
+
+    // No retry - single attempt
+    try {
+      const response = await fetch(url, {
+        method,
+        headers,
+        body,
+        signal: AbortSignal.timeout(timeout),
+      });
+      return { success: true, data: response, attempts: 1, totalDelay: 0 };
+    } catch (error: any) {
+      return { success: false, error: error.message, attempts: 1, totalDelay: 0 };
     }
   }
 }

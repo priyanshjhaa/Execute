@@ -9,22 +9,58 @@ import {
 
 /**
  * Validator: Send Email
- * Validates recipient, subject, body, and template variables
+ * Validates recipient (to or recipients), subject, body
+ * Supports Resend (not SendGrid)
  */
 export const sendEmailValidator: StepValidator = {
   stepType: 'send_email',
-  requiredFields: ['to', 'subject', 'body'],
-  optionalFields: ['from', 'cc', 'bcc', 'replyTo'],
+  requiredFields: [],
+  optionalFields: ['to', 'recipients', 'subject', 'body', 'from', 'cc', 'bcc', 'replyTo', 'personalize'],
 
   validate: (config: any, context: ValidationContext): ValidationResult => {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Validate 'to' field
-    if (isEmpty(config.to)) {
-      errors.push("'to' field is required");
-    } else if (!isValidEmail(config.to)) {
-      errors.push(`Invalid email format in 'to' field: ${config.to}`);
+    // Check if we have either 'to' or 'recipients'
+    const hasTo = !isEmpty(config.to);
+    const hasRecipients = !isEmpty(config.recipients);
+
+    if (!hasTo && !hasRecipients) {
+      errors.push("Either 'to' or 'recipients' field is required");
+    }
+
+    // Validate 'to' if provided (manual email entry)
+    if (hasTo && !isEmpty(config.to)) {
+      if (Array.isArray(config.to)) {
+        const invalidEmails = config.to.filter((email: string) => !isValidEmail(email));
+        if (invalidEmails.length > 0) {
+          errors.push(`Invalid email format in 'to' field: ${invalidEmails.join(', ')}`);
+        }
+      } else if (!isValidEmail(config.to)) {
+        errors.push(`Invalid email format in 'to' field: ${config.to}`);
+      }
+    }
+
+    // Validate 'recipients' if provided
+    if (hasRecipients) {
+      const { type, contactIds, groupId, filter } = config.recipients;
+      const validTypes = ['manual', 'contacts', 'group', 'filter'];
+
+      if (!type || !validTypes.includes(type)) {
+        errors.push(`recipients.type must be one of: ${validTypes.join(', ')}`);
+      }
+
+      if (type === 'contacts' && (!contactIds || !Array.isArray(contactIds) || contactIds.length === 0)) {
+        errors.push("recipients.contactIds is required when type is 'contacts'");
+      }
+
+      if (type === 'group' && !groupId) {
+        errors.push("recipients.groupId is required when type is 'group'");
+      }
+
+      if (type === 'filter' && !filter) {
+        warnings.push("recipients.filter is recommended when type is 'filter'");
+      }
     }
 
     // Validate 'subject'
@@ -52,9 +88,9 @@ export const sendEmailValidator: StepValidator = {
       errors.push(`Invalid email format in 'from' field: ${config.from}`);
     }
 
-    // Check if SendGrid is configured
-    if (!context.integrations.sendgrid) {
-      warnings.push('SendGrid integration not configured. Email sending may fail.');
+    // Check if Resend is configured
+    if (!context.integrations.resend && !process.env.RESEND_API_KEY) {
+      warnings.push('Resend integration (RESEND_API_KEY) not configured. Email sending may fail.');
     }
 
     return {
@@ -67,23 +103,16 @@ export const sendEmailValidator: StepValidator = {
 
 /**
  * Validator: Send Slack Message
- * Validates webhook URL, channel, and message
+ * Validates webhook URL or integrationId, and message
  */
 export const sendSlackValidator: StepValidator = {
   stepType: 'send_slack',
-  requiredFields: ['channel', 'message'],
-  optionalFields: ['webhook_url', 'username', 'icon_emoji', 'attachments'],
+  requiredFields: ['message'],
+  optionalFields: ['webhook_url', 'integrationId', 'username', 'icon_emoji', 'icon_url', 'attachments', 'blocks'],
 
   validate: (config: any, context: ValidationContext): ValidationResult => {
     const errors: string[] = [];
     const warnings: string[] = [];
-
-    // Validate channel
-    if (isEmpty(config.channel)) {
-      errors.push("'channel' field is required");
-    } else if (!config.channel.startsWith('#') && !config.channel.startsWith('@')) {
-      warnings.push("Channel should start with # for channels or @ for direct messages");
-    }
 
     // Validate message
     if (isEmpty(config.message)) {
@@ -95,14 +124,19 @@ export const sendSlackValidator: StepValidator = {
       }
     }
 
-    // Validate webhook URL if provided
-    if (config.webhook_url && !isValidUrl(config.webhook_url)) {
-      errors.push('Invalid Slack webhook URL format');
+    // Check if we have webhook_url OR integrationId
+    const hasWebhook = !isEmpty(config.webhook_url);
+    const hasIntegration = !isEmpty(config.integrationId);
+
+    if (!hasWebhook && !hasIntegration) {
+      errors.push("Either 'webhook_url' or 'integrationId' field is required");
     }
 
-    // Check if Slack is configured
-    if (!context.integrations.slack && !config.webhook_url) {
-      errors.push('Slack integration not configured and no webhook URL provided');
+    // Validate webhook URL if provided
+    if (hasWebhook && !isValidUrl(config.webhook_url)) {
+      errors.push('Invalid Slack webhook URL format');
+    } else if (hasWebhook && !config.webhook_url.includes('hooks.slack.com')) {
+      warnings.push("Webhook URL should be from hooks.slack.com");
     }
 
     return {
@@ -282,7 +316,7 @@ export const addToListValidator: StepValidator = {
   requiredFields: ['provider', 'list_id', 'email'],
   optionalFields: ['name', 'merge_fields', 'tags', 'double_optin'],
 
-  validate: (config: any, context: ValidationContext): ValidationResult => {
+  validate: (config: any, _context: ValidationContext): ValidationResult => {
     const errors: string[] = [];
     const warnings: string[] = [];
 
@@ -322,7 +356,7 @@ export const delayValidator: StepValidator = {
   requiredFields: ['duration', 'unit'],
   optionalFields: [],
 
-  validate: (config: any, context: ValidationContext): ValidationResult => {
+  validate: (config: any, _context: ValidationContext): ValidationResult => {
     const errors: string[] = [];
 
     // Validate duration

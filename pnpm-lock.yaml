@@ -120,6 +120,9 @@ importers:
       '@execute/db':
         specifier: workspace:*
         version: link:../db
+      '@supabase/supabase-js':
+        specifier: ^2.93.1
+        version: 2.93.1
       zod:
         specifier: ^3.24.1
         version: 3.25.76

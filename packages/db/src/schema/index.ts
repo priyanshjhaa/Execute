@@ -4,3 +4,6 @@ export * from './executions';
 export * from './steps';
 export * from './execution_logs';
 export * from './templates';
+export * from './contacts';
+export * from './contact-groups';
+export * from './user-integrations';
