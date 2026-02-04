@@ -40,6 +40,7 @@ export interface ValidationContext {
   availableVariables: Record<string, any>;
   integrations: {
     slack?: boolean;
+    resend?: boolean;
     sendgrid?: boolean;
     twilio?: boolean;
     mailchimp?: boolean;

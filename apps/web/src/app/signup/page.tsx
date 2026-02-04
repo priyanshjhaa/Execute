@@ -241,6 +241,13 @@ export default function SignupPage() {
             </div>
           </div>
 
+          {/* Back to Home */}
+          <div className="mt-8 text-center">
+            <Link href="/" className="text-sm text-white/40 hover:text-white transition-colors">
+              ← Back to home
+            </Link>
+          </div>
+
           {/* Features */}
           <div className="mt-12 grid grid-cols-3 gap-4">
             <div className="text-center">

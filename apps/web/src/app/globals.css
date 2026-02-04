@@ -56,6 +56,46 @@
     background-size: 200% 200%;
     animation: gradient-shift-slow 8s ease infinite;
   }
+
+  /* Fixed gradient background for the entire page */
+  .gradient-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .gradient-bg::before,
+  .gradient-bg::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.8;
+  }
+
+  /* Pink orb - top left corner */
+  .gradient-bg::before {
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(236, 72, 153, 0.7) 0%, transparent 70%);
+    top: -200px;
+    left: -150px;
+    animation: float 20s ease-in-out infinite;
+  }
+
+  /* Blue orb - bottom right corner */
+  .gradient-bg::after {
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle, rgba(14, 165, 233, 0.7) 0%, transparent 70%);
+    bottom: -300px;
+    right: -200px;
+    animation: float 25s ease-in-out infinite reverse;
+  }
 }
 
 @keyframes gradient-shift {
@@ -74,5 +114,18 @@
   }
   50% {
     background-position: 100% 50%;
+  }
+}
+
+/* Float animation for gradient orbs */
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(30px, -30px) scale(1.05);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.95);
   }
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { db, executions, users, workflows } from '@execute/db';
+import { db, executions, users, workflows, steps } from '@execute/db';
 import { eq, and } from 'drizzle-orm';
 
 function generateId(): string {
@@ -63,6 +63,12 @@ export async function GET(
       .where(eq(workflows.id, execution.workflowId!))
       .limit(1);
 
+    // Fetch steps for this execution
+    const executionSteps = await db.select()
+      .from(steps)
+      .where(eq(steps.executionId, id))
+      .orderBy(steps.stepOrder);
+
     return NextResponse.json({
       execution: {
         id: execution.id,
@@ -77,6 +83,15 @@ export async function GET(
         duration: execution.completedAt && execution.startedAt
           ? new Date(execution.completedAt).getTime() - new Date(execution.startedAt).getTime()
           : undefined,
+        steps: executionSteps.map((step) => ({
+          stepId: step.id,
+          stepName: step.description || step.stepType,
+          stepType: step.stepType,
+          status: step.status,
+          startedAt: step.startedAt,
+          completedAt: step.completedAt,
+          error: step.errorMessage,
+        })),
       },
     });
   } catch (error: any) {

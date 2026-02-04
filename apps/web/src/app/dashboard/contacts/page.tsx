@@ -79,7 +79,7 @@ export default function ContactsPage() {
   }, [search, departmentFilter]);
 
   const departments = Array.from(
-    new Set(contacts.map((c) => c.department).filter(Boolean))
+    new Set(contacts.map((c) => c.department).filter((d): d is string => d !== null))
   );
 
   const getInitials = (name: string) => {
