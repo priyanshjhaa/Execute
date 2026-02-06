@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { SendSlackStepConfig } from "@/components/workflows/steps/send-slack-config";
+import { useIntegrations } from "@/hooks/use-integrations";
 import {
   ArrowLeft,
   Loader2,
@@ -12,6 +14,7 @@ import {
   CheckCircle2,
   Trash2,
   Plus,
+  Lock,
 } from "lucide-react";
 
 interface Step {
@@ -45,7 +48,7 @@ const STEP_TYPES = [
   { value: "user_created", label: "User Created", group: "trigger" },
   { value: "purchase_completed", label: "Purchase Completed", group: "trigger" },
   { value: "send_email", label: "Send Email", group: "action" },
-  { value: "send_slack", label: "Send Slack", group: "action" },
+  { value: "send_slack", label: "Send Slack", group: "action", requiresIntegration: "slack" },
   { value: "send_sms", label: "Send SMS", group: "action" },
   { value: "http_request", label: "HTTP Request", group: "action" },
   { value: "create_task", label: "Create Task", group: "action" },
@@ -54,9 +57,20 @@ const STEP_TYPES = [
   { value: "conditional", label: "Conditional", group: "action" },
 ];
 
+// Helper to filter step types based on available integrations
+function filterStepTypes(stepTypes: typeof STEP_TYPES, hasIntegration: (type: string) => boolean) {
+  return stepTypes.filter(stepType => {
+    if (stepType.requiresIntegration) {
+      return hasIntegration(stepType.requiresIntegration);
+    }
+    return true;
+  });
+}
+
 export default function EditWorkflowPage() {
   const params = useParams();
   const router = useRouter();
+  const { hasIntegration } = useIntegrations();
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -386,13 +400,19 @@ export default function EditWorkflowPage() {
                             ))}
                           </optgroup>
                           <optgroup label="Actions">
-                            {STEP_TYPES.filter((t) => t.group === "action").map((t) => (
+                            {filterStepTypes(STEP_TYPES, hasIntegration).filter((t) => t.group === "action").map((t) => (
                               <option key={t.value} value={t.value}>
                                 {t.label}
                               </option>
                             ))}
                           </optgroup>
                         </select>
+                        {step.type === "send_slack" && !hasIntegration("slack") && (
+                          <div className="flex items-center gap-1 mt-1.5 text-xs text-yellow-400">
+                            <Lock className="h-3 w-3" />
+                            <span>Slack not connected</span>
+                          </div>
+                        )}
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-white/50 mb-1">
@@ -421,25 +441,35 @@ export default function EditWorkflowPage() {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-medium text-white/50 mb-2">
-                        Configuration (JSON)
-                      </label>
-                      <textarea
-                        value={JSON.stringify(step.config, null, 2)}
-                        onChange={(e) => {
-                          try {
-                            const config = JSON.parse(e.target.value);
-                            updateStep(index, "config", config);
-                          } catch {
-                            // Invalid JSON, don't update
-                          }
-                        }}
-                        className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded text-white/80 text-xs font-mono focus:outline-none focus:border-white/20 resize-none"
-                        rows={4}
-                        placeholder='{"key": "value"}'
-                      />
-                    </div>
+                    {/* Slack-specific config UI */}
+                    {step.type === "send_slack" ? (
+                      <div className="pt-2">
+                        <SendSlackStepConfig
+                          config={step.config}
+                          onChange={(config) => updateStep(index, "config", config)}
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="block text-xs font-medium text-white/50 mb-2">
+                          Configuration (JSON)
+                        </label>
+                        <textarea
+                          value={JSON.stringify(step.config, null, 2)}
+                          onChange={(e) => {
+                            try {
+                              const config = JSON.parse(e.target.value);
+                              updateStep(index, "config", config);
+                            } catch {
+                              // Invalid JSON, don't update
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded text-white/80 text-xs font-mono focus:outline-none focus:border-white/20 resize-none"
+                          rows={4}
+                          placeholder='{"key": "value"}'
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

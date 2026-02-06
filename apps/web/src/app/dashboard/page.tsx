@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { QuickCommandInput } from "@/components/quick-command-input";
 import {
   ArrowRight,
   CheckCircle2,
@@ -84,6 +85,11 @@ function getStatusIcon(status: string) {
 }
 
 export default function DashboardPage() {
+  const handleCommandExecuted = () => {
+    // Could trigger a refresh of recent activities
+    console.log('Command executed');
+  };
+
   return (
     <div className="min-h-screen bg-black">
       {/* Top Section */}
@@ -110,6 +116,17 @@ export default function DashboardPage() {
       </div>
 
       <div className="container mx-auto px-8 py-8">
+        {/* Quick Command Section */}
+        <div className="mb-12">
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold text-white">Quick Command</h2>
+            <p className="text-white/50 text-sm">
+              Tell Execute what happened or what you want done
+            </p>
+          </div>
+          <QuickCommandInput onCommandExecuted={handleCommandExecuted} />
+        </div>
+
         {/* Workflow List Section */}
         <div className="mb-12">
           <div className="flex items-center justify-between mb-6">
