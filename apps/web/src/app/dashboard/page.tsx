@@ -12,6 +12,7 @@ import {
   Eye,
   Zap,
   Plus,
+  History,
 } from "lucide-react";
 
 // Mock data
@@ -118,11 +119,19 @@ export default function DashboardPage() {
       <div className="container mx-auto px-8 py-8">
         {/* Quick Command Section */}
         <div className="mb-12">
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold text-white">Quick Command</h2>
-            <p className="text-white/50 text-sm">
-              Tell Execute what happened or what you want done
-            </p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-white">Quick Command</h2>
+              <p className="text-white/50 text-sm">
+                Tell Execute what happened or what you want done
+              </p>
+            </div>
+            <Link href="/dashboard/quick-commands">
+              <Button variant="ghost" className="text-white/60 hover:text-white rounded-full">
+                <History className="mr-2 h-4 w-4" />
+                View History
+              </Button>
+            </Link>
           </div>
           <QuickCommandInput onCommandExecuted={handleCommandExecuted} />
         </div>
