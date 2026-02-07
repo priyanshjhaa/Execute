@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Terminal, LayoutDashboard, GitBranch, Activity, Settings, LogOut, Users, Puzzle, Wand2 } from "lucide-react";
+import { Terminal, LayoutDashboard, GitBranch, Activity, Settings, LogOut, Users, Puzzle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -12,11 +12,6 @@ const navItems = [
     name: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
-  },
-  {
-    name: "Quick Commands",
-    href: "/dashboard/quick-commands",
-    icon: Wand2,
   },
   {
     name: "Workflows",

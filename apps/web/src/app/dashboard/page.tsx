@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { QuickCommandInput } from "@/components/quick-command-input";
 import {
   ArrowRight,
   CheckCircle2,
@@ -12,7 +11,7 @@ import {
   Eye,
   Zap,
   Plus,
-  History,
+  Wand2,
 } from "lucide-react";
 
 // Mock data
@@ -86,11 +85,6 @@ function getStatusIcon(status: string) {
 }
 
 export default function DashboardPage() {
-  const handleCommandExecuted = () => {
-    // Could trigger a refresh of recent activities
-    console.log('Command executed');
-  };
-
   return (
     <div className="min-h-screen bg-black">
       {/* Top Section */}
@@ -117,23 +111,39 @@ export default function DashboardPage() {
       </div>
 
       <div className="container mx-auto px-8 py-8">
-        {/* Quick Command Section */}
+        {/* Quick Commands CTA Card */}
         <div className="mb-12">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-semibold text-white">Quick Command</h2>
-              <p className="text-white/50 text-sm">
-                Tell Execute what happened or what you want done
-              </p>
+          <Link href="/dashboard/quick-commands">
+            <div className="group relative p-8 rounded-2xl border border-white/10 bg-gradient-to-br from-purple-500/10 to-blue-500/10 hover:from-purple-500/15 hover:to-blue-500/15 transition-all duration-300 cursor-pointer">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center justify-center w-16 h-16 rounded-xl bg-purple-500/20 border border-purple-500/30 group-hover:scale-110 transition-transform duration-300">
+                    <Wand2 className="h-8 w-8 text-purple-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white mb-1">Quick Commands</h2>
+                    <p className="text-white/60">
+                      Tell Execute what happened or what you want done in one sentence
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="h-6 w-6 text-white/40 group-hover:text-white group-hover:translate-x-1 transition-all duration-300" />
+              </div>
+
+              {/* Example prompts */}
+              <div className="mt-6 flex flex-wrap gap-3">
+                <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/50 text-sm">
+                  💰 "Spent ₹5,000 on ads"
+                </span>
+                <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/50 text-sm">
+                  🤝 "We signed Acme Corp"
+                </span>
+                <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/50 text-sm">
+                  📧 "Send meeting reminder"
+                </span>
+              </div>
             </div>
-            <Link href="/dashboard/quick-commands">
-              <Button variant="ghost" className="text-white/60 hover:text-white rounded-full">
-                <History className="mr-2 h-4 w-4" />
-                View History
-              </Button>
-            </Link>
-          </div>
-          <QuickCommandInput onCommandExecuted={handleCommandExecuted} />
+          </Link>
         </div>
 
         {/* Workflow List Section */}
