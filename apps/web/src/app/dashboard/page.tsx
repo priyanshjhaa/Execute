@@ -114,33 +114,42 @@ export default function DashboardPage() {
         {/* Quick Commands CTA Card */}
         <div className="mb-12">
           <Link href="/dashboard/quick-commands">
-            <div className="group relative p-8 rounded-2xl border border-white/10 bg-gradient-to-br from-purple-500/10 to-blue-500/10 hover:from-purple-500/15 hover:to-blue-500/15 transition-all duration-300 cursor-pointer">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center justify-center w-16 h-16 rounded-xl bg-purple-500/20 border border-purple-500/30 group-hover:scale-110 transition-transform duration-300">
-                    <Wand2 className="h-8 w-8 text-purple-400" />
+            <div className="group relative p-6 md:p-8 rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] overflow-hidden transition-all duration-300 cursor-pointer">
+              {/* Pink gradient orb at top left */}
+              <div className="absolute -top-8 -left-8 w-40 h-40 bg-gradient-to-br from-pink-500/40 via-pink-400/20 to-transparent rounded-full blur-[40px] pointer-events-none"></div>
+              {/* Sky blue gradient orb at bottom right */}
+              <div className="absolute -bottom-8 -right-8 w-40 h-40 bg-gradient-to-tl from-sky-500/40 via-sky-400/20 to-transparent rounded-full blur-[40px] pointer-events-none"></div>
+
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6 relative">
+                <div className="flex items-center gap-4 md:gap-6">
+                  <div className="flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-xl bg-white/10 border border-white/20 group-hover:scale-110 transition-transform duration-300">
+                    <Wand2 className="h-6 w-6 md:h-8 md:w-8 text-white/70" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-white mb-1">Quick Commands</h2>
-                    <p className="text-white/60">
-                      Tell Execute what happened or what you want done in one sentence
+                    <h2 className="text-xl md:text-2xl font-bold text-white mb-1">Quick Commands</h2>
+                    <p className="text-white/60 text-sm md:text-base">
+                      Tell Execute what happened or what you want done
                     </p>
                   </div>
                 </div>
-                <ArrowRight className="h-6 w-6 text-white/40 group-hover:text-white group-hover:translate-x-1 transition-all duration-300" />
+                <ArrowRight className="h-5 w-5 md:h-6 md:w-6 text-white/40 group-hover:text-white group-hover:translate-x-1 transition-all duration-300 flex-shrink-0" />
               </div>
 
-              {/* Example prompts */}
-              <div className="mt-6 flex flex-wrap gap-3">
-                <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/50 text-sm">
-                  💰 "Spent ₹5,000 on ads"
-                </span>
-                <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/50 text-sm">
-                  🤝 "We signed Acme Corp"
-                </span>
-                <span className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/50 text-sm">
-                  📧 "Send meeting reminder"
-                </span>
+              {/* Action Buttons */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <button className="flex items-center gap-3 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-left">
+                  <span className="text-2xl">💰</span>
+                  <span className="text-white/80 text-sm font-medium">Spent ₹5,000 on ads</span>
+                </button>
+                <button className="flex items-center gap-3 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-left">
+                  <span className="text-2xl">🤝</span>
+                  <span className="text-white/80 text-sm font-medium">We signed Acme Corp</span>
+                </button>
+                <button className="flex items-center gap-3 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-left">
+                  <span className="text-2xl">📧</span>
+                  <span className="text-white/80 text-sm font-medium">Send meeting reminder</span>
+                </button>
               </div>
             </div>
           </Link>
