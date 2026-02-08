@@ -8,7 +8,7 @@
 
 import type { StepHandler, Step, StepResult, ExecutionContext } from '../types.js';
 import { templateResolver } from '../context.js';
-import { fetchWithRetry, parseRetryConfig } from '../retry.js';
+import { fetchWithRetry, parseRetryConfig, type RetryResult } from '../retry.js';
 
 export class HttpRequestStepHandler implements StepHandler {
   type = 'http_request';
@@ -65,7 +65,7 @@ export class HttpRequestStepHandler implements StepHandler {
         retryConfig
       );
 
-      if (!result.success) {
+      if (!result.success || !result.data) {
         return {
           stepId: step.id,
           status: 'failed',
@@ -76,7 +76,7 @@ export class HttpRequestStepHandler implements StepHandler {
         };
       }
 
-      const response = result.data as Response;
+      const response = result.data;
 
       // Get response body
       let responseBody: any;
@@ -139,7 +139,7 @@ export class HttpRequestStepHandler implements StepHandler {
     body: string | undefined,
     timeout: number,
     retryConfig?: ReturnType<typeof parseRetryConfig>
-  ) {
+  ): Promise<RetryResult<Response>> {
     if (retryConfig) {
       // Use retry logic
       return fetchWithRetry(
