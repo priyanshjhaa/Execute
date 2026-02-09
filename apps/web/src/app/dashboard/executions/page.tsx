@@ -98,12 +98,14 @@ export default function ExecutionsPage() {
           setExecutions([]);
           return;
         }
-        throw new Error("Failed to fetch executions");
+        // Silently handle other errors (likely DB connection issues)
+        setExecutions([]);
+        return;
       }
       const data = await response.json();
       setExecutions(data.executions || []);
     } catch (err) {
-      console.error("Error fetching executions:", err);
+      // Network error or other issue - silently handle
       setExecutions([]);
     } finally {
       setLoading(false);

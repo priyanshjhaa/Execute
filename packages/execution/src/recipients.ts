@@ -162,3 +162,127 @@ export async function getUserGroups(userId: string): Promise<any[]> {
 
   return data || [];
 }
+
+/**
+ * Resolve a natural language text to contact emails
+ * Supports: email addresses, contact names, departments, tags
+ */
+export async function resolveRecipientFromText(
+  userId: string,
+  text: string
+): Promise<ResolvedRecipients> {
+  const searchText = text.trim();
+
+  // If it's already an email format, return it
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (emailRegex.test(searchText)) {
+    return {
+      emails: [searchText],
+      contacts: [{
+        id: `manual-${searchText}`,
+        name: searchText.split('@')[0],
+        email: searchText,
+        department: null,
+        tags: [],
+      }],
+    };
+  }
+
+  // Handle comma-separated emails or names
+  if (searchText.includes(',')) {
+    const parts = searchText.split(',').map(p => p.trim());
+    const allEmails: string[] = [];
+    const allContacts: ContactInfo[] = [];
+
+    for (const part of parts) {
+      const resolved = await resolveRecipientFromText(userId, part);
+      allEmails.push(...resolved.emails);
+      allContacts.push(...resolved.contacts);
+    }
+
+    return { emails: allEmails, contacts: allContacts };
+  }
+
+  // Get all user contacts
+  const contacts = await getUserContacts(userId);
+
+  // 1. Match by exact name (case-insensitive)
+  const byName = contacts.filter((c: any) =>
+    c.name.toLowerCase() === searchText.toLowerCase()
+  );
+  if (byName.length > 0) {
+    return {
+      emails: byName.map((c: any) => c.email),
+      contacts: byName.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        department: c.department,
+        tags: (c.tags as string[]) || [],
+      })),
+    };
+  }
+
+  // 2. Match by department
+  const byDept = contacts.filter((c: any) =>
+    c.department?.toLowerCase() === searchText.toLowerCase()
+  );
+  if (byDept.length > 0) {
+    return {
+      emails: byDept.map((c: any) => c.email),
+      contacts: byDept.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        department: c.department,
+        tags: (c.tags as string[]) || [],
+      })),
+    };
+  }
+
+  // 3. Match by tags
+  const byTag = contacts.filter((c: any) =>
+    (c.tags as string[])?.some((t: string) => t.toLowerCase() === searchText.toLowerCase())
+  );
+  if (byTag.length > 0) {
+    return {
+      emails: byTag.map((c: any) => c.email),
+      contacts: byTag.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        department: c.department,
+        tags: (c.tags as string[]) || [],
+      })),
+    };
+  }
+
+  // 4. Fuzzy name match (contains)
+  const fuzzy = contacts.filter((c: any) =>
+    c.name.toLowerCase().includes(searchText.toLowerCase())
+  );
+  if (fuzzy.length > 0) {
+    return {
+      emails: fuzzy.map((c: any) => c.email),
+      contacts: fuzzy.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        department: c.department,
+        tags: (c.tags as string[]) || [],
+      })),
+    };
+  }
+
+  // No matches found - provide helpful error
+  const availableNames = contacts.map((c: any) => c.name).join(', ');
+  const availableDepts = [...new Set(contacts.map((c: any) => c.department).filter(Boolean))].join(', ');
+  const availableTags = [...new Set(contacts.flatMap((c: any) => (c.tags as string[]) || []))].join(', ');
+
+  throw new Error(
+    `Could not find contacts matching "${searchText}".\n` +
+    `Available contacts: ${availableNames || 'none'}\n` +
+    `Available departments: ${availableDepts || 'none'}\n` +
+    `Available tags: ${availableTags || 'none'}`
+  );
+}

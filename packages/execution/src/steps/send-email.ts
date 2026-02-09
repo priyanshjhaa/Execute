@@ -9,10 +9,11 @@
 
 import type { StepHandler, Step, StepResult, ExecutionContext } from '../types.js';
 import { templateResolver } from '../context.js';
-import { resolveRecipients, type RecipientConfig } from '../recipients.js';
+import { resolveRecipients, resolveRecipientFromText, type RecipientConfig } from '../recipients.js';
 import { withRetry, parseRetryConfig } from '../retry.js';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || '';
 const RESEND_API_URL = 'https://api.resend.com/emails';
 
 interface SendEmailResult {
@@ -75,9 +76,37 @@ export class SendEmailStepHandler implements StepHandler {
         };
       }
     } else if (config.to) {
-      // Legacy format - manual entry
-      to = config.to;
-      recipientConfig = { type: 'manual', to };
+      // Legacy format - manual entry, resolve template variables first
+      const rawTo = config.to;
+      const resolvedTo = templateResolver.resolve(rawTo, context);
+
+      // Check if it contains unresolved template variables
+      if (resolvedTo.includes('{{') || resolvedTo.includes('}}')) {
+        return {
+          stepId: step.id,
+          status: 'failed',
+          error: `Template variable in 'to' field could not be resolved. Original: "${rawTo}", Resolved: "${resolvedTo}". Please use a specific email address or contact name.`,
+          startedAt,
+          completedAt: new Date(),
+        };
+      }
+
+      // Try to resolve the text to actual email addresses
+      // This handles: direct emails, contact names, departments, tags
+      try {
+        const resolved = await resolveRecipientFromText(context.user.id, resolvedTo);
+        to = resolved.emails;
+        recipientConfig = { type: 'manual', to };
+        console.log('[SendEmail] Resolved recipient from text:', resolvedTo, '->', to);
+      } catch (err: any) {
+        return {
+          stepId: step.id,
+          status: 'failed',
+          error: `Failed to resolve recipient "${resolvedTo}": ${err.message}`,
+          startedAt,
+          completedAt: new Date(),
+        };
+      }
     } else {
       return {
         stepId: step.id,
@@ -115,10 +144,16 @@ export class SendEmailStepHandler implements StepHandler {
     try {
       // Resolve template variables
       const subject = templateResolver.resolve(config.subject, context);
-      const from = templateResolver.resolve(
-        config.from || 'noreply@' + (process.env.SITE_DOMAIN || 'localhost'),
-        context
-      );
+
+      // Use RESEND_FROM_EMAIL if configured, otherwise fall back to config.from or default
+      const defaultFrom = RESEND_FROM_EMAIL || 'noreply@' + (process.env.SITE_DOMAIN || 'localhost');
+      const from = templateResolver.resolve(config.from || defaultFrom, context);
+
+      // Debug logging - remove this after fixing
+      console.log('[SendEmail] RESEND_FROM_EMAIL env var:', RESEND_FROM_EMAIL);
+      console.log('[SendEmail] config.from:', config.from);
+      console.log('[SendEmail] defaultFrom:', defaultFrom);
+      console.log('[SendEmail] resolved from:', from);
 
       // If we have resolved contacts, we can personalize the email for each recipient
       const isPersonalized = config.recipients && config.personalize !== false;
@@ -285,6 +320,9 @@ export class SendEmailStepHandler implements StepHandler {
   }
 
   private async sendEmail(payload: Record<string, any>): Promise<SendEmailResult> {
+    // Log the exact payload being sent for debugging
+    console.log('[SendEmail] Sending payload to Resend:', JSON.stringify(payload, null, 2));
+
     const response = await fetch(RESEND_API_URL, {
       method: 'POST',
       headers: {
@@ -295,6 +333,8 @@ export class SendEmailStepHandler implements StepHandler {
     });
 
     const responseData = await response.json();
+    console.log('[SendEmail] Resend API response status:', response.status);
+    console.log('[SendEmail] Resend API response data:', JSON.stringify(responseData, null, 2));
 
     if (!response.ok) {
       return {

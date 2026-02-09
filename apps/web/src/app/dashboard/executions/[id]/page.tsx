@@ -41,6 +41,8 @@ interface Execution {
     startedAt: string;
     completedAt: string | null;
     error: string | null;
+    data?: any;
+    output?: any;
   }>;
 }
 
@@ -405,6 +407,18 @@ export default function ExecutionDetailPage() {
                   {step.error && (
                     <div className="mt-3 ml-12 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
                       <p className="text-sm text-red-400">{step.error}</p>
+                    </div>
+                  )}
+
+                  {/* Step Output (for completed steps with data) */}
+                  {step.status === 'completed' && step.data && (
+                    <div className="mt-3 ml-12 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                      <p className="text-xs text-green-400 mb-2 font-medium">Output:</p>
+                      <pre className="text-xs text-green-300 whitespace-pre-wrap font-mono bg-black/30 p-3 rounded overflow-x-auto">
+                        {typeof step.data === 'object'
+                          ? JSON.stringify(step.data, null, 2)
+                          : String(step.data)}
+                      </pre>
                     </div>
                   )}
                 </div>

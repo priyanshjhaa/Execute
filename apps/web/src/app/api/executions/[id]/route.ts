@@ -91,6 +91,8 @@ export async function GET(
           startedAt: step.startedAt,
           completedAt: step.completedAt,
           error: step.errorMessage,
+          data: step.outputResult?.data,
+          output: step.outputResult,
         })),
       },
     });

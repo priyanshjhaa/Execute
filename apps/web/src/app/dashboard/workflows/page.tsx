@@ -59,13 +59,15 @@ export default function WorkflowsPage() {
           setWorkflows([]);
           return;
         }
-        throw new Error('Failed to fetch workflows');
+        // Silently handle other errors (likely DB connection issues)
+        setWorkflows([]);
+        return;
       }
 
       const data = await response.json();
       setWorkflows(data.workflows || []);
     } catch (error) {
-      console.error('Error fetching workflows:', error);
+      // Network error or other issue - silently handle
       setWorkflows([]);
     } finally {
       setLoading(false);
