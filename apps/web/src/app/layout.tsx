@@ -8,6 +8,10 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 export const metadata: Metadata = {
   title: "Execute - Turn English into Actions",
   description: "A system where a user writes a business instruction in plain English → Execute converts it into structured steps → runs those steps → and shows exactly what happened.",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
