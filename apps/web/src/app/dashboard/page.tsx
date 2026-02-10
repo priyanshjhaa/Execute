@@ -12,79 +12,32 @@ import {
   Zap,
   Plus,
   Wand2,
+  Loader2,
 } from "lucide-react";
-
-// Mock data
-const mockWorkflows = [
-  {
-    id: "1",
-    name: "Client Confirmation",
-    triggerType: "manual" as const,
-    status: "active" as const,
-    lastRunStatus: "failed" as const,
-    lastRunTime: "2 hours ago",
-  },
-  {
-    id: "2",
-    name: "Invoice Follow-up",
-    triggerType: "manual" as const,
-    status: "active" as const,
-    lastRunStatus: "success" as const,
-    lastRunTime: "1 hour ago",
-  },
-  {
-    id: "3",
-    name: "User Onboarding",
-    triggerType: "form" as const,
-    status: "draft" as const,
-    lastRunStatus: "never" as const,
-    lastRunTime: null,
-  },
-  {
-    id: "4",
-    name: "Daily Report Generation",
-    triggerType: "manual" as const,
-    status: "active" as const,
-    lastRunStatus: "success" as const,
-    lastRunTime: "5 hours ago",
-  },
-];
-
-const mockExecutions = [
-  {
-    id: "1",
-    workflowName: "Client Confirmation",
-    status: "failed" as const,
-    timeAgo: "2 min ago",
-  },
-  {
-    id: "2",
-    workflowName: "Invoice Follow-up",
-    status: "success" as const,
-    timeAgo: "1 hr ago",
-  },
-  {
-    id: "3",
-    workflowName: "Daily Report Generation",
-    status: "success" as const,
-    timeAgo: "5 hrs ago",
-  },
-];
-
-function getStatusIcon(status: string) {
-  switch (status) {
-    case "success":
-      return <CheckCircle2 className="h-4 w-4 text-white/60" />;
-    case "failed":
-      return <XCircle className="h-4 w-4 text-pink-500/80" />;
-    case "running":
-      return <Zap className="h-4 w-4 text-white/60 animate-pulse" />;
-    default:
-      return <Clock className="h-4 w-4 text-white/40" />;
-  }
-}
+import { useWorkflows, useExecutions, formatTimeAgo, type Workflow, type Execution } from "@/lib/query/hooks";
 
 export default function DashboardPage() {
+  // TanStack Query hooks with caching - data persists across navigation
+  const { data: workflows = [], isLoading: workflowsLoading } = useWorkflows();
+  const { data: executions = [], isLoading: executionsLoading } = useExecutions(5);
+
+  // Show initial loading on first visit only
+  const isLoading = workflowsLoading || executionsLoading;
+
+  function getStatusIcon(status: string) {
+    switch (status) {
+      case "success":
+      case "completed":
+        return <CheckCircle2 className="h-4 w-4 text-white/60" />;
+      case "failed":
+        return <XCircle className="h-4 w-4 text-pink-500/80" />;
+      case "running":
+        return <Zap className="h-4 w-4 text-white/60 animate-pulse" />;
+      default:
+        return <Clock className="h-4 w-4 text-white/40" />;
+    }
+  }
+
   return (
     <div className="min-h-screen bg-black">
       {/* Top Section */}
@@ -166,76 +119,97 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          <div className="space-y-3">
-            {mockWorkflows.map((workflow) => (
-              <div
-                key={workflow.id}
-                className="group relative p-6 rounded-xl border border-white/10 bg-white/[0.02] hover:border-white/20 transition-all duration-300"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-6 flex-1">
-                    {/* Status Icon */}
-                    <div className="flex-shrink-0">
-                      {workflow.lastRunStatus === "never" ? (
-                        <Clock className="h-5 w-5 text-white/40" />
-                      ) : (
-                        getStatusIcon(workflow.lastRunStatus)
-                      )}
-                    </div>
-
-                    {/* Workflow Info */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold text-white mb-1">
-                        {workflow.name}
-                      </h3>
-                      <div className="flex items-center gap-3 text-sm">
-                        <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60 capitalize">
-                          {workflow.triggerType}
-                        </span>
-                        <span
-                          className={`px-2 py-1 rounded-md border capitalize ${
-                            workflow.status === "active"
-                              ? "bg-white/10 border-white/20 text-white/80"
-                              : "bg-white/5 border-white/10 text-white/40"
-                          }`}
-                        >
-                          {workflow.status}
-                        </span>
-                        {workflow.lastRunTime && (
-                          <span className="text-white/40">
-                            Last run: {workflow.lastRunTime}
-                          </span>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 text-white/40 animate-spin" />
+            </div>
+          ) : workflows.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/5 mb-4">
+                <Clock className="h-8 w-8 text-white/20" />
+              </div>
+              <h3 className="text-lg font-semibold text-white mb-2">No workflows yet</h3>
+              <p className="text-white/40 text-sm mb-4">Create your first workflow to get started</p>
+              <Link href="/dashboard/workflows/new">
+                <Button className="bg-white/10 hover:bg-white/15 text-white border-white/20 text-sm">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Workflow
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {workflows.slice(0, 4).map((workflow: Workflow) => (
+                <div
+                  key={workflow.id}
+                  className="group relative p-6 rounded-xl border border-white/10 bg-white/[0.02] hover:border-white/20 transition-all duration-300"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-6 flex-1">
+                      {/* Status Icon */}
+                      <div className="flex-shrink-0">
+                        {workflow.status === "active" ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <Clock className="h-5 w-5 text-white/40" />
                         )}
                       </div>
+
+                      {/* Workflow Info */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-semibold text-white mb-1">
+                          {workflow.name}
+                        </h3>
+                        <div className="flex items-center gap-3 text-sm">
+                          <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60 capitalize">
+                            {workflow.triggerType}
+                          </span>
+                          <span
+                            className={`px-2 py-1 rounded-md border capitalize ${
+                              workflow.status === "active"
+                                ? "bg-green-500/10 border-green-500/30 text-green-400"
+                                : "bg-white/5 border-white/10 text-white/40"
+                            }`}
+                          >
+                            {workflow.status}
+                          </span>
+                          <span className="text-white/40">
+                            {workflow.totalExecutions} execution{workflow.totalExecutions !== 1 ? 's' : ''}
+                          </span>
+                          <span className="text-white/40">
+                            Created {formatTimeAgo(workflow.createdAt)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-3">
+                      <Link href={`/dashboard/workflows/${workflow.id}`}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-white/20 text-white hover:bg-white/5 hover:text-white rounded-full"
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          View
+                        </Button>
+                      </Link>
+                      {workflow.triggerType === "manual" && workflow.status === "active" && (
+                        <Button
+                          size="sm"
+                          className="bg-white/10 hover:bg-white/15 text-black border-white/20 rounded-full"
+                        >
+                          <Play className="mr-2 h-4 w-4" />
+                          Run
+                        </Button>
+                      )}
                     </div>
                   </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-3">
-                    <Link href={`/dashboard/workflows/${workflow.id}`}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-white/20 text-white hover:bg-white/5 hover:text-white rounded-full"
-                      >
-                        <Eye className="mr-2 h-4 w-4" />
-                        View
-                      </Button>
-                    </Link>
-                    {workflow.triggerType === "manual" && workflow.status === "active" && (
-                      <Button
-                        size="sm"
-                        className="bg-white/10 hover:bg-white/15 text-black border-white/20 rounded-full"
-                      >
-                        <Play className="mr-2 h-4 w-4" />
-                        Run
-                      </Button>
-                    )}
-                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Recent Executions Section */}
@@ -249,30 +223,41 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          <div className="bg-white/[0.02] border border-white/10 rounded-xl overflow-hidden">
-            <div className="divide-y divide-white/10">
-              {mockExecutions.map((execution) => (
-                <Link
-                  key={execution.id}
-                  href={`/dashboard/executions/${execution.id}`}
-                  className="block hover:bg-white/[0.03] transition-colors"
-                >
-                  <div className="p-4 flex items-center gap-4">
-                    <div className="flex-shrink-0">
-                      {getStatusIcon(execution.status)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white/80 font-medium truncate">
-                        {execution.workflowName}
-                      </p>
-                      <p className="text-sm text-white/40">{execution.timeAgo}</p>
-                    </div>
-                    <ArrowRight className="flex-shrink-0 h-4 w-4 text-white/30" />
-                  </div>
-                </Link>
-              ))}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 text-white/40 animate-spin" />
             </div>
-          </div>
+          ) : executions.length === 0 ? (
+            <div className="bg-white/[0.02] border border-white/10 rounded-xl p-12 text-center">
+              <Clock className="h-12 w-12 text-white/20 mx-auto mb-4" />
+              <p className="text-white/40">No executions yet</p>
+            </div>
+          ) : (
+            <div className="bg-white/[0.02] border border-white/10 rounded-xl overflow-hidden">
+              <div className="divide-y divide-white/10">
+                {executions.map((execution: Execution) => (
+                  <Link
+                    key={execution.id}
+                    href={`/dashboard/executions/${execution.id}`}
+                    className="block hover:bg-white/[0.03] transition-colors"
+                  >
+                    <div className="p-4 flex items-center gap-4">
+                      <div className="flex-shrink-0">
+                        {getStatusIcon(execution.status)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white/80 font-medium truncate">
+                          {execution.workflow?.name || "Unknown Workflow"}
+                        </p>
+                        <p className="text-sm text-white/40">{formatTimeAgo(execution.startedAt)}</p>
+                      </div>
+                      <ArrowRight className="flex-shrink-0 h-4 w-4 text-white/30" />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
