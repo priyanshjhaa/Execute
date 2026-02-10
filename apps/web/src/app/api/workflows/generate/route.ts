@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db, workflows, users } from '@execute/db';
-import { createParser } from '@execute/llm';
+import { createParser, enhanceEmailStepStructured } from '@execute/llm';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 
@@ -85,6 +85,23 @@ export async function POST(request: NextRequest) {
         },
         { status: 422 }
       );
+    }
+
+    // 4.5. Enhance email steps with structured templates
+    const originalIntent = isStructuredInput ? validatedData.what : validatedData.instruction;
+
+    for (const step of result.workflow.steps) {
+      if (step.type === 'send_email' && step.config) {
+        try {
+          console.log('[WorkflowGen] Using structured email templates...');
+          const enhanced = await enhanceEmailStepStructured(originalIntent, step.config);
+          step.config = enhanced;
+          console.log('[WorkflowGen] Email enhanced with action type:', enhanced._actionType);
+        } catch (error: any) {
+          console.error('[WorkflowGen] Failed to enhance email step:', error.message);
+          // Continue with original config if enhancement fails
+        }
+      }
     }
 
     // 5. Save workflow to database
