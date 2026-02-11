@@ -329,9 +329,12 @@ Hi {{recipient_name}},
 
 /**
  * Get template by action type
+ * Handles both EMAIL.WELCOME_USER (from LLM) and EMAIL_WELCOME_USER (template keys)
  */
 export function getEmailTemplate(actionType: string): EmailTemplate | null {
-  return EMAIL_ACTION_TEMPLATES[actionType] || null;
+  // Normalize: convert dots to underscores for lookup
+  const normalizedKey = actionType.replace(/\./g, '_');
+  return EMAIL_ACTION_TEMPLATES[normalizedKey] || null;
 }
 
 /**
