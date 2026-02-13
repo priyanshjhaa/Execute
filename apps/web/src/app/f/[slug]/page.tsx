@@ -22,7 +22,8 @@ interface Form {
 export default function PublicFormPage() {
   const params = useParams();
   const [form, setForm] = useState<Form | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
@@ -31,7 +32,7 @@ export default function PublicFormPage() {
   useEffect(() => {
     async function loadForm() {
       try {
-        const response = await fetch(`/api/forms/${params.slug}`);
+        const response = await fetch(`/api/forms/public/${params.slug}`);
         if (!response.ok) {
           if (response.status === 404) {
             setError("Form not found");
@@ -45,6 +46,8 @@ export default function PublicFormPage() {
       } catch (err) {
         console.error("Error loading form:", err);
         setError("Failed to load form");
+      } finally {
+        setIsLoading(false);
       }
     }
 
@@ -59,15 +62,14 @@ export default function PublicFormPage() {
     e.preventDefault();
     if (!form) return;
 
-    setLoading(true);
+    setIsSubmitting(true);
     setError(null);
 
     // Validate required fields
     const errors: string[] = [];
-    const payload: Record<string, string> = {};
 
     for (const field of form.fields) {
-      const currentValue = payload[field.id] || "";
+      const currentValue = formData[field.id] || "";
       if (field.required && !currentValue) {
         errors.push(`${field.label} is required`);
       }
@@ -79,21 +81,19 @@ export default function PublicFormPage() {
           errors.push(`${field.label} must be a valid email`);
         }
       }
-
-      payload[field.id] = currentValue;
     }
 
     if (errors.length > 0) {
       setError(errors.join(", "));
-      setLoading(false);
+      setIsSubmitting(false);
       return;
     }
 
     try {
-      const response = await fetch(`/api/forms/${params.slug}`, {
+      const response = await fetch(`/api/forms/public/${params.slug}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(formData),
       });
 
       if (!response.ok) {
@@ -106,11 +106,11 @@ export default function PublicFormPage() {
       console.error("Error submitting form:", err);
       setError("Failed to submit form");
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center px-4">
         <Loader2 className="h-8 w-8 text-white/40 animate-spin" />
@@ -205,6 +205,8 @@ export default function PublicFormPage() {
                   <textarea
                     id={field.id}
                     name={field.id}
+                    value={formData[field.id] || ""}
+                    onChange={(e) => handleChange(field.id, e.target.value)}
                     placeholder={field.placeholder || ""}
                     className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/5 focus:border-white/40 focus:ring-1 focus:ring-white/20 text-white placeholder:text-white/30 min-h-[120px] resize-none"
                     required={field.required}
@@ -214,6 +216,8 @@ export default function PublicFormPage() {
                     <select
                       id={field.id}
                       name={field.id}
+                      value={formData[field.id] || ""}
+                      onChange={(e) => handleChange(field.id, e.target.value)}
                       className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/5 focus:border-white/40 focus:ring-1 focus:ring-white/20 text-white appearance-none"
                       required={field.required}
                     >
@@ -230,6 +234,8 @@ export default function PublicFormPage() {
                     id={field.id}
                     type={field.type}
                     name={field.id}
+                    value={formData[field.id] || ""}
+                    onChange={(e) => handleChange(field.id, e.target.value)}
                     placeholder={field.placeholder || ""}
                     className="w-full px-4 py-3 rounded-lg border border-white/20 bg-white/5 focus:border-white/40 focus:ring-1 focus:ring-white/20 text-white placeholder:text-white/30"
                     required={field.required}
@@ -241,10 +247,10 @@ export default function PublicFormPage() {
             <div className="flex items-center justify-end pt-4">
               <button
                 type="submit"
-                disabled={loading}
+                disabled={isSubmitting}
                 className="w-full btn-gradient text-black font-semibold py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? "Submitting..." : "Submit"}
+                {isSubmitting ? "Submitting..." : "Submit"}
               </button>
             </div>
 
