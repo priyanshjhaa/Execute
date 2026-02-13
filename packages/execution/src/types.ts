@@ -8,7 +8,6 @@
  */
 
 export type ExecutionStatus = 'pending' | 'running' | 'waiting' | 'completed' | 'failed';
-
 export type StepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'waiting';
 
 export interface ExecutionContext {

@@ -135,8 +135,6 @@ export const sendSlackValidator: StepValidator = {
     // Validate webhook URL if provided
     if (hasWebhook && !isValidUrl(config.webhook_url)) {
       errors.push('Invalid Slack webhook URL format');
-    } else if (hasWebhook && !config.webhook_url.includes('hooks.slack.com')) {
-      warnings.push("Webhook URL should be from hooks.slack.com");
     }
 
     return {

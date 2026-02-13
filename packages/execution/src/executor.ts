@@ -42,12 +42,21 @@ export interface ExecutionOptions {
  */
 export class WorkflowExecutor {
   private stepHandlers = new Map<string, StepHandler>();
+  // Track which steps should be skipped due to conditional branching
+  private skippedSteps = new Set<string>();
 
   /**
    * Register a step handler
    */
   registerHandler(handler: StepHandler): void {
     this.stepHandlers.set(handler.type, handler);
+  }
+
+  /**
+   * Reset state for new execution
+   */
+  private resetState(): void {
+    this.skippedSteps.clear();
   }
 
   /**
@@ -66,6 +75,7 @@ export class WorkflowExecutor {
     options: ExecutionOptions = {}
   ): Promise<ExecutionResult> {
     const startedAt = new Date();
+    this.resetState(); // Clear any previous skipped steps
     const context = createContext(user, workflow, executionId, options.triggerData);
 
     const steps: StepResult[] = [];
@@ -89,6 +99,24 @@ export class WorkflowExecutor {
           status = 'failed';
           error = 'Execution cancelled';
           break;
+        }
+
+        // Check if this step should be skipped (conditional branching)
+        if (this.skippedSteps.has(step.id)) {
+          // Add skipped step result
+          steps.push({
+            stepId: step.id,
+            status: 'skipped',
+            startedAt: new Date(),
+            completedAt: new Date(),
+          });
+          context.stepResults.set(step.id, {
+            stepId: step.id,
+            status: 'skipped',
+            startedAt: new Date(),
+            completedAt: new Date(),
+          });
+          continue;
         }
 
         // Notify step start
@@ -116,6 +144,19 @@ export class WorkflowExecutor {
         if (result.status === 'waiting') {
           status = 'waiting';
           break;
+        }
+
+        // Handle conditional branching: skip the non-matching branch
+        if (step.type === 'conditional' && result.status === 'completed' && result.data) {
+          const conditionResult = Boolean(result.data.conditionResult);
+          const branchToSkip = conditionResult
+            ? (result.data.falseSteps || [])
+            : (result.data.trueSteps || []);
+
+          // Mark steps in the non-matching branch as skipped
+          for (const stepId of branchToSkip) {
+            this.skippedSteps.add(stepId);
+          }
         }
       }
 

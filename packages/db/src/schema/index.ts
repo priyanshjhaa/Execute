@@ -8,3 +8,4 @@ export * from './contacts';
 export * from './contact-groups';
 export * from './user-integrations';
 export * from './quick-commands';
+export * from './forms';

@@ -46,6 +46,19 @@ export interface Contact {
   createdAt: string;
 }
 
+export interface Form {
+  id: string;
+  name: string;
+  description?: string;
+  publicSlug: string;
+  isActive: boolean;
+  fieldCount: number;
+  hasWorkflow: boolean;
+  workflowId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ============================================
 // QUERY KEYS
 // ============================================
@@ -54,6 +67,7 @@ export const queryKeys = {
   workflows: ["workflows"] as const,
   executions: ["executions"] as const,
   contacts: ["contacts"] as const,
+  forms: ["forms"] as const,
   workflow: (id: string) => ["workflows", id] as const,
   execution: (id: string) => ["executions", id] as const,
 };
@@ -170,6 +184,30 @@ export function useContacts() {
       }
       const data = await response.json();
       return data.contacts || [];
+    },
+  });
+}
+
+// ============================================
+// FORMS
+// ============================================
+
+/**
+ * Fetch all forms with caching
+ */
+export function useForms() {
+  return useQuery({
+    queryKey: queryKeys.forms,
+    queryFn: async () => {
+      const response = await fetch("/api/forms");
+      if (!response.ok) {
+        if (response.status === 401) {
+          return [];
+        }
+        throw new Error("Failed to fetch forms");
+      }
+      const data = await response.json();
+      return data.forms || [];
     },
   });
 }

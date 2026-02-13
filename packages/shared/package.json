@@ -1,9 +1,14 @@
 {
-  "name": "shared",
+  "name": "@execute/shared",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./id": "./src/id.ts"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch"

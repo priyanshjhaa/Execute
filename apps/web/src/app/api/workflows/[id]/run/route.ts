@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db, workflows, users, executions, steps } from '@execute/db';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, lt } from 'drizzle-orm';
 import { createExecutor, getAllHandlers } from '@execute/execution';
 
 function generateId(): string {
@@ -156,10 +156,18 @@ export async function POST(
 
     if (currentExecution?.status !== 'cancelled') {
       const now = new Date();
+
+      // Check if any step returned waiting status (e.g., delay step)
+      const waitingStep = result.steps.find((s) => s.status === 'waiting');
+      const resumeAt = waitingStep?.data?.resumeAt
+        ? new Date(waitingStep.data.resumeAt)
+        : null;
+
       await db.update(executions)
         .set({
-          status: result.status,
-          completedAt: now,
+          status: result.status === 'waiting' ? 'waiting' : result.status,
+          resumeAt,
+          completedAt: result.status === 'waiting' ? undefined : now,
           errorMessage: result.error,
           totalSteps: result.steps.length,
           completedSteps: result.steps.filter((s) => s.status === 'completed').length,

@@ -14,9 +14,10 @@ export const executions = pgTable('executions', {
     source: string;
     data: any;
   }>(),
-  status: varchar('status', { length: 50 }).notNull(), // pending, running, completed, failed, cancelled
+  status: varchar('status', { length: 50 }).notNull(), // pending, running, completed, failed, cancelled, waiting
   cancelRequested: boolean('cancel_requested').notNull().default(false), // Flag for cancellation requests
   startedAt: timestamp('started_at'),
+  resumeAt: timestamp('resume_at'), // When to resume a waiting execution (e.g., after delay)
   completedAt: timestamp('completed_at'),
   totalSteps: integer('total_steps'),
   completedSteps: integer('completed_steps').default(0),
@@ -30,6 +31,7 @@ export const executions = pgTable('executions', {
   statusIdx: index('executions_status_idx').on(table.status),
   createdAtIdx: index('executions_created_at_idx').on(table.createdAt),
   cancelRequestedIdx: index('executions_cancel_requested_idx').on(table.cancelRequested),
+  resumeAtIdx: index('executions_resume_at_idx').on(table.resumeAt),
 }));
 
 export type Execution = typeof executions.$inferSelect;

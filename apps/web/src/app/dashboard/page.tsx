@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
@@ -14,12 +15,14 @@ import {
   Wand2,
   Loader2,
 } from "lucide-react";
-import { useWorkflows, useExecutions, formatTimeAgo, type Workflow, type Execution } from "@/lib/query/hooks";
+import { useWorkflows, useExecutions, useForms, formatTimeAgo, type Workflow, type Execution, type Form } from "@/lib/query/hooks";
 
 export default function DashboardPage() {
+  const router = useRouter();
   // TanStack Query hooks with caching - data persists across navigation
   const { data: workflows = [], isLoading: workflowsLoading } = useWorkflows();
   const { data: executions = [], isLoading: executionsLoading } = useExecutions(5);
+  const { data: forms = [], isLoading: formsLoading } = useForms();
 
   // Show initial loading on first visit only
   const isLoading = workflowsLoading || executionsLoading;
@@ -64,9 +67,75 @@ export default function DashboardPage() {
       </div>
 
       <div className="container mx-auto px-8 py-8">
+        {/* Forms Section */}
+        <div className="mb-12">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-white">Forms</h2>
+            <div className="flex items-center gap-4">
+              <Link
+                href="/dashboard/forms"
+                className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                <span className="text-sm">Manage Forms</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Button
+                onClick={() => router.push('/dashboard/forms/new')}
+                className="bg-white/10 hover:bg-white/15 text-white border-white/20 text-sm px-4 py-2 rounded-full"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Create Form
+              </Button>
+            </div>
+          </div>
+
+          {formsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 text-white/40 animate-spin" />
+            </div>
+          ) : forms.length === 0 ? (
+            <div className="bg-white/[0.02] border border-white/10 rounded-xl p-12 text-center">
+              <Wand2 className="h-12 w-12 text-white/20 mx-auto mb-4" />
+              <p className="text-white/40">No forms yet</p>
+              <p className="text-white/30 text-sm mt-2">Create forms to collect data and trigger workflows</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {forms.slice(0, 6).map((form: Form) => (
+                <div
+                  key={form.id}
+                  className="group relative p-5 rounded-xl border border-white/10 bg-white/[0.02] hover:border-white/20 transition-all duration-300"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${form.isActive ? 'bg-green-500' : 'bg-white/20'}`} />
+                      <h3 className="text-lg font-semibold text-white truncate">{form.name}</h3>
+                    </div>
+                    {form.hasWorkflow && (
+                      <Zap className="h-4 w-4 text-sky-400" />
+                    )}
+                  </div>
+                  {form.description && (
+                    <p className="text-white/50 text-sm mb-3 line-clamp-2">{form.description}</p>
+                  )}
+                  <div className="flex items-center justify-between text-xs text-white/40">
+                    <span>{form.fieldCount} field{form.fieldCount !== 1 ? 's' : ''}</span>
+                    <span>Created {formatTimeAgo(form.createdAt)}</span>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
+                    <span className="text-xs text-white/30 font-mono">{form.publicSlug}</span>
+                    <Link href={`/f/${form.publicSlug}`} target="_blank" className="text-xs text-blue-400 hover:text-blue-300">
+                      View
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Quick Commands CTA Card */}
         <div className="mb-12">
-          <Link href="/dashboard/quick-commands">
             <div className="group relative p-6 md:p-8 rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] overflow-hidden transition-all duration-300 cursor-pointer">
               {/* Pink gradient orb at top left */}
               <div className="absolute -top-8 -left-8 w-40 h-40 bg-gradient-to-br from-pink-500/40 via-pink-400/20 to-transparent rounded-full blur-[40px] pointer-events-none"></div>
@@ -105,7 +174,6 @@ export default function DashboardPage() {
                 </button>
               </div>
             </div>
-          </Link>
         </div>
 
         {/* Workflow List Section */}

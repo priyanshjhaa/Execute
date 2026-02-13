@@ -1,7 +1,7 @@
 // Optimized: Shorter prompt for faster processing
 export const SYSTEM_PROMPT = `Convert workflow instructions to JSON.
 
-Triggers: webhook, schedule, email_received, form_submitted, user_created, purchase_completed
+Triggers: webhook, schedule, email_received, form_submission, user_created, purchase_completed
 Actions: send_email, send_slack, send_sms, http_request, create_task, add_to_list, delay, conditional
 
 Step format: {id, type, name, description?, config, position}
@@ -14,7 +14,7 @@ IMPORTANT - Email step config:
 - Examples:
   * { type: "send_email", config: { to: "John Doe", subject: "...", body: "..." } }
   * { type: "send_email", config: { to: "PJ", subject: "...", body: "..." } }
-  * { type: "send_email", config: { to: "Team", subject: "...", body: "..." } }
+  * { type: "form_submission", config: { formId: "abc-123" }, steps: [{ type: "send_email", to: "{{form.name}}", subject: "{{form.company}} signed up" }] }
 
 Use real UUIDs. Template vars: {{variable}} - BUT NOT in email "to" field!
 
