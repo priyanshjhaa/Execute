@@ -10,8 +10,8 @@ function generateId(): string {
 }
 
 /**
- * GET /api/forms/[slug] - Render public form page (redirects to actual page)
- * This is a convenience route that redirects to the hosted form page
+ * GET /api/forms/[slug] - Return form data as JSON
+ * This allows the frontend to render the form directly without a redirect
  */
 export async function GET(
   request: NextRequest,
@@ -34,11 +34,16 @@ export async function GET(
       return NextResponse.json({ error: 'Form is not active' }, { status: 400 });
     }
 
-    // Redirect to public form page
-    const formUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/f/${slug}`;
-    return NextResponse.redirect(formUrl);
+    // Return form data as JSON
+    return NextResponse.json({
+      form: {
+        name: form.name,
+        description: form.description,
+        fields: form.fields,
+      },
+    });
   } catch (error: any) {
-    console.error('Error redirecting to form:', error);
+    console.error('Error fetching form:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
