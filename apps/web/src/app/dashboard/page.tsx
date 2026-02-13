@@ -81,7 +81,7 @@ export default function DashboardPage() {
               </Link>
               <Button
                 onClick={() => router.push('/dashboard/forms/new')}
-                className="bg-white/10 hover:bg-white/15 text-white border-white/20 text-sm px-4 py-2 rounded-full"
+                className="bg-white hover:bg-white/90 text-black border-white/20 text-sm px-4 py-2 rounded-full"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Create Form

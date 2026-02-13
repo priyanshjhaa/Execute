@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, forms, formSubmissions } from '@execute/db';
+import { db, forms, formSubmissions, workflows } from '@execute/db';
 import { eq } from 'drizzle-orm';
 
 /**
@@ -113,22 +113,28 @@ export async function POST(
 
     // If form has a linked workflow, trigger it
     if (form.workflowId) {
-      // Trigger the workflow with form submission data
-      // We'll use the webhook execution endpoint for this
-      const webhookUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/webhooks/${form.workflowId}`;
+      // Fetch the workflow to get its webhookId
+      const [workflow] = await db.select()
+        .from(workflows)
+        .where(eq(workflows.id, form.workflowId))
+        .limit(1);
 
-      // Fire and forget - don't wait for response
-      fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'form_submission',
-          source: `form:${slug}`,
-          data: payload,
-        }),
-      }).catch((err) => {
-        console.error('Error triggering workflow:', err);
-      });
+      if (workflow?.webhookId) {
+        const webhookUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/webhooks/${workflow.webhookId}`;
+
+        // Fire and forget - don't wait for response
+        fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'form_submission',
+            source: `form:${slug}`,
+            data: payload,
+          }),
+        }).catch((err) => {
+          console.error('Error triggering workflow:', err);
+        });
+      }
     }
 
     return NextResponse.json({

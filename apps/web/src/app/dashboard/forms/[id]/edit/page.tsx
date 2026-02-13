@@ -17,7 +17,15 @@ import {
   Trash2,
   Check,
   ChevronDown,
+  Zap,
 } from "lucide-react";
+
+interface Workflow {
+  id: string;
+  name: string;
+  triggerType: string;
+  status: string;
+}
 
 interface FormField {
   id: string;
@@ -50,6 +58,9 @@ export default function EditFormPage() {
   const [fields, setFields] = useState<FormField[]>([]);
   const [publicSlug, setPublicSlug] = useState("");
   const [showFieldPicker, setShowFieldPicker] = useState(false);
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>("");
+  const [loadingWorkflows, setLoadingWorkflows] = useState(true);
 
   useEffect(() => {
     async function loadForm() {
@@ -65,6 +76,7 @@ export default function EditFormPage() {
         setFormDescription(form.description || "");
         setFields(form.fields || []);
         setPublicSlug(form.publicSlug || "");
+        setSelectedWorkflowId(form.workflowId || "");
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -74,6 +86,24 @@ export default function EditFormPage() {
 
     loadForm();
   }, [formId]);
+
+  // Fetch workflows on mount
+  useEffect(() => {
+    async function fetchWorkflows() {
+      try {
+        const response = await fetch("/api/workflows");
+        if (response.ok) {
+          const data = await response.json();
+          setWorkflows(data.workflows || []);
+        }
+      } catch (err) {
+        console.error("Error fetching workflows:", err);
+      } finally {
+        setLoadingWorkflows(false);
+      }
+    }
+    fetchWorkflows();
+  }, []);
 
   const generateFieldId = () => {
     return `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -159,6 +189,7 @@ export default function EditFormPage() {
           name: formName.trim(),
           description: formDescription.trim() || undefined,
           fields,
+          workflowId: selectedWorkflowId || null,
         }),
       });
 
@@ -273,6 +304,39 @@ export default function EditFormPage() {
                     rows={3}
                     className="w-full px-4 py-3 bg-white/[0.02] border border-white/10 rounded-lg text-white placeholder:text-white/40 focus:outline-none focus:border-white/20 resize-none"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-white/70 mb-2">
+                    Linked Workflow (Optional)
+                  </label>
+                  {loadingWorkflows ? (
+                    <div className="flex items-center gap-2 text-white/40 text-sm">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading workflows...
+                    </div>
+                  ) : workflows.length === 0 ? (
+                    <p className="text-white/40 text-sm">No workflows available. Create a workflow first.</p>
+                  ) : (
+                    <select
+                      value={selectedWorkflowId}
+                      onChange={(e) => setSelectedWorkflowId(e.target.value)}
+                      className="w-full px-4 py-3 bg-white/[0.02] border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/20 appearance-none"
+                    >
+                      <option value="" className="bg-black">Select a workflow to trigger...</option>
+                      {workflows.map((wf) => (
+                        <option key={wf.id} value={wf.id} className="bg-black">
+                          {wf.name} ({wf.triggerType})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {selectedWorkflowId && (
+                    <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
+                      <Zap className="h-3 w-3" />
+                      Form submissions will trigger this workflow
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
