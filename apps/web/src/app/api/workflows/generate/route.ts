@@ -127,6 +127,9 @@ export async function POST(request: NextRequest) {
         .returning();
     }
 
+    // Generate webhookId for webhook-based workflows
+    const webhookId = triggerType === 'webhook' ? crypto.randomUUID() : null;
+
     const workflowData = {
       userId: internalUser.id,
       name: result.workflow.name,
@@ -140,6 +143,7 @@ export async function POST(request: NextRequest) {
       status: 'draft',
       totalExecutions: 0,
       successRate: 0,
+      webhookId: webhookId,
     };
 
     const [workflow] = await db.insert(workflows)

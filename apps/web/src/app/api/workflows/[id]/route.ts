@@ -131,7 +131,7 @@ export async function PATCH(
 
     // 3. Parse request body
     const body = await request.json();
-    const { name, description, status, definition } = body;
+    const { name, description, status, definition, triggerType: newTriggerType } = body;
 
     // 4. Verify ownership and get existing workflow
     const [existingWorkflow] = await db.select()
@@ -150,13 +150,21 @@ export async function PATCH(
       );
     }
 
-    // 5. Update workflow
+    // 5. Generate webhookId if triggerType is being set to webhook and none exists
+    let webhookId = existingWorkflow.webhookId;
+    if (newTriggerType === 'webhook' && !webhookId) {
+      webhookId = crypto.randomUUID();
+    }
+
+    // 6. Update workflow
     const [updated] = await db.update(workflows)
       .set({
         name: name ?? existingWorkflow.name,
         description: description ?? existingWorkflow.description,
         status: status ?? existingWorkflow.status,
         definition: definition ?? existingWorkflow.definition,
+        triggerType: newTriggerType ?? existingWorkflow.triggerType,
+        webhookId: webhookId ?? existingWorkflow.webhookId,
         updatedAt: new Date(),
       })
       .where(eq(workflows.id, id))

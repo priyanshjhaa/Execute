@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, Clock, Eye, Play, Plus, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Eye, Play, Plus, Loader2, Edit } from "lucide-react";
 
 interface Workflow {
   id: string;
@@ -159,6 +159,15 @@ export default function WorkflowsPage() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-3">
+                    <Link href={`/dashboard/workflows/${workflow.id}/edit`}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="p-2 h-9 w-9 hover:bg-white/5"
+                      >
+                        <Edit className="h-3 w-3 text-white/60" />
+                      </Button>
+                    </Link>
                     <Link href={`/dashboard/workflows/${workflow.id}`}>
                       <Button
                         variant="outline"

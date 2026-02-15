@@ -10,6 +10,7 @@ import {
   FileText,
   Copy,
   Check,
+  Edit,
   Trash2,
   Loader2,
   ExternalLink,
@@ -241,6 +242,16 @@ export default function FormsPage() {
                   >
                     <ExternalLink className="h-3 w-3 text-white/60" />
                   </a>
+
+                  <Link href={`/dashboard/forms/${form.id}/edit`}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="p-2 h-9 w-9 hover:bg-white/5"
+                    >
+                      <Edit className="h-3 w-3 text-white/60" />
+                    </Button>
+                  </Link>
 
                   <Button
                     variant="ghost"
