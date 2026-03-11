@@ -8,12 +8,12 @@ interface QuickCommandInputProps {
 }
 
 const suggestions = [
-  { icon: "💰", text: "Spent ₹5,000 on Facebook ads", label: "Log expense" },
-  { icon: "🤝", text: "We signed Acme Corp today", label: "Log client" },
-  { icon: "📧", text: "Send meeting reminder to team", label: "Send email" },
-  { icon: "📝", text: "Client presentation sent", label: "Add reminder" },
-  { icon: "📊", text: "What are my total expenses?", label: "Query expenses" },
-  { icon: "👥", text: "How many clients do I have?", label: "Query clients" },
+  { icon: "$", text: "Spent ₹5,000 on Facebook ads", label: "Log expense" },
+  { icon: "B", text: "We signed Acme Corp today", label: "Log client" },
+  { icon: "@", text: "Send meeting reminder to team", label: "Send email" },
+  { icon: '"', text: "Client presentation sent", label: "Add reminder" },
+  { icon: "∑", text: "What are my total expenses?", label: "Query expenses" },
+  { icon: "?", text: "How many clients do I have?", label: "Query clients" },
 ];
 
 export function QuickCommandInput({ onCommandExecuted }: QuickCommandInputProps) {
@@ -174,7 +174,7 @@ export function QuickCommandInput({ onCommandExecuted }: QuickCommandInputProps)
                 onClick={() => handleSuggestionClick(suggestion.text)}
                 className="flex items-center gap-3 p-3 bg-white/[0.02] border border-white/10 rounded-xl hover:bg-white/5 hover:border-white/20 transition-colors text-left"
               >
-                <span className="text-lg">{suggestion.icon}</span>
+                <span className="text-lg text-white/40 font-light">{suggestion.icon}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-white/80 truncate">{suggestion.text}</p>
                   <p className="text-xs text-white/40">{suggestion.label}</p>

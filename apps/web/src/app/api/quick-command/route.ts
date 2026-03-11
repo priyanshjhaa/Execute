@@ -388,27 +388,27 @@ export async function GET(request: NextRequest) {
     // Get counts for each filter type
     const [counts] = await db.select({
       all: count(),
-      expense: count(sql`${quickCommands.classifiedIntent}->>'entity' = 'expense'`),
-      client: count(sql`${quickCommands.classifiedIntent}->>'entity' = 'client'`),
-      task: count(sql`${quickCommands.classifiedIntent}->>'entity' = 'task'`),
-      email: count(sql`${quickCommands.classifiedIntent}->>'entity' = 'email'`),
-      note: count(sql`${quickCommands.classifiedIntent}->>'entity' = 'note'`),
-      contact: count(sql`${quickCommands.classifiedIntent}->>'entity' = 'contact'`),
-      reminder: count(sql`${quickCommands.classifiedIntent}->>'entity' = 'reminder'`),
+      expense: count(sql`CASE WHEN ${quickCommands.classifiedIntent}->>'entity' = 'expense' THEN 1 END`),
+      client: count(sql`CASE WHEN ${quickCommands.classifiedIntent}->>'entity' = 'client' THEN 1 END`),
+      task: count(sql`CASE WHEN ${quickCommands.classifiedIntent}->>'entity' = 'task' THEN 1 END`),
+      email: count(sql`CASE WHEN ${quickCommands.classifiedIntent}->>'entity' = 'email' THEN 1 END`),
+      note: count(sql`CASE WHEN ${quickCommands.classifiedIntent}->>'entity' = 'note' THEN 1 END`),
+      contact: count(sql`CASE WHEN ${quickCommands.classifiedIntent}->>'entity' = 'contact' THEN 1 END`),
+      reminder: count(sql`CASE WHEN ${quickCommands.classifiedIntent}->>'entity' = 'reminder' THEN 1 END`),
     }).from(quickCommands).where(eq(quickCommands.userId, internalUser.id));
 
     return NextResponse.json({
       history: items,
       hasMore,
       counts: {
-        all: counts.all,
-        expense: counts.expense,
-        client: counts.client,
-        task: counts.task,
-        email: counts.email,
-        note: counts.note,
-        contact: counts.contact,
-        reminder: counts.reminder,
+        all: Number(counts.all),
+        expense: Number(counts.expense),
+        client: Number(counts.client),
+        task: Number(counts.task),
+        email: Number(counts.email),
+        note: Number(counts.note),
+        contact: Number(counts.contact),
+        reminder: Number(counts.reminder),
       },
     });
 

@@ -74,7 +74,7 @@ export default function DashboardPage() {
             <div className="flex items-center gap-4">
               <Link
                 href="/dashboard/forms"
-                className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors"
+                className="inline-flex items-center gap-2 text-white hover:text-white/80 transition-colors"
               >
                 <span className="text-sm">Manage Forms</span>
                 <ArrowRight className="h-4 w-4" />
@@ -124,7 +124,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
                     <span className="text-xs text-white/30 font-mono">{form.publicSlug}</span>
-                    <Link href={`/f/${form.publicSlug}`} target="_blank" className="text-xs text-blue-400 hover:text-blue-300">
+                    <Link href={`/f/${form.publicSlug}`} target="_blank" className="text-xs text-white hover:text-white/80">
                       View
                     </Link>
                   </div>
@@ -135,8 +135,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Quick Commands CTA Card */}
-        <div className="mb-12">
-            <div className="group relative p-6 md:p-8 rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] overflow-hidden transition-all duration-300 cursor-pointer">
+        <Link href="/dashboard/quick-commands" className="mb-12 block">
+            <div className="group relative p-6 md:p-8 rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] overflow-hidden transition-all duration-300">
               {/* Pink gradient orb at top left */}
               <div className="absolute -top-8 -left-8 w-40 h-40 bg-gradient-to-br from-pink-500/40 via-pink-400/20 to-transparent rounded-full blur-[40px] pointer-events-none"></div>
               {/* Sky blue gradient orb at bottom right */}
@@ -160,21 +160,21 @@ export default function DashboardPage() {
 
               {/* Action Buttons */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <button className="flex items-center gap-3 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-left">
-                  <span className="text-2xl">💰</span>
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all">
+                  <span className="text-xl font-light text-white/60">$</span>
                   <span className="text-white/80 text-sm font-medium">Spent ₹5,000 on ads</span>
-                </button>
-                <button className="flex items-center gap-3 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-left">
-                  <span className="text-2xl">🤝</span>
+                </div>
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all">
+                  <span className="text-xl font-light text-white/60">B</span>
                   <span className="text-white/80 text-sm font-medium">We signed Acme Corp</span>
-                </button>
-                <button className="flex items-center gap-3 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-left">
-                  <span className="text-2xl">📧</span>
+                </div>
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all">
+                  <span className="text-xl font-light text-white/60">@</span>
                   <span className="text-white/80 text-sm font-medium">Send meeting reminder</span>
-                </button>
+                </div>
               </div>
             </div>
-        </div>
+        </Link>
 
         {/* Workflow List Section */}
         <div className="mb-12">

@@ -35,14 +35,14 @@ interface CommandCounts {
 }
 
 const filters = [
-  { key: 'all', label: 'All', icon: '📋' },
-  { key: 'expense', label: 'Expenses', icon: '💰' },
-  { key: 'client', label: 'Clients', icon: '🤝' },
-  { key: 'task', label: 'Tasks', icon: '✅' },
-  { key: 'email', label: 'Emails', icon: '📧' },
-  { key: 'note', label: 'Notes', icon: '📝' },
-  { key: 'contact', label: 'Contacts', icon: '👤' },
-  { key: 'reminder', label: 'Reminders', icon: '⏰' },
+  { key: 'all', label: 'All', icon: '⊞' },
+  { key: 'expense', label: 'Expenses', icon: '$' },
+  { key: 'client', label: 'Clients', icon: 'B' },
+  { key: 'task', label: 'Tasks', icon: '✓' },
+  { key: 'email', label: 'Emails', icon: '@' },
+  { key: 'note', label: 'Notes', icon: '"' },
+  { key: 'contact', label: 'Contacts', icon: '○' },
+  { key: 'reminder', label: 'Reminders', icon: '⏐' },
 ];
 
 function getIntentBadge(intent: string) {
@@ -179,7 +179,7 @@ export default function QuickCommandsPage() {
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-3">
-                <Wand2 className="h-6 w-6 text-purple-400" />
+                <Wand2 className="h-6 w-6 text-white/60" />
                 <h1 className="text-3xl font-bold text-white">Quick Commands</h1>
               </div>
               <p className="text-white/50 ml-9">
@@ -223,17 +223,15 @@ export default function QuickCommandsPage() {
                         : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/5 hover:border-white/20'
                     }`}
                   >
-                    <span>{filter.icon}</span>
+                    <span className="text-white/40">{filter.icon}</span>
                     <span>{filter.label}</span>
-                    {count > 0 && (
-                      <span className={`px-1.5 py-0.5 rounded-md text-xs ${
-                        activeFilter === filter.key
-                          ? 'bg-white/20 text-white/80'
-                          : 'bg-white/10 text-white/40'
-                      }`}>
-                        {count}
-                      </span>
-                    )}
+                    <span className={`px-1.5 py-0.5 rounded-md text-xs ${
+                      activeFilter === filter.key
+                        ? 'bg-white/20 text-white/80'
+                        : 'bg-white/10 text-white/40'
+                    }`}>
+                      {count}
+                    </span>
                   </button>
                 );
               })}
