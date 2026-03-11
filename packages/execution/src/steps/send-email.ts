@@ -97,7 +97,6 @@ export class SendEmailStepHandler implements StepHandler {
         const resolved = await resolveRecipientFromText(context.user.id, resolvedTo);
         to = resolved.emails;
         recipientConfig = { type: 'manual', to };
-        console.log('[SendEmail] Resolved recipient from text:', resolvedTo, '->', to);
       } catch (err: any) {
         return {
           stepId: step.id,
@@ -148,12 +147,6 @@ export class SendEmailStepHandler implements StepHandler {
       // Use RESEND_FROM_EMAIL if configured, otherwise fall back to config.from or default
       const defaultFrom = RESEND_FROM_EMAIL || 'noreply@' + (process.env.SITE_DOMAIN || 'localhost');
       const from = templateResolver.resolve(config.from || defaultFrom, context);
-
-      // Debug logging - remove this after fixing
-      console.log('[SendEmail] RESEND_FROM_EMAIL env var:', RESEND_FROM_EMAIL);
-      console.log('[SendEmail] config.from:', config.from);
-      console.log('[SendEmail] defaultFrom:', defaultFrom);
-      console.log('[SendEmail] resolved from:', from);
 
       // If we have resolved contacts, we can personalize the email for each recipient
       const isPersonalized = config.recipients && config.personalize !== false;
@@ -320,9 +313,6 @@ export class SendEmailStepHandler implements StepHandler {
   }
 
   private async sendEmail(payload: Record<string, any>): Promise<SendEmailResult> {
-    // Log the exact payload being sent for debugging
-    console.log('[SendEmail] Sending payload to Resend:', JSON.stringify(payload, null, 2));
-
     const response = await fetch(RESEND_API_URL, {
       method: 'POST',
       headers: {
@@ -333,8 +323,6 @@ export class SendEmailStepHandler implements StepHandler {
     });
 
     const responseData = await response.json();
-    console.log('[SendEmail] Resend API response status:', response.status);
-    console.log('[SendEmail] Resend API response data:', JSON.stringify(responseData, null, 2));
 
     if (!response.ok) {
       return {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, workflows, users, executions } from '@execute/db';
+import { db, workflows, users, executions, steps } from '@execute/db';
 import { eq, and } from 'drizzle-orm';
 import { createExecutor, getAllHandlers } from '@execute/execution';
 
@@ -67,6 +67,10 @@ export async function POST(
           executor.registerHandler(handler);
         }
 
+        // Track step order for database logging
+        let stepOrder = 0;
+        const stepDbIds = new Map<string, string>();
+
         const result = await executor.execute(
           {
             id: workflow.id,
@@ -80,7 +84,36 @@ export async function POST(
           },
           { id: user.id, email: user.email, name: user.name || undefined },
           executionId,
-          { triggerData }
+          {
+            triggerData,
+            // Add step logging callbacks
+            onStepStart: async (stepId) => {
+              const stepDef = workflow.definition.steps.find((s: any) => s.id === stepId);
+              const [stepRecord] = await db.insert(steps).values({
+                executionId,
+                stepOrder: stepOrder++,
+                stepType: stepDef?.type || 'unknown',
+                description: stepDef?.name || stepId,
+                inputParams: stepDef || {},
+                status: 'running',
+                startedAt: new Date(),
+              }).returning();
+              stepDbIds.set(stepId, stepRecord.id);
+            },
+            onStepComplete: async (stepResult) => {
+              const dbStepId = stepDbIds.get(stepResult.stepId);
+              if (dbStepId) {
+                await db.update(steps)
+                  .set({
+                    status: stepResult.status,
+                    outputResult: { data: stepResult.data, error: stepResult.error },
+                    completedAt: stepResult.completedAt || new Date(),
+                    errorMessage: stepResult.error,
+                  })
+                  .where(eq(steps.id, dbStepId));
+              }
+            },
+          }
         );
 
         const now = new Date();

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db, userIntegrations, users } from '@execute/db';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 const SLACK_CLIENT_ID = process.env.SLACK_CLIENT_ID || '';
 const SLACK_CLIENT_SECRET = process.env.SLACK_CLIENT_SECRET || '';
@@ -100,7 +100,12 @@ export async function GET(request: NextRequest) {
     // Check if Slack integration already exists for this user
     const [existing] = await db.select()
       .from(userIntegrations)
-      .where(eq(userIntegrations.userId, internalUser.id))
+      .where(
+        and(
+          eq(userIntegrations.userId, internalUser.id),
+          eq(userIntegrations.type, 'slack')
+        )
+      )
       .limit(1);
 
     // Prepare integration config
@@ -114,8 +119,8 @@ export async function GET(request: NextRequest) {
       default_channel_name: null,
     };
 
-    if (existing && existing.type === 'slack') {
-      // Update existing integration
+    if (existing) {
+      // Update existing integration (we know it's slack)
       await db.update(userIntegrations)
         .set({
           config,

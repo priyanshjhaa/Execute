@@ -58,10 +58,15 @@ export async function GET(
       return NextResponse.json({ error: 'Execution not found' }, { status: 404 });
     }
 
-    const [workflow] = await db.select()
-      .from(workflows)
-      .where(eq(workflows.id, execution.workflowId!))
-      .limit(1);
+    // Guard workflow lookup - only query if workflowId exists
+    let workflow = null;
+    if (execution.workflowId) {
+      const [workflowResult] = await db.select()
+        .from(workflows)
+        .where(eq(workflows.id, execution.workflowId))
+        .limit(1);
+      workflow = workflowResult;
+    }
 
     // Fetch steps for this execution
     const executionSteps = await db.select()

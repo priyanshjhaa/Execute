@@ -127,11 +127,22 @@ export default function ExecutionDetailPage() {
     try {
       const response = await fetch(`/api/executions/${executionId}`);
       if (!response.ok) {
-        if (response.status === 404 || response.status === 400) {
+        // Handle 401 - redirect to login
+        if (response.status === 401) {
+          router.push('/login');
+          return;
+        }
+
+        // Handle 400/404 - redirect to executions list
+        if (response.status === 400 || response.status === 404) {
           router.push('/dashboard/executions');
           return;
         }
-        throw new Error('Failed to fetch execution');
+
+        // For other errors, log response body to surface root cause
+        const errorText = await response.text();
+        console.error(`Execution fetch error (${response.status}):`, errorText);
+        throw new Error(`Failed to fetch execution: ${response.status} - ${errorText}`);
       }
       const data = await response.json();
       setExecution(data.execution);
