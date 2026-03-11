@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -19,32 +19,7 @@ import {
   ListChecks,
   Calendar,
 } from 'lucide-react';
-
-interface Execution {
-  id: string;
-  workflowId: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
-  triggerType: string;
-  startedAt: string;
-  completedAt: string | null;
-  duration: number | null;
-  error: string | null;
-  workflow: {
-    id: string;
-    name: string;
-  } | null;
-  steps?: Array<{
-    stepId: string;
-    stepName: string;
-    stepType: string;
-    status: 'pending' | 'running' | 'completed' | 'failed';
-    startedAt: string;
-    completedAt: string | null;
-    error: string | null;
-    data?: any;
-    output?: any;
-  }>;
-}
+import { useExecution } from '@/lib/query/hooks';
 
 function getStatusColor(status: string) {
   switch (status) {
@@ -119,43 +94,48 @@ export default function ExecutionDetailPage() {
   const router = useRouter();
   const executionId = params.id as string;
 
-  const [execution, setExecution] = useState<Execution | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [retrying, setRetrying] = useState(false);
+  // Use TanStack Query hook with automatic refetching
+  const { data: execution, isLoading, error, isError } = useExecution(executionId);
 
-  const fetchExecution = async () => {
-    try {
-      const response = await fetch(`/api/executions/${executionId}`);
-      if (!response.ok) {
-        // Handle 401 - redirect to login
-        if (response.status === 401) {
-          router.push('/login');
-          return;
-        }
+  // Handle error states
+  useEffect(() => {
+    if (isError && error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
 
-        // Handle 400/404 - redirect to executions list
-        if (response.status === 400 || response.status === 404) {
-          router.push('/dashboard/executions');
-          return;
-        }
-
-        // For other errors, log response body to surface root cause
-        const errorText = await response.text();
-        console.error(`Execution fetch error (${response.status}):`, errorText);
-        throw new Error(`Failed to fetch execution: ${response.status} - ${errorText}`);
+      // Redirect to login for unauthorized
+      if (errorMessage === 'UNAUTHORIZED') {
+        router.push('/login');
+        return;
       }
-      const data = await response.json();
-      setExecution(data.execution);
-    } catch (error) {
-      console.error('Error fetching execution:', error);
-    } finally {
-      setLoading(false);
+
+      // Redirect to executions list for not found
+      if (errorMessage === 'NOT_FOUND') {
+        router.push('/dashboard/executions');
+        return;
+      }
     }
-  };
+  }, [isError, error, router]);
+
+  // Initial loading state
+  if (isLoading && !execution) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="h-8 w-8 text-white/40 animate-spin" />
+      </div>
+    );
+  }
+
+  // No execution found (after loading)
+  if (!execution) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white/40">Execution not found</div>
+      </div>
+    );
+  }
 
   const handleRetry = async () => {
     if (!execution?.workflowId) return;
-    setRetrying(true);
     try {
       const response = await fetch(`/api/workflows/${execution.workflowId}/run`, {
         method: 'POST',
@@ -165,36 +145,8 @@ export default function ExecutionDetailPage() {
       router.push(`/dashboard/executions/${data.executionId}`);
     } catch (error) {
       console.error('Error retrying execution:', error);
-      setRetrying(false);
     }
   };
-
-  useEffect(() => {
-    fetchExecution();
-  }, [executionId]);
-
-  useEffect(() => {
-    if (execution?.status === 'running' || execution?.status === 'pending') {
-      const interval = setInterval(fetchExecution, 3000);
-      return () => clearInterval(interval);
-    }
-  }, [execution?.status]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <Loader2 className="h-8 w-8 text-white/40 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!execution) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white/40">Execution not found</div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-black">
@@ -239,14 +191,9 @@ export default function ExecutionDetailPage() {
                   size="lg"
                   className="text-base btn-gradient text-black px-6 py-5 rounded-full"
                   onClick={handleRetry}
-                  disabled={retrying}
                 >
-                  {retrying ? (
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="mr-2 h-5 w-5" />
-                  )}
-                  {retrying ? 'Retrying...' : 'Retry'}
+                  <CheckCircle2 className="mr-2 h-5 w-5" />
+                  Retry
                 </Button>
               )}
             </div>

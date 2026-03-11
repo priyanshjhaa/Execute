@@ -25,15 +25,27 @@ export interface Workflow {
 export interface Execution {
   id: string;
   workflowId: string;
-  status: "running" | "completed" | "failed" | "waiting";
+  status: "running" | "completed" | "failed" | "waiting" | "pending";
+  triggerType: string;
   startedAt: string;
-  completedAt?: string;
-  duration?: number;
-  error?: string;
-  workflow?: {
+  completedAt: string | null;
+  duration: number | null;
+  error: string | null;
+  workflow: {
     id: string;
     name: string;
-  };
+  } | null;
+  steps?: Array<{
+    stepId: string;
+    stepName: string;
+    stepType: string;
+    status: 'pending' | 'running' | 'completed' | 'failed';
+    startedAt: string;
+    completedAt: string | null;
+    error: string | null;
+    data?: any;
+    output?: any;
+  }>;
 }
 
 export interface Contact {
@@ -142,6 +154,7 @@ export function useExecutions(limit?: number) {
 
 /**
  * Fetch a single execution by ID
+ * Automatically refetches every 3 seconds for running/pending executions
  */
 export function useExecution(id: string) {
   const query = useQuery<Execution>({
@@ -149,17 +162,30 @@ export function useExecution(id: string) {
     queryFn: async () => {
       const response = await fetch(`/api/executions/${id}`);
       if (!response.ok) {
-        throw new Error("Failed to fetch execution");
+        // Handle 401 - unauthorized
+        if (response.status === 401) {
+          throw new Error('UNAUTHORIZED');
+        }
+        // Handle 400/404 - not found
+        if (response.status === 400 || response.status === 404) {
+          throw new Error('NOT_FOUND');
+        }
+        // Other errors
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch execution: ${response.status} - ${errorText}`);
       }
       const json = await response.json();
-      return json.execution || json;
+      return json.execution;
     },
     enabled: !!id,
+    // Refetch every 3 seconds for running/pending executions
+    refetchInterval: (data) => {
+      if (data?.status === 'running' || data?.status === 'pending') {
+        return 3000; // 3 seconds
+      }
+      return false; // Stop refetching when completed/failed
+    },
   });
-
-  // Refetch running executions every 5 seconds
-  // Using useEffect instead of refetchInterval for better type safety
-  // The executions page already handles this with its own interval
 
   return query;
 }
