@@ -61,6 +61,17 @@ export async function POST(
       return NextResponse.json({ error: 'Workflow is already running' }, { status: 409 });
     }
 
+    // Parse request body for optional test data
+    let testData = {};
+    try {
+      const body = await request.json();
+      if (body && typeof body === 'object' && body.data) {
+        testData = body.data;
+      }
+    } catch {
+      // If no body or invalid JSON, use empty object
+    }
+
     const executionId = generateId();
     await db.insert(executions).values({
       id: executionId,
@@ -68,7 +79,7 @@ export async function POST(
       userId: internalUser.id,
       status: 'running',
       cancelRequested: false,
-      triggerData: { type: 'manual', source: 'api', data: {} },
+      triggerData: { type: 'manual', source: 'api', data: testData },
       startedAt: new Date(),
     });
 
@@ -96,6 +107,7 @@ export async function POST(
       { id: internalUser.id, email: internalUser.email, name: internalUser.name || undefined },
       executionId,
       {
+        triggerData: testData,
         onStepStart: async (stepId) => {
           const stepDef = workflow.definition.steps.find((s: any) => s.id === stepId);
           const [stepRecord] = await db.insert(steps).values({

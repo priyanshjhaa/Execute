@@ -55,7 +55,7 @@ export async function POST(
       workflowId: workflow.id,
       userId: user.id,
       status: 'running',
-      triggerData: { type: 'webhook', source: webhookId, data: triggerData },
+      triggerData: triggerData as any,  // Use the original webhook payload directly without wrapping
       startedAt: new Date(),
     });
 
