@@ -178,13 +178,13 @@ export function useExecution(id: string) {
       return json.execution;
     },
     enabled: !!id,
-    // Refetch every 3 seconds for running/pending executions
-    refetchInterval: (data) => {
-      if (data?.status === 'running' || data?.status === 'pending') {
+    // Refetch every 3 seconds for running/pending/waiting executions
+    refetchInterval: ((data: Execution | undefined) => {
+      if (data?.status === 'running' || data?.status === 'pending' || data?.status === 'waiting') {
         return 3000; // 3 seconds
       }
       return false; // Stop refetching when completed/failed
-    },
+    }) as any,
   });
 
   return query;

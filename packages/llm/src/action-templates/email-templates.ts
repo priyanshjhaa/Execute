@@ -355,21 +355,30 @@ export function renderEmailTemplate(
   let html = template.html;
   let text = template.text;
 
-  // Replace all variables in all fields
-  for (const [key, value] of Object.entries(variables)) {
-    const placeholder = `{{${key}}}`;
-    subject = subject.replace(new RegExp(placeholder, 'g'), value);
-    html = html.replace(new RegExp(placeholder, 'g'), value);
-    text = text.replace(new RegExp(placeholder, 'g'), value);
+  // Resolve conditionals first so missing variables don't leave template tags behind.
+  const conditionalKeys = new Set([
+    ...Array.from(html.matchAll(/{{#if ([^}]+)}}/g)).map((match) => match[1]),
+    ...Array.from(text.matchAll(/{{#if ([^}]+)}}/g)).map((match) => match[1]),
+  ]);
 
-    // Also handle conditionals (simple implementation)
-    html = html.replace(new RegExp(`{{#if ${key}}}([\\s\\S]*?){{/if}}`, 'gs'), value ? '$1' : '');
-    text = text.replace(new RegExp(`{{#if ${key}}}([\\s\\S]*?){{/if}}`, 'gs'), value ? '$1' : '');
+  for (const key of conditionalKeys) {
+    const value = variables[key];
+    const replacement = value ? '$1' : '';
+    html = html.replace(new RegExp(`{{#if ${key}}}([\\s\\S]*?){{/if}}`, 'g'), replacement);
+    text = text.replace(new RegExp(`{{#if ${key}}}([\\s\\S]*?){{/if}}`, 'g'), replacement);
   }
 
-  // Remove any remaining placeholders with fallback
-  html = html.replace(/{{[^}]+}}/g, '');
-  text = text.replace(/{{[^}]+}}/g, '');
+  // Replace all variables in all fields
+  for (const [key, value] of Object.entries(variables)) {
+    const placeholder = new RegExp(`{{${key}}}`, 'g');
+    subject = subject.replace(placeholder, value);
+    html = html.replace(placeholder, value);
+    text = text.replace(placeholder, value);
+  }
+
+  // Remove any leftover conditional wrappers after variable replacement.
+  html = html.replace(/{{#if [^}]+}}/g, '').replace(/{{\/if}}/g, '');
+  text = text.replace(/{{#if [^}]+}}/g, '').replace(/{{\/if}}/g, '');
 
   return { subject, html, text };
 }

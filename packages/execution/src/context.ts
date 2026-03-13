@@ -8,6 +8,11 @@
  * - {{workflow.id}}, {{workflow.name}}
  * - {{trigger.data.*}} - data from trigger payload
  * - {{steps.<stepId>.data.*}} - results from previous steps
+ * - {{variable_name}} - shorthand for {{trigger.data.variable_name}}
+ *
+ * Shorthand variables (automatically mapped to trigger.data):
+ * - Any standalone variable like {{new_client}}, {{contact_name}}, etc.
+ * - Automatically maps to {{trigger.data.variable_name}}
  */
 
 import type { ExecutionContext } from './types.js';
@@ -44,7 +49,40 @@ export class TemplateResolver {
       }
     }
 
+    // Resolve shorthand variables (standalone {{variable}} -> {{trigger.data.variable}})
+    // This must come AFTER specific variables to avoid replacing them
+    result = this.resolveShorthandVars(result, context);
+
     return result;
+  }
+
+  /**
+   * Resolve shorthand variables (e.g., {{new_client}} -> trigger.data.new_client)
+   *
+   * This allows users to write {{new_client}} instead of {{trigger.data.new_client}}
+   * making templates more readable and user-friendly.
+   */
+  private resolveShorthandVars(template: string, context: ExecutionContext): string {
+    if (!context.triggerData) {
+      return template;
+    }
+
+    // Match any standalone {{variable}} that hasn't been replaced yet
+    // Exclude patterns with dots (already processed like {{user.id}})
+    const pattern = /\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}/g;
+
+    return template.replace(pattern, (match, varName) => {
+      // Try to get the value from trigger.data
+      const value = context.triggerData?.[varName];
+
+      if (value !== undefined) {
+        return String(value);
+      }
+
+      // If not found in trigger.data, leave it unchanged
+      // This allows for custom variables that might be added later
+      return match;
+    });
   }
 
   /**

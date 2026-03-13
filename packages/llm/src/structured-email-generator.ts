@@ -139,6 +139,34 @@ export async function generateStructuredEmailContent(
   if (!finalVariables.timestamp) {
     finalVariables.timestamp = new Date().toLocaleString();
   }
+  if (!finalVariables.user_name) {
+    finalVariables.user_name = '{{name}}';
+  }
+  if (!finalVariables.user_email) {
+    finalVariables.user_email = '{{email}}';
+  }
+  if (!finalVariables.client_name) {
+    finalVariables.client_name = '{{name}}';
+  }
+  if (!finalVariables.recipient_name) {
+    finalVariables.recipient_name = '{{name}}';
+  }
+  if (!finalVariables.sender_name) {
+    finalVariables.sender_name = 'Execute';
+  }
+  if (!finalVariables.cta_link) {
+    finalVariables.cta_link = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  }
+  if (!finalVariables.cta_text) {
+    finalVariables.cta_text = 'Open Execute';
+  }
+
+  // Welcome flows should always read as a welcome email even if the classifier
+  // failed to populate extra fields.
+  if (action.action_type === 'EMAIL.WELCOME_USER') {
+    finalVariables.company_name = finalVariables.company_name || 'Execute';
+    finalVariables.cta_link = finalVariables.cta_link || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  }
 
   // Step 4: Render the template
   const rendered = renderEmailTemplate(template, finalVariables);
@@ -154,19 +182,96 @@ export async function generateStructuredEmailContent(
 
 /**
  * Enhance email step config with structured template
+ *
+ * NEW FORMAT: Outputs structured content fields (subject, heading, body, etc.)
+ * instead of full HTML. The email renderer will handle styling.
  */
 export async function enhanceEmailStepStructured(
   userIntent: string,
   currentConfig: { to?: string; subject?: string; body?: string },
   recipientInfo?: { name?: string; email?: string; company?: string }
-): Promise<{ to?: string; subject: string; body: string; _textBody?: string; _actionType?: string }> {
+): Promise<{
+  to?: string;
+  subject: string;
+  heading: string;
+  body: string;
+  intro?: string;
+  ctaText?: string;
+  ctaLink?: string;
+  signatureName?: string;
+  replyHint?: string;
+  _actionType?: string;
+}> {
   const generated = await generateStructuredEmailContent(userIntent, recipientInfo);
+
+  // Extract structured content from the generated template
+  // The templates already have structured data, we just need to parse it
+  const actionType = generated.actionType;
+
+  // Extract subject (already available)
+  const subject = generated.subject;
+
+  // Extract heading, intro, body from HTML using regex
+  // Templates follow a consistent structure
+  const headingMatch = generated.html.match(/<h1[^>]*>(.*?)<\/h1>/i);
+  const heading = headingMatch ? headingMatch[1].replace(/<[^>]*>/g, '').trim : 'Update from Execute';
+
+  // Extract intro paragraph (usually before main content)
+  const introMatch = generated.html.match(/<p[^>]*>(.*?)<\/p>/i);
+  const intro = introMatch
+    ? introMatch[1].replace(/<[^>]*>/g, '').trim()
+    : undefined;
+
+  // Extract main body content (remove heading and intro)
+  let body = generated.html
+    .replace(/<h1[^>]*>.*?<\/h1>/i, '') // Remove heading
+    .replace(/<p[^>]*>.*?<\/p>/i, ''); // Remove first paragraph (intro)
+
+  // Clean up body: extract text content from remaining HTML
+  body = body
+    .replace(/<[^>]*>/g, ' ') // Remove HTML tags
+    .replace(/\s+/g, ' ') // Normalize whitespace
+    .trim();
+
+  // If body is too short, use the intro as body
+  if (body.length < 50 && intro) {
+    body = intro;
+    // Clear intro since we moved it to body
+    // intro = undefined;
+  }
+
+  // Extract CTA if present
+  const ctaMatch = generated.html.match(/<a[^>]*href=["']([^"']*)["'][^>]*>(.*?)<\/a>/i);
+  let ctaText: string | undefined;
+  let ctaLink: string | undefined;
+
+  if (ctaMatch) {
+    ctaText = ctaMatch[2].replace(/<[^>]*>/g, '').trim();
+    ctaLink = ctaMatch[1];
+  }
+
+  // Extract signature if present
+  const signatureMatch = generated.html.match(/Best regards,?\s*<br>\s*<strong>(.*?)<\/strong>/i);
+  const signatureName = signatureMatch ? signatureMatch[1] : undefined;
+
+  // Default reply hint for common action types
+  let replyHint: string | undefined;
+  if (actionType === 'EMAIL.NOTIFICATION_NEW_CLIENT') {
+    replyHint = 'Please review this information and follow up with the client as needed.';
+  } else if (actionType === 'EMAIL.WELCOME_USER') {
+    replyHint = 'If you have any questions, feel free to reach out to our support team.';
+  }
 
   return {
     to: currentConfig.to,
-    subject: generated.subject,
-    body: generated.html,
-    _textBody: generated.text,
-    _actionType: generated.actionType,
+    subject: subject as string,
+    heading: heading as string,
+    body: body as string,
+    intro,
+    ctaText,
+    ctaLink,
+    signatureName,
+    replyHint,
+    _actionType: actionType,
   };
 }

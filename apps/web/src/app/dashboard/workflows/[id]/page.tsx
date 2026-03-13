@@ -6,7 +6,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
-  Play,
   Edit,
   CheckCircle2,
   XCircle,
@@ -21,7 +20,6 @@ import {
   Zap,
   Phone,
   ListChecks,
-  Pause,
   UserPlus,
   ShoppingBag,
 } from "lucide-react";
@@ -144,10 +142,6 @@ export default function WorkflowDetailPage() {
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [running, setRunning] = useState(false);
-  const [showTestDataModal, setShowTestDataModal] = useState(false);
-  const [testData, setTestData] = useState('{}');
-  const [testDataError, setTestDataError] = useState<string | null>(null);
 
   const fetchWorkflow = useCallback(async () => {
     try {
@@ -177,46 +171,6 @@ export default function WorkflowDetailPage() {
   useEffect(() => {
     fetchWorkflow();
   }, [fetchWorkflow]);
-
-  const handleRun = useCallback(async (withTestData = false) => {
-    console.log("handleRun called", { workflow, workflowId: workflow?.id, workflowStatus: workflow?.status });
-    if (!workflow) {
-      console.log("No workflow, returning");
-      return;
-    }
-
-    // If user clicked "Run with Test Data", show modal first
-    if (withTestData) {
-      setShowTestDataModal(true);
-      return;
-    }
-
-    setRunning(true);
-    try {
-      console.log("Calling run API for workflow:", workflow.id);
-      const body = testData && testData !== '{}' ? { data: JSON.parse(testData) } : {};
-      const response = await fetch(`/api/workflows/${workflow.id}/run`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
-      });
-      console.log("Run API response:", response.status);
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Run successful, executionId:", data.executionId);
-        // Navigate to the execution page to see the running execution
-        router.push(`/dashboard/executions/${data.executionId}`);
-      } else {
-        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-        console.error("Error running workflow:", errorData.error);
-        // Show error to user (you could add a toast notification here)
-        setRunning(false);
-      }
-    } catch (err) {
-      console.error("Error running workflow:", err);
-      setRunning(false);
-    }
-  }, [workflow, router, testData]);
 
   if (loading) {
     return (
@@ -301,27 +255,20 @@ export default function WorkflowDetailPage() {
                 Edit
               </Button>
               <Button
-                variant="outline"
-                size="lg"
-                className="border-white/20 text-white hover:bg-white/5 rounded-full"
-                onClick={() => handleRun(false)}
-                disabled={running}
-              >
-                {running ? (
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                ) : (
-                  <Play className="mr-2 h-5 w-5" />
-                )}
-                Run Now
-              </Button>
-              <Button
                 size="lg"
                 className="text-base btn-gradient text-black px-6 py-5 rounded-full"
-                onClick={() => handleRun(true)}
-                disabled={running}
+                onClick={async () => {
+                  const response = await fetch(`/api/workflows/${workflow.id}/run`, {
+                    method: "POST",
+                  });
+                  if (response.ok) {
+                    const data = await response.json();
+                    router.push(`/dashboard/executions/${data.executionId}`);
+                  }
+                }}
               >
                 <Zap className="mr-2 h-5 w-5" />
-                Run with Test Data
+                Run Workflow
               </Button>
             </div>
           </div>
@@ -335,7 +282,7 @@ export default function WorkflowDetailPage() {
           <div className="bg-white/[0.02] border border-white/10 rounded-xl p-6">
             <div className="flex items-center gap-4">
               <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-500/10">
-                <Play className="h-5 w-5 text-blue-400" />
+                <Zap className="h-5 w-5 text-blue-400" />
               </div>
               <div>
                 <p className="text-sm text-white/50">Total Executions</p>
@@ -478,71 +425,6 @@ export default function WorkflowDetailPage() {
           )}
         </div>
       </div>
-
-      {/* Test Data Modal */}
-      {showTestDataModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-zinc-900 border border-white/10 rounded-xl p-6 max-w-2xl w-full">
-            <h3 className="text-xl font-semibold text-white mb-4">Run with Test Data</h3>
-            <p className="text-white/60 text-sm mb-4">
-              Enter test data in JSON format. This data will be available as <code className="bg-white/10 px-1 rounded">{`{{trigger.data.*}}`}</code> in your workflow.
-            </p>
-
-            <textarea
-              value={testData}
-              onChange={(e) => {
-                const value = e.target.value;
-                setTestData(value);
-                try {
-                  if (value && value !== '{}') {
-                    JSON.parse(value);
-                    setTestDataError(null);
-                  }
-                } catch (err) {
-                  setTestDataError('Invalid JSON format');
-                }
-              }}
-              placeholder={'{"field_abc123": "test@example.com", "user_name": "Test User"}'}
-              className="w-full h-48 bg-black/50 border border-white/10 rounded-lg p-4 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-
-            {testDataError && (
-              <p className="text-red-400 text-sm mt-2">{testDataError}</p>
-            )}
-
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mt-4">
-              <p className="text-blue-400 text-sm">
-                <strong>Tip:</strong> Copy field IDs from your form submission data or use sample data that matches your workflow's expected format.
-              </p>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowTestDataModal(false);
-                  setTestData('{}');
-                  setTestDataError(null);
-                }}
-                className="border-white/20 text-white hover:bg-white/5"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  setShowTestDataModal(false);
-                  handleRun(false);
-                }}
-                disabled={!!testDataError || running}
-                className="btn-gradient text-black"
-              >
-                {running ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Play className="mr-2 h-5 w-5" />}
-                Run with Data
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

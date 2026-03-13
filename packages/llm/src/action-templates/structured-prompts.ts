@@ -107,6 +107,29 @@ export async function classifyStructuredAction(
   userIntent: string,
   llmCall: (system: string, user: string) => Promise<string>
 ): Promise<StructuredAction> {
+  const normalizedIntent = userIntent.toLowerCase();
+
+  // Deterministic handling for the most common email intents keeps the result stable
+  // and avoids vague template variables like {{issue_type}} for welcome flows.
+  if (
+    normalizedIntent.includes('welcome') ||
+    normalizedIntent.includes('sign up') ||
+    normalizedIntent.includes('signup') ||
+    normalizedIntent.includes('new user') ||
+    normalizedIntent.includes('onboard')
+  ) {
+    return {
+      action_type: 'EMAIL.WELCOME_USER',
+      variables: {
+        user_name: '{{name}}',
+        user_email: '{{email}}',
+        company_name: 'Execute',
+        cta_link: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+      },
+      reasoning: 'Deterministic welcome-email classification',
+    };
+  }
+
   try {
     const response = await llmCall(STRUCTURED_ACTION_SYSTEM_PROMPT, buildStructuredActionPrompt(userIntent));
 

@@ -5,12 +5,14 @@
  * Requires RESEND_API_KEY environment variable.
  * Supports both manual entry and contact-based recipients.
  * Supports automatic retry with exponential backoff.
+ * Supports universal structured email content with backward compatibility.
  */
 
 import type { StepHandler, Step, StepResult, ExecutionContext } from '../types.js';
 import { templateResolver } from '../context.js';
 import { resolveRecipients, resolveRecipientFromText, type RecipientConfig } from '../recipients.js';
 import { withRetry, parseRetryConfig } from '../retry.js';
+import { renderEmail, validateEmailContent, type EmailContent } from '../email/renderer.js';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || '';
@@ -24,6 +26,106 @@ interface SendEmailResult {
 
 export class SendEmailStepHandler implements StepHandler {
   type = 'send_email';
+
+  /**
+   * Check if config uses new structured content format
+   */
+  private isStructuredContent(config: any): boolean {
+    return !!(config.heading && config.body && !config.html);
+  }
+
+  /**
+   * Validate template variables in required fields before sending
+   */
+  private validateTemplateVariables(content: EmailContent, context: ExecutionContext): { valid: boolean; error?: string } {
+    // Resolve each field and check for unresolved variables
+    const subject = templateResolver.resolve(content.subject, context);
+    const heading = templateResolver.resolve(content.heading, context);
+    const body = templateResolver.resolve(content.body, context);
+
+    // Check for unresolved template variables in required fields
+    const unresolvedVars = this.findUnresolvedVariables([subject, heading, body]);
+
+    if (unresolvedVars.length > 0) {
+      return {
+        valid: false,
+        error: `Required template variables could not be resolved: ${unresolvedVars.join(', ')}. Please ensure these variables are available in the workflow context.`
+      };
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * Find unresolved template variables in text
+   */
+  private findUnresolvedVariables(texts: string[]): string[] {
+    const unresolved: string[] = [];
+    const pattern = /\{\{([^}]+)\}\}/g;
+
+    for (const text of texts) {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const variable = match[1];
+        // Only add if not already in list
+        if (!unresolved.includes(variable)) {
+          unresolved.push(variable);
+        }
+      }
+    }
+
+    return unresolved;
+  }
+
+  /**
+   * Prepare email content from config (handles both structured and legacy formats)
+   */
+  private prepareEmailContent(config: any, context: ExecutionContext): { html?: string; text?: string; subject: string } {
+    if (this.isStructuredContent(config)) {
+      // New structured format
+      const content: EmailContent = {
+        subject: templateResolver.resolve(config.subject, context),
+        heading: templateResolver.resolve(config.heading, context),
+        body: templateResolver.resolve(config.body, context),
+        intro: config.intro ? templateResolver.resolve(config.intro, context) : undefined,
+        ctaText: config.ctaText ? templateResolver.resolve(config.ctaText, context) : undefined,
+        ctaLink: config.ctaLink ? templateResolver.resolve(config.ctaLink, context) : undefined,
+        signatureName: config.signatureName ? templateResolver.resolve(config.signatureName, context) : undefined,
+        replyHint: config.replyHint ? templateResolver.resolve(config.replyHint, context) : undefined,
+      };
+
+      // Validate required fields
+      const validation = validateEmailContent(content);
+      if (!validation.valid) {
+        throw new Error(validation.error);
+      }
+
+      // Validate template variables
+      const varValidation = this.validateTemplateVariables(content, context);
+      if (!varValidation.valid) {
+        throw new Error(varValidation.error);
+      }
+
+      // Render to HTML and text
+      const rendered = renderEmail(content);
+
+      return {
+        subject: content.subject,
+        html: rendered.html,
+        text: rendered.text,
+      };
+    } else {
+      // Legacy format - use existing body as-is
+      const subject = templateResolver.resolve(config.subject, context);
+      const body = templateResolver.resolve(config.body, context);
+
+      return {
+        subject,
+        html: body.includes('<') ? body : undefined,
+        text: body.includes('<') ? undefined : body,
+      };
+    }
+  }
 
   async execute(step: Step, context: ExecutionContext): Promise<StepResult> {
     const startedAt = new Date();
@@ -127,11 +229,12 @@ export class SendEmailStepHandler implements StepHandler {
       };
     }
 
-    if (!config.body) {
+    // Check for structured content or legacy body
+    if (!config.heading && !config.body) {
       return {
         stepId: step.id,
         status: 'failed',
-        error: 'Email body is required',
+        error: 'Email must have either heading (new format) or body (legacy format)',
         startedAt,
         completedAt: new Date(),
       };
@@ -141,9 +244,6 @@ export class SendEmailStepHandler implements StepHandler {
     const retryConfig = parseRetryConfig(config);
 
     try {
-      // Resolve template variables
-      const subject = templateResolver.resolve(config.subject, context);
-
       // Use RESEND_FROM_EMAIL if configured, otherwise fall back to config.from or default
       const defaultFrom = RESEND_FROM_EMAIL || 'noreply@' + (process.env.SITE_DOMAIN || 'localhost');
       const from = templateResolver.resolve(config.from || defaultFrom, context);
@@ -174,9 +274,10 @@ export class SendEmailStepHandler implements StepHandler {
             },
           };
 
-          const body = templateResolver.resolve(config.body, personalizedContext);
+          // Prepare email content (handles both structured and legacy)
+          const emailContent = this.prepareEmailContent(config, personalizedContext);
 
-          const payload = this.buildPayload(from, email, subject, body, config);
+          const payload = this.buildPayload(from, email, emailContent.subject, emailContent.html, emailContent.text, config);
 
           // Use retry logic if configured
           let sendResult: SendEmailResult;
@@ -219,8 +320,8 @@ export class SendEmailStepHandler implements StepHandler {
       }
 
       // Batch send (non-personalized or single recipient)
-      const body = templateResolver.resolve(config.body, context);
-      const payload = this.buildPayload(from, to, subject, body, config);
+      const emailContent = this.prepareEmailContent(config, context);
+      const payload = this.buildPayload(from, to, emailContent.subject, emailContent.html, emailContent.text, config);
 
       // Use retry logic if configured
       let sendResult: SendEmailResult & { attempts?: number; totalDelay?: number };
@@ -253,7 +354,7 @@ export class SendEmailStepHandler implements StepHandler {
         data: {
           messageId: sendResult.messageId,
           to: Array.isArray(to) ? to : [to],
-          subject: payload.subject,
+          subject: emailContent.subject,
           sentCount: Array.isArray(to) ? to.length : 1,
           ...(sendResult.attempts && sendResult.attempts > 1 ? {
             attempts: sendResult.attempts,
@@ -278,7 +379,8 @@ export class SendEmailStepHandler implements StepHandler {
     from: string,
     to: string | string[],
     subject: string,
-    body: string,
+    html: string | undefined,
+    text: string | undefined,
     config: any
   ): Record<string, any> {
     const payload: Record<string, any> = {
@@ -287,11 +389,14 @@ export class SendEmailStepHandler implements StepHandler {
       subject,
     };
 
-    // Determine content type (HTML or text)
-    if (body.includes('<') && body.includes('>')) {
-      payload.html = body;
-    } else {
-      payload.text = body;
+    // Add HTML if available
+    if (html) {
+      payload.html = html;
+    }
+
+    // Add text if available (or if no HTML)
+    if (text) {
+      payload.text = text;
     }
 
     // Optional: reply_to
