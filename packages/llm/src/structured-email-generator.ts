@@ -1,9 +1,8 @@
 /**
  * Structured Email Content Generator
  *
- * Uses pre-defined templates instead of LLM-generated content
- * LLM classifies intent → action type
- * Execute renders the template with variables
+ * Uses preset email templates (registration, weekly_meeting, custom)
+ * Falls back to LLM-based template generation for custom cases
  */
 
 import OpenAI from 'openai';
@@ -14,6 +13,7 @@ import {
   classifyStructuredAction,
   type StructuredAction,
 } from './action-templates/index.js';
+import { enhanceEmailWithPreset, inferTemplateType, type EmailTemplateType } from './email-presets.js';
 
 // Get API keys from environment
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
@@ -183,8 +183,8 @@ export async function generateStructuredEmailContent(
 /**
  * Enhance email step config with structured template
  *
- * NEW FORMAT: Outputs structured content fields (subject, heading, body, etc.)
- * instead of full HTML. The email renderer will handle styling.
+ * Uses preset system (registration, weekly_meeting, custom)
+ * Falls back to LLM-generated templates for custom cases
  */
 export async function enhanceEmailStepStructured(
   userIntent: string,
@@ -200,12 +200,25 @@ export async function enhanceEmailStepStructured(
   ctaLink?: string;
   signatureName?: string;
   replyHint?: string;
+  templateType?: EmailTemplateType;
   _actionType?: string;
 }> {
+  // Try preset system first
+  const templateType = inferTemplateType(userIntent);
+
+  if (templateType !== 'custom') {
+    // Use preset template
+    const enhanced = enhanceEmailWithPreset(userIntent, currentConfig);
+    return {
+      to: currentConfig.to,
+      ...enhanced,
+    };
+  }
+
+  // Fall back to LLM-based generation for custom templates
   const generated = await generateStructuredEmailContent(userIntent, recipientInfo);
 
   // Extract structured content from the generated template
-  // The templates already have structured data, we just need to parse it
   const actionType = generated.actionType;
 
   // Extract subject (already available)
@@ -275,6 +288,7 @@ export async function enhanceEmailStepStructured(
     ctaLink,
     signatureName,
     replyHint,
+    templateType: 'custom',
     _actionType: actionType,
   };
 }
