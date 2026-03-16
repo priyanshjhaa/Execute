@@ -211,48 +211,49 @@ export async function enhanceEmailStepStructured(
   // Extract subject (already available)
   const subject = generated.subject;
 
-  // Extract heading, intro, body from HTML using regex
-  // Templates follow a consistent structure
-  const headingMatch = generated.html.match(/<h1[^>]*>(.*?)<\/h1>/i);
-  const heading = headingMatch ? headingMatch[1].replace(/<[^>]*>/g, '').trim : 'Update from Execute';
-
-  // Extract intro paragraph (usually before main content)
-  const introMatch = generated.html.match(/<p[^>]*>(.*?)<\/p>/i);
-  const intro = introMatch
-    ? introMatch[1].replace(/<[^>]*>/g, '').trim()
-    : undefined;
-
-  // Extract main body content (remove heading and intro)
-  let body = generated.html
-    .replace(/<h1[^>]*>.*?<\/h1>/i, '') // Remove heading
-    .replace(/<p[^>]*>.*?<\/p>/i, ''); // Remove first paragraph (intro)
-
-  // Clean up body: extract text content from remaining HTML
-  body = body
-    .replace(/<[^>]*>/g, ' ') // Remove HTML tags
-    .replace(/\s+/g, ' ') // Normalize whitespace
-    .trim();
-
-  // If body is too short, use the intro as body
-  if (body.length < 50 && intro) {
-    body = intro;
-    // Clear intro since we moved it to body
-    // intro = undefined;
+  // Extract heading from HTML with better pattern
+  const headingMatch = generated.html.match(/<h1[^>]*>(.*?)<\/h1>/is);
+  let heading = 'Update from Execute';
+  if (headingMatch) {
+    const extracted = headingMatch[1].replace(/<[^>]*>/g, '').trim();
+    if (extracted && extracted.length > 0) {
+      heading = extracted;
+    }
   }
 
+  // Extract all paragraphs from HTML
+  const paragraphMatches = [...generated.html.matchAll(/<p[^>]*>(.*?)<\/p>/gis)];
+  const paragraphs: string[] = [];
+  for (const match of paragraphMatches) {
+    const text = match[1].replace(/<[^>]*>/g, '').trim();
+    if (text && text.length > 0) {
+      paragraphs.push(text);
+    }
+  }
+
+  // First paragraph is intro (optional)
+  const intro = paragraphs.length > 0 ? paragraphs[0] : undefined;
+
+  // Remaining paragraphs form the body
+  const body = paragraphs.slice(1).join('\n\n') || 'Please review the update above.';
+
   // Extract CTA if present
-  const ctaMatch = generated.html.match(/<a[^>]*href=["']([^"']*)["'][^>]*>(.*?)<\/a>/i);
+  const ctaMatch = generated.html.match(/<a[^>]*href=["']([^"']*)["'][^>]*>(.*?)<\/a>/is);
   let ctaText: string | undefined;
   let ctaLink: string | undefined;
 
   if (ctaMatch) {
-    ctaText = ctaMatch[2].replace(/<[^>]*>/g, '').trim();
-    ctaLink = ctaMatch[1];
+    const extractedText = ctaMatch[2].replace(/<[^>]*>/g, '').trim();
+    const extractedLink = ctaMatch[1];
+    if (extractedText && extractedText.length > 0 && extractedLink && extractedLink.length > 0) {
+      ctaText = extractedText;
+      ctaLink = extractedLink;
+    }
   }
 
   // Extract signature if present
-  const signatureMatch = generated.html.match(/Best regards,?\s*<br>\s*<strong>(.*?)<\/strong>/i);
-  const signatureName = signatureMatch ? signatureMatch[1] : undefined;
+  const signatureMatch = generated.html.match(/Best regards,?\s*<br>\s*<strong>(.*?)<\/strong>/is);
+  const signatureName = signatureMatch ? signatureMatch[1].trim() : undefined;
 
   // Default reply hint for common action types
   let replyHint: string | undefined;
@@ -260,6 +261,8 @@ export async function enhanceEmailStepStructured(
     replyHint = 'Please review this information and follow up with the client as needed.';
   } else if (actionType === 'EMAIL.WELCOME_USER') {
     replyHint = 'If you have any questions, feel free to reach out to our support team.';
+  } else if (actionType === 'EMAIL.CLIENT_UPDATE') {
+    replyHint = 'Please take appropriate action based on this update.';
   }
 
   return {
