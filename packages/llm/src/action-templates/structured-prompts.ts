@@ -38,6 +38,13 @@ EMAIL.GENERIC_NOTIFICATION
 - Keywords: notification, notify, alert, inform (fallback)
 - Variables: recipient_name, title, message
 
+IMPORTANT CLASSIFICATION RULES:
+- Conversational phrases like "discussing", "asking", "checking", "following up" should map to GENERIC_NOTIFICATION
+- DO NOT force conversational messages into formal notification templates
+- DO NOT insert generic words like "expenses" or "update" unless the user explicitly says them
+- Preserve the user's exact wording in variables
+- If the intent is unclear about the type, default to GENERIC_NOTIFICATION with the user's original message
+
 Output Format (JSON ONLY):
 {
   "action_type": "EMAIL.XXX",

@@ -17,6 +17,11 @@ export interface EmailContent {
   ctaLink?: string;
   signatureName?: string;
   replyHint?: string;
+
+  // Presentation flags (default: true for backward compatibility)
+  showBranding?: boolean;
+  showFooter?: boolean;
+  showReplyHint?: boolean;
 }
 
 export interface RenderedEmail {
@@ -46,6 +51,9 @@ function renderHTML(content: EmailContent): string {
     ctaLink,
     signatureName,
     replyHint,
+    showBranding = true,
+    showFooter = true,
+    showReplyHint = true,
   } = content;
 
   // Build the HTML email
@@ -117,21 +125,29 @@ function renderHTML(content: EmailContent): string {
   parts.push('</td>');
   parts.push('</tr>');
 
-  // Footer
-  parts.push('<tr>');
-  parts.push('<td style="padding: 24px 40px; background-color: #f4f4f5; border-top: 1px solid #e4e4e7;">');
-  parts.push('<p style="margin: 0; font-size: 13px; line-height: 1.5; color: #71717a;">');
-  parts.push('Powered by <a href="https://execute.com" style="color: #000000; text-decoration: underline; font-weight: 500;">Execute</a> – Workflow automation');
+  // Footer (optional)
+  if (showFooter) {
+    parts.push('<tr>');
+    parts.push('<td style="padding: 24px 40px; background-color: #f4f4f5; border-top: 1px solid #e4e4e7;">');
+    parts.push('<p style="margin: 0; font-size: 13px; line-height: 1.5; color: #71717a;">');
 
-  // Reply hint (optional)
-  if (replyHint) {
-    parts.push('<br><br>');
-    parts.push(escapeHTML(replyHint));
+    // Branding (optional)
+    if (showBranding) {
+      parts.push('Powered by <a href="https://execute.com" style="color: #000000; text-decoration: underline; font-weight: 500;">Execute</a> – Workflow automation');
+    }
+
+    // Reply hint (optional, only if showReplyHint is true)
+    if (showReplyHint && replyHint) {
+      if (showBranding) {
+        parts.push('<br><br>');
+      }
+      parts.push(escapeHTML(replyHint));
+    }
+
+    parts.push('</p>');
+    parts.push('</td>');
+    parts.push('</tr>');
   }
-
-  parts.push('</p>');
-  parts.push('</td>');
-  parts.push('</tr>');
 
   parts.push('</table>'); // End email wrapper
   parts.push('</td>');
@@ -156,6 +172,9 @@ function renderText(content: EmailContent): string {
     ctaLink,
     signatureName,
     replyHint,
+    showBranding = true,
+    showFooter = true,
+    showReplyHint = true,
   } = content;
 
   const lines: string[] = [];
@@ -189,14 +208,18 @@ function renderText(content: EmailContent): string {
     lines.push('');
   }
 
-  // Footer
-  lines.push('---');
-  lines.push('Powered by Execute - Workflow automation');
+  // Footer (optional)
+  if (showFooter) {
+    lines.push('---');
+    if (showBranding) {
+      lines.push('Powered by Execute - Workflow automation');
+    }
 
-  // Reply hint (optional)
-  if (replyHint) {
-    lines.push('');
-    lines.push(replyHint);
+    // Reply hint (optional, only if showReplyHint is true)
+    if (showReplyHint && replyHint) {
+      lines.push('');
+      lines.push(replyHint);
+    }
   }
 
   return lines.join('\n');

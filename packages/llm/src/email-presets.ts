@@ -5,7 +5,7 @@
  * Presets: 'registration' | 'weekly_meeting' | 'custom'
  */
 
-export type EmailTemplateType = 'registration' | 'weekly_meeting' | 'custom';
+export type EmailTemplateType = 'registration' | 'weekly_meeting' | 'custom' | 'plain_manual';
 export type ContextType = 'form_submission' | 'manual';
 
 export interface EmailPresetContext {
@@ -24,6 +24,9 @@ export interface StructuredEmailContent {
   ctaLink?: string;
   signatureName?: string;
   replyHint?: string;
+  showBranding?: boolean;
+  showFooter?: boolean;
+  showReplyHint?: boolean;
 }
 
 /**
@@ -39,6 +42,8 @@ export function generatePresetEmail(
       return generateRegistrationEmail(contextType, contextSummary, variables);
     case 'weekly_meeting':
       return generateWeeklyMeetingEmail(contextSummary, variables);
+    case 'plain_manual':
+      return generatePlainManualEmail(contextSummary, variables);
     case 'custom':
     default:
       return generateCustomEmail(contextSummary, variables);
@@ -74,6 +79,9 @@ function generateRegistrationEmail(
     ctaLink: variables.cta_link || '{{cta_link}}',
     signatureName: 'The Execute Team',
     replyHint: 'If you have any questions about your submission, feel free to reply to this email.',
+    showBranding: true,
+    showFooter: true,
+    showReplyHint: true,
   };
 }
 
@@ -122,6 +130,9 @@ function generateWeeklyMeetingEmail(
     ctaLink: variables.calendar_link || '{{calendar_link}}',
     signatureName: sender_name,
     replyHint: 'Please come prepared to discuss the agenda items. Let me know if you have any topics to add.',
+    showBranding: true,
+    showFooter: true,
+    showReplyHint: true,
   };
 }
 
@@ -155,6 +166,45 @@ function generateCustomEmail(
     } : {}),
     signatureName: sender_name,
     replyHint: 'If you have any questions, feel free to reply to this email.',
+    showBranding: true,
+    showFooter: true,
+    showReplyHint: true,
+  };
+}
+
+/**
+ * Plain Manual Email Preset
+ *
+ * For lightweight person-to-person messages without branded elements.
+ * Preserves user's wording closely without template boilerplate.
+ */
+function generatePlainManualEmail(
+  contextSummary?: string,
+  variables: Record<string, string> = {}
+): StructuredEmailContent {
+  const {
+    recipient_name = variables.recipient_name || variables.name || '',
+    sender_name = variables.sender_name || variables.sender_name || '',
+    subject = variables.subject || 'Email from Execute',
+    heading = variables.heading || 'Hello',
+    message = variables.message || variables.body || contextSummary || '',
+  } = variables;
+
+  // Build intro only if recipient_name is provided
+  const intro = recipient_name ? `Hi ${recipient_name},` : undefined;
+
+  return {
+    subject,
+    heading,
+    intro,
+    body: message,
+    signatureName: sender_name || undefined,
+    replyHint: undefined, // No generic reply hints for plain emails
+    ctaText: undefined, // No CTA buttons for plain emails
+    ctaLink: undefined,
+    showBranding: false, // No "Powered by Execute"
+    showFooter: false, // No footer at all
+    showReplyHint: false, // No reply hints
   };
 }
 
@@ -182,8 +232,8 @@ export function inferTemplateType(
     return 'registration';
   }
 
-  // Meeting indicators
-  if (
+  // Meeting indicators - but NOT if it's conversational
+  const hasMeetingKeyword =
     intent.includes('meeting') ||
     intent.includes('weekly') ||
     intent.includes('team update') ||
@@ -191,9 +241,55 @@ export function inferTemplateType(
     intent.includes('standup') ||
     intent.includes('recurring') ||
     intent.includes('schedule') ||
-    intent.includes('calendar')
-  ) {
+    intent.includes('calendar');
+
+  // Check for conversational patterns first
+  const plainManualPatterns = [
+    /\bsend an? email\s+(?:to\s+)?\w+\s+(?:about|regarding)\b/i,
+    /\bto\s+\w+\s+(?:about|regarding)\s+(?:discussing?|asking?|checking?|following?\s+up?)\b/i,
+    /\bdiscussing?\b/i,
+    /\basking?\b/i,
+    /\bchecking?\b/i,
+    /\bfollowing?\s+up?\b/i,
+    /\blet\s+\w+\s+know\b/i,
+    /\breach\s+out\b/i,
+    /\bget\s+in\s+touch\b/i,
+  ];
+
+  const hasPlainManualPattern = plainManualPatterns.some(pattern => pattern.test(intent));
+
+  // Conversational intent takes priority over meeting keywords
+  // E.g., "asking about the meeting" should be plain_manual, not weekly_meeting
+  if (hasPlainManualPattern && hasMeetingKeyword) {
+    // Check if it's actually about scheduling/organizing vs just asking about
+    const schedulingKeywords =
+      intent.includes('schedule') ||
+      intent.includes('invite') ||
+      intent.includes('calendar') ||
+      intent.includes('recurring') ||
+      intent.includes('standup');
+
+    if (!schedulingKeywords) {
+      return 'plain_manual';
+    }
+  }
+
+  if (hasMeetingKeyword) {
     return 'weekly_meeting';
+  }
+
+  // Plain/manual email indicators - conversational person-to-person messages
+  // These should NOT have branding, CTAs, or generic reply hints
+  const hasNotificationKeywords =
+    intent.includes('notification') ||
+    intent.includes('alert') ||
+    intent.includes('expense') ||
+    intent.includes('report') ||
+    intent.includes('summary') ||
+    intent.includes('notify');
+
+  if (hasPlainManualPattern && !hasNotificationKeywords) {
+    return 'plain_manual';
   }
 
   // Default to custom
@@ -219,6 +315,9 @@ export function enhanceEmailWithPreset(
   replyHint?: string;
   templateType: EmailTemplateType;
   _actionType?: string;
+  showBranding?: boolean;
+  showFooter?: boolean;
+  showReplyHint?: boolean;
 } {
   // Infer template type from intent
   const templateType = inferTemplateType(userIntent, triggerType);

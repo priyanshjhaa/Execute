@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { WorkflowExecutionLoader } from "@/components/workflow/WorkflowExecutionLoader";
 import {
   ArrowLeft,
   Edit,
@@ -142,6 +143,7 @@ export default function WorkflowDetailPage() {
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [runningExecutionId, setRunningExecutionId] = useState<string | null>(null);
 
   const fetchWorkflow = useCallback(async () => {
     try {
@@ -209,6 +211,20 @@ export default function WorkflowDetailPage() {
   // Sort steps by position
   const sortedSteps = [...workflow.definition.steps].sort((a, b) => a.position - b.position);
 
+  // Show execution loader if workflow is running
+  if (runningExecutionId) {
+    return (
+      <WorkflowExecutionLoader
+        executionId={runningExecutionId}
+        workflowName={workflow.name}
+        onComplete={() => {
+          setRunningExecutionId(null);
+          fetchWorkflow();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-black">
       {/* Header */}
@@ -263,7 +279,7 @@ export default function WorkflowDetailPage() {
                   });
                   if (response.ok) {
                     const data = await response.json();
-                    router.push(`/dashboard/executions/${data.executionId}`);
+                    setRunningExecutionId(data.executionId);
                   }
                 }}
               >

@@ -183,7 +183,7 @@ export async function generateStructuredEmailContent(
 /**
  * Enhance email step config with structured template
  *
- * Uses preset system (registration, weekly_meeting, custom)
+ * Uses preset system (registration, weekly_meeting, custom, plain_manual)
  * Falls back to LLM-generated templates for custom cases
  */
 export async function enhanceEmailStepStructured(
@@ -202,6 +202,9 @@ export async function enhanceEmailStepStructured(
   replyHint?: string;
   templateType?: EmailTemplateType;
   _actionType?: string;
+  showBranding?: boolean;
+  showFooter?: boolean;
+  showReplyHint?: boolean;
 }> {
   // Try preset system first
   const templateType = inferTemplateType(userIntent);
@@ -247,8 +250,8 @@ export async function enhanceEmailStepStructured(
   // First paragraph is intro (optional)
   const intro = paragraphs.length > 0 ? paragraphs[0] : undefined;
 
-  // Remaining paragraphs form the body
-  const body = paragraphs.slice(1).join('\n\n') || 'Please review the update above.';
+  // Remaining paragraphs form the body - preserve all content
+  const body = paragraphs.slice(1).join('\n\n') || paragraphs.join('\n\n') || 'Please review the update above.';
 
   // Extract CTA if present
   const ctaMatch = generated.html.match(/<a[^>]*href=["']([^"']*)["'][^>]*>(.*?)<\/a>/is);
@@ -290,5 +293,8 @@ export async function enhanceEmailStepStructured(
     replyHint,
     templateType: 'custom',
     _actionType: actionType,
+    showBranding: true,
+    showFooter: true,
+    showReplyHint: true,
   };
 }
