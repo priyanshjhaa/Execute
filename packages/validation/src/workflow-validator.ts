@@ -211,6 +211,7 @@ export function createDefaultContext(): ValidationContext {
       timestamp: new Date().toISOString(),
     },
     integrations: {
+      resend: false,
       slack: false,
       sendgrid: false,
       twilio: false,

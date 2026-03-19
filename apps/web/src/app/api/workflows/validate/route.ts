@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { WorkflowValidator, createDefaultContext } from '@execute/validation';
 import type { ValidationResult } from '@execute/validation';
+import { db, users, userIntegrations } from '@execute/db';
+import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 // Request schema validation
@@ -39,9 +41,38 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = ValidateRequestSchema.parse(body);
 
-    // 3. Create validation context with user's available integrations
-    // TODO: Fetch user's actual integration statuses from database
+    // 3. Get internal user and fetch their integrations
+    const [internalUser] = await db.select().from(users).where(eq(users.supabaseId, user.id)).limit(1);
+
+    if (!internalUser) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // 4. Fetch user's integrations from database
+    const integrations = await db.select()
+      .from(userIntegrations)
+      .where(eq(userIntegrations.userId, internalUser.id));
+
+    // 5. Build integration status object
+    const integrationStatus: Record<string, boolean> = {
+      resend: false,
+      slack: false,
+    };
+
+    for (const integration of integrations) {
+      if (integration.type === 'resend' && integration.isActive) {
+        integrationStatus.resend = true;
+      } else if (integration.type === 'slack' && integration.isActive) {
+        integrationStatus.slack = true;
+      }
+    }
+
+    // 6. Create validation context with real user integrations
     const context = createDefaultContext();
+    context.integrations = integrationStatus;
     context.availableVariables = {
       user: {
         id: user.id,
