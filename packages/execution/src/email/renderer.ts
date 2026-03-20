@@ -66,84 +66,63 @@ function renderHTML(content: EmailContent): string {
   parts.push('<meta name="viewport" content="width=device-width, initial-scale=1.0">');
   parts.push('<title>Email from Execute</title>');
   parts.push('</head>');
-  parts.push('<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background-color: #f4f4f5;">');
+  parts.push('<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9f9f9;">');
 
   // Email container
-  parts.push('<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f4f4f5; padding: 40px 20px;">');
+  parts.push('<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f9f9f9; padding: 20px;">');
   parts.push('<tr>');
   parts.push('<td align="center">');
 
   // Email wrapper
-  parts.push('<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">');
+  parts.push('<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 600px; background-color: #ffffff; padding: 24px; border-radius: 10px; border: 1px solid #eee; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);">');
 
   // Header
   parts.push('<tr>');
-  parts.push('<td style="padding: 32px 40px 24px; border-bottom: 1px solid #e4e4e7;">');
-  parts.push('<h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #18181b; line-height: 1.3;">');
+  parts.push('<td style="padding-bottom: 10px;">');
+  parts.push('<h2 style="margin: 0 0 10px 0; font-size: 24px; font-weight: 600; color: #000;">');
   parts.push(escapeHTML(heading));
-  parts.push('</h1>');
+  parts.push('</h2>');
   parts.push('</td>');
   parts.push('</tr>');
 
-  // Content area
-  parts.push('<tr>');
-  parts.push('<td style="padding: 32px 40px;">');
-
   // Intro (optional)
   if (intro) {
-    parts.push('<p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6; color: #3f3f46;">');
+    parts.push('<tr>');
+    parts.push('<td>');
+    parts.push('<p style="margin: 5px 0; color: #555; font-size: 14px;">');
     parts.push(escapeHTML(intro));
     parts.push('</p>');
+    parts.push('</td>');
+    parts.push('</tr>');
   }
 
-  // Body (required)
-  parts.push('<div style="font-size: 16px; line-height: 1.6; color: #3f3f46;">');
+  // Body content
+  parts.push('<tr>');
+  parts.push('<td>');
+  parts.push('<div style="font-size: 14px; color: #555; line-height: 1.6;">');
   parts.push(formatBodyHTML(body));
   parts.push('</div>');
+  parts.push('</td>');
+  parts.push('</tr>');
 
   // CTA button (optional - only if both text and link are provided)
   if (ctaText && ctaLink) {
-    parts.push('<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top: 24px;">');
     parts.push('<tr>');
-    parts.push('<td style="background-color: #000000; border-radius: 6px;">');
-    parts.push('<a href="' + escapeHTML(ctaLink) + '" style="display: inline-block; padding: 12px 24px; font-size: 15px; font-weight: 500; color: #ffffff; text-decoration: none;">');
+    parts.push('<td>');
+    parts.push('<a href="' + escapeHTML(ctaLink) + '" style="display: inline-block; margin-top: 20px; padding: 12px 20px; background: black; color: white; text-decoration: none; border-radius: 6px; font-size: 14px;">');
     parts.push(escapeHTML(ctaText));
     parts.push('</a>');
     parts.push('</td>');
     parts.push('</tr>');
-    parts.push('</table>');
   }
 
   // Signature (optional)
   if (signatureName) {
-    parts.push('<p style="margin: 24px 0 0 0; font-size: 16px; line-height: 1.6; color: #3f3f46;">');
+    parts.push('<tr>');
+    parts.push('<td>');
+    parts.push('<p style="margin: 20px 0 0 0; font-size: 14px; color: #555;">');
     parts.push('Best regards,<br>');
     parts.push('<strong>' + escapeHTML(signatureName) + '</strong>');
-    parts.push('</p>');
-  }
-
-  parts.push('</td>');
-  parts.push('</tr>');
-
-  // Footer (optional)
-  if (showFooter) {
-    parts.push('<tr>');
-    parts.push('<td style="padding: 24px 40px; background-color: #f4f4f5; border-top: 1px solid #e4e4e7;">');
-    parts.push('<p style="margin: 0; font-size: 13px; line-height: 1.5; color: #71717a;">');
-
-    // Branding (optional)
-    if (showBranding) {
-      parts.push('Powered by <a href="https://execute.com" style="color: #000000; text-decoration: underline; font-weight: 500;">Execute</a> – Workflow automation');
-    }
-
-    // Reply hint (optional, only if showReplyHint is true)
-    if (showReplyHint && replyHint) {
-      if (showBranding) {
-        parts.push('<br><br>');
-      }
-      parts.push(escapeHTML(replyHint));
-    }
-
     parts.push('</p>');
     parts.push('</td>');
     parts.push('</tr>');
@@ -152,6 +131,31 @@ function renderHTML(content: EmailContent): string {
   parts.push('</table>'); // End email wrapper
   parts.push('</td>');
   parts.push('</tr>');
+
+  // Footer (optional)
+  if (showFooter) {
+    parts.push('<tr>');
+    parts.push('<td style="padding-top: 15px;">');
+    parts.push('<p style="text-align: center; font-size: 12px; color: #999; margin: 0;">');
+
+    // Branding (optional)
+    if (showBranding) {
+      parts.push('Powered by <strong>Execute</strong> — Workflow Automation');
+    }
+
+    // Reply hint (optional, only if showReplyHint is true)
+    if (showReplyHint && replyHint) {
+      if (showBranding) {
+        parts.push('<br>');
+        parts.push(escapeHTML(replyHint));
+      }
+    }
+
+    parts.push('</p>');
+    parts.push('</td>');
+    parts.push('</tr>');
+  }
+
   parts.push('</table>'); // End container
 
   parts.push('</body>');
@@ -226,7 +230,7 @@ function renderText(content: EmailContent): string {
 }
 
 /**
- * Format body content - convert newlines to paragraphs
+ * Format body content - convert newlines to paragraphs with better formatting
  */
 function formatBodyHTML(body: string): string {
   // Split by double newlines to separate paragraphs
@@ -236,8 +240,16 @@ function formatBodyHTML(body: string): string {
     .map(para => {
       // Escape HTML first
       const escaped = escapeHTML(para);
-      // Wrap in paragraph tag
-      return `<p style="margin: 0 0 16px;">${escaped}</p>`;
+      // Check if it looks like a detail line (key: value format)
+      if (para.match(/^\*\*.*\*\*:|^.*:/)) {
+        return `<p style="margin: 5px 0; font-size: 14px; color: #555;">${escaped}</p>`;
+      }
+      // Check if it's a horizontal rule indicator
+      if (para.trim() === '---' || para.trim() === '***') {
+        return '<hr style="margin: 20px 0;" />';
+      }
+      // Wrap other paragraphs
+      return `<p style="margin: 5px 0; font-size: 14px; color: #555;">${escaped}</p>`;
     })
     .join('');
 }
