@@ -13,10 +13,12 @@ export interface EmailContent {
 
   // Optional fields
   intro?: string;
+  details?: string; // Structured details box for smart templates
   ctaText?: string;
   ctaLink?: string;
   signatureName?: string;
   replyHint?: string;
+  urgency?: 'low' | 'medium' | 'high' | 'urgent'; // For smart templates
 
   // Presentation flags (default: true for backward compatibility)
   showBranding?: boolean;
@@ -47,16 +49,18 @@ function renderHTML(content: EmailContent): string {
     heading,
     intro,
     body,
+    details,
     ctaText,
     ctaLink,
     signatureName,
     replyHint,
+    urgency,
     showBranding = true,
     showFooter = true,
     showReplyHint = true,
   } = content;
 
-  // Build the HTML email
+  // Build the HTML email using clean, modern template
   const parts: string[] = [];
 
   parts.push('<!DOCTYPE html>');
@@ -66,102 +70,92 @@ function renderHTML(content: EmailContent): string {
   parts.push('<meta name="viewport" content="width=device-width, initial-scale=1.0">');
   parts.push('<title>Email from Execute</title>');
   parts.push('</head>');
-  parts.push('<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9f9f9;">');
+  parts.push('<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background: #f9f9f9;">');
 
-  // Email container
-  parts.push('<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f9f9f9; padding: 20px;">');
-  parts.push('<tr>');
-  parts.push('<td align="center">');
+  // Main container with padding
+  parts.push('<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; background: #f9f9f9;">');
 
-  // Email wrapper
-  parts.push('<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 600px; background-color: #ffffff; padding: 24px; border-radius: 10px; border: 1px solid #eee; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);">');
+  // Email card
+  parts.push('<div style="background: #ffffff; padding: 24px; border-radius: 10px; border: 1px solid #eee;">');
 
   // Header
-  parts.push('<tr>');
-  parts.push('<td style="padding-bottom: 10px;">');
-  parts.push('<h2 style="margin: 0 0 10px 0; font-size: 24px; font-weight: 600; color: #000;">');
+  parts.push('<h2 style="margin-bottom: 10px;">');
   parts.push(escapeHTML(heading));
   parts.push('</h2>');
-  parts.push('</td>');
-  parts.push('</tr>');
 
   // Intro (optional)
   if (intro) {
-    parts.push('<tr>');
-    parts.push('<td>');
-    parts.push('<p style="margin: 5px 0; color: #555; font-size: 14px;">');
+    parts.push('<p style="color: #555; font-size: 14px;">');
     parts.push(escapeHTML(intro));
     parts.push('</p>');
-    parts.push('</td>');
-    parts.push('</tr>');
   }
 
   // Body content
-  parts.push('<tr>');
-  parts.push('<td>');
-  parts.push('<div style="font-size: 14px; color: #555; line-height: 1.6;">');
-  parts.push(formatBodyHTML(body));
-  parts.push('</div>');
-  parts.push('</td>');
-  parts.push('</tr>');
+  parts.push('<p style="font-size: 14px; color: #555;">');
+  parts.push(escapeHTML(body));
+  parts.push('</p>');
 
-  // CTA button (optional - only if both text and link are provided)
+  // Details box (for smart templates)
+  if (details) {
+    parts.push('<div style="margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 8px;">');
+    parts.push(formatDetailsHTML(details));
+    parts.push('</div>');
+  }
+
+  // Closing paragraph
+  if (!details) {
+    parts.push('<p style="font-size: 14px; color: #555;">');
+    parts.push('Please make sure to complete this as soon as possible.');
+    parts.push('</p>');
+  }
+
+  // CTA button
   if (ctaText && ctaLink) {
-    parts.push('<tr>');
-    parts.push('<td>');
-    parts.push('<a href="' + escapeHTML(ctaLink) + '" style="display: inline-block; margin-top: 20px; padding: 12px 20px; background: black; color: white; text-decoration: none; border-radius: 6px; font-size: 14px;">');
+    parts.push('<a href="' + escapeHTML(ctaLink) + '" ');
+    parts.push('style="display: inline-block; margin-top: 20px; padding: 12px 20px; background: black; color: white; text-decoration: none; border-radius: 6px;">');
     parts.push(escapeHTML(ctaText));
     parts.push('</a>');
-    parts.push('</td>');
-    parts.push('</tr>');
   }
 
-  // Signature (optional)
-  if (signatureName) {
-    parts.push('<tr>');
-    parts.push('<td>');
-    parts.push('<p style="margin: 20px 0 0 0; font-size: 14px; color: #555;">');
-    parts.push('Best regards,<br>');
-    parts.push('<strong>' + escapeHTML(signatureName) + '</strong>');
-    parts.push('</p>');
-    parts.push('</td>');
-    parts.push('</tr>');
-  }
+  parts.push('</div>'); // End email card
 
-  parts.push('</table>'); // End email wrapper
-  parts.push('</td>');
-  parts.push('</tr>');
-
-  // Footer (optional)
+  // Footer
   if (showFooter) {
-    parts.push('<tr>');
-    parts.push('<td style="padding-top: 15px;">');
-    parts.push('<p style="text-align: center; font-size: 12px; color: #999; margin: 0;">');
+    parts.push('<p style="text-align: center; font-size: 12px; color: #999; margin-top: 15px;">');
 
-    // Branding (optional)
     if (showBranding) {
-      parts.push('Powered by <strong>Execute</strong> — Workflow Automation');
+      parts.push('Powered by <strong>Execute</strong> — Turn instructions into actions');
     }
 
-    // Reply hint (optional, only if showReplyHint is true)
     if (showReplyHint && replyHint) {
       if (showBranding) {
         parts.push('<br>');
-        parts.push(escapeHTML(replyHint));
       }
+      parts.push(escapeHTML(replyHint));
     }
 
     parts.push('</p>');
-    parts.push('</td>');
-    parts.push('</tr>');
   }
 
-  parts.push('</table>'); // End container
-
-  parts.push('</body>');
-  parts.push('</html>');
+  parts.push('</div>'); // End main container
 
   return parts.join('');
+}
+
+/**
+ * Format details box for smart templates
+ * Handles markdown-style bold and newlines
+ */
+function formatDetailsHTML(details: string): string {
+  const lines = details.split('\n');
+  return lines.map(line => {
+    const escaped = escapeHTML(line);
+    // Check if it's a bold line (**key: value** format)
+    if (line.match(/^\*\*.*\*\*:|^.*:/)) {
+      return `<p style="margin: 5px 0;">${escaped}</p>`;
+    }
+    return `<p style="margin: 5px 0;">${escaped}</p>`;
+  }).join('');
 }
 
 /**

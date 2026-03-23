@@ -22,3 +22,8 @@ export type {
 } from './types.js';
 
 export { getAllHandlers } from './steps/index.js';
+
+// Email rendering
+export { renderEmail, validateEmailContent } from './email/renderer.js';
+export type { EmailContent, RenderedEmail } from './email/renderer.js';
+

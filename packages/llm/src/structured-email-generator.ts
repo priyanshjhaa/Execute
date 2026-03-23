@@ -3,6 +3,7 @@
  *
  * Uses preset email templates (registration, weekly_meeting, custom)
  * Falls back to LLM-based template generation for custom cases
+ * NOW WITH: Smart email classification (Reminder/Notification/Alert)
  */
 
 import OpenAI from 'openai';
@@ -14,6 +15,9 @@ import {
   type StructuredAction,
 } from './action-templates/index.js';
 import { enhanceEmailWithPreset, inferTemplateType, type EmailTemplateType } from './email-presets.js';
+import { classifyEmailIntent } from './email-classifier.js';
+import { generateSmartEmail } from './smart-email-templates.js';
+import { renderEmail } from '@execute/execution';
 
 // Get API keys from environment
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
@@ -92,11 +96,69 @@ async function callLLM(systemPrompt: string, userPrompt: string): Promise<string
 /**
  * Generate email content using structured templates
  *
+ * NEW FLOW (Smart Classification):
+ * 1. Classify email type (Reminder/Notification/Alert)
+ * 2. Extract structured intent (task, entity, urgency)
+ * 3. Generate clean, product-level email
+ *
+ * OLD FLOW (fallback):
  * 1. LLM classifies intent → action_type
  * 2. Execute picks the template
  * 3. Execute renders with variables
  */
 export async function generateStructuredEmailContent(
+  userIntent: string,
+  recipientInfo?: { name?: string; email?: string; company?: string }
+): Promise<{
+  subject: string;
+  html: string;
+  text: string;
+  actionType: string;
+  variables: Record<string, string>;
+}> {
+  console.log(`[StructuredEmail] Generating email for intent: "${userIntent}"`);
+
+  // Try smart classification first (NEW FLOW)
+  try {
+    const emailIntent = await classifyEmailIntent(userIntent);
+
+    // Merge with recipient info
+    if (recipientInfo?.name && !emailIntent.recipient_name) {
+      emailIntent.recipient_name = recipientInfo.name;
+    }
+
+    // Generate smart email
+    const smartEmail = generateSmartEmail(emailIntent);
+
+    // Render using the smart template
+    const rendered = renderEmail(smartEmail);
+
+    console.log(`[StructuredEmail] Generated smart ${emailIntent.type} email`);
+
+    return {
+      subject: smartEmail.subject,
+      html: rendered.html,
+      text: rendered.text,
+      actionType: `EMAIL.${emailIntent.type.toUpperCase()}`,
+      variables: {
+        task: emailIntent.task || '',
+        entity: emailIntent.entity || '',
+        recipient_name: emailIntent.recipient_name || recipientInfo?.name || '',
+        urgency: emailIntent.urgency || 'medium',
+      },
+    };
+  } catch (error) {
+    console.error(`[StructuredEmail] Smart classification failed, falling back:`, error);
+
+    // FALLBACK: Use old flow
+    return await generateStructuredEmailContentLegacy(userIntent, recipientInfo);
+  }
+}
+
+/**
+ * Legacy email generation (original flow)
+ */
+async function generateStructuredEmailContentLegacy(
   userIntent: string,
   recipientInfo?: { name?: string; email?: string; company?: string }
 ): Promise<{

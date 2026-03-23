@@ -152,6 +152,9 @@ importers:
 
   packages/llm:
     dependencies:
+      '@execute/execution':
+        specifier: workspace:*
+        version: link:../execution
       groq-sdk:
         specifier: ^0.37.0
         version: 0.37.0
