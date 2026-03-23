@@ -93,12 +93,23 @@ export async function POST(request: NextRequest) {
     for (const step of result.workflow.steps) {
       if (step.type === 'send_email' && step.config) {
         try {
+          console.log('[WorkflowGen] ==================================================');
           console.log('[WorkflowGen] Using structured email templates...');
+          console.log('[WorkflowGen] Original intent:', originalIntent);
+          console.log('[WorkflowGen] Original config:', JSON.stringify(step.config, null, 2));
+
           const enhanced = await enhanceEmailStepStructured(originalIntent, step.config);
+
+          console.log('[WorkflowGen] Enhanced config:', JSON.stringify(enhanced, null, 2));
+          console.log('[WorkflowGen] Action type:', enhanced._actionType);
+          console.log('[WorkflowGen] Has details field:', !!enhanced.details);
+          console.log('[WorkflowGen] Details content:', enhanced.details);
+
           step.config = enhanced;
-          console.log('[WorkflowGen] Email enhanced with action type:', enhanced._actionType);
+          console.log('[WorkflowGen] ==================================================');
         } catch (error: any) {
           console.error('[WorkflowGen] Failed to enhance email step:', error.message);
+          console.error('[WorkflowGen] Error stack:', error.stack);
           // Continue with original config if enhancement fails
         }
       }

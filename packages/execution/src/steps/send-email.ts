@@ -81,18 +81,40 @@ export class SendEmailStepHandler implements StepHandler {
    * Prepare email content from config (handles both structured and legacy formats)
    */
   private prepareEmailContent(config: any, context: ExecutionContext): { html?: string; text?: string; subject: string } {
+    console.log('[SendEmail] ==================================================');
+    console.log('[SendEmail] Preparing email content...');
+    console.log('[SendEmail] Config keys:', Object.keys(config));
+    console.log('[SendEmail] Has heading:', !!config.heading);
+    console.log('[SendEmail] Has body:', !!config.body);
+    console.log('[SendEmail] Has html:', !!config.html);
+    console.log('[SendEmail] Has details:', !!config.details);
+    console.log('[SendEmail] Is structured:', this.isStructuredContent(config));
+
     if (this.isStructuredContent(config)) {
+      console.log('[SendEmail] Using NEW structured format');
+
       // New structured format
       const content: EmailContent = {
         subject: templateResolver.resolve(config.subject, context),
         heading: templateResolver.resolve(config.heading, context),
         body: templateResolver.resolve(config.body, context),
         intro: config.intro ? templateResolver.resolve(config.intro, context) : undefined,
+        details: config.details ? templateResolver.resolve(config.details, context) : undefined,
         ctaText: config.ctaText ? templateResolver.resolve(config.ctaText, context) : undefined,
         ctaLink: config.ctaLink ? templateResolver.resolve(config.ctaLink, context) : undefined,
         signatureName: config.signatureName ? templateResolver.resolve(config.signatureName, context) : undefined,
         replyHint: config.replyHint ? templateResolver.resolve(config.replyHint, context) : undefined,
+        showBranding: config.showBranding !== undefined ? config.showBranding : true,
+        showFooter: config.showFooter !== undefined ? config.showFooter : true,
+        showReplyHint: config.showReplyHint !== undefined ? config.showReplyHint : true,
       };
+
+      console.log('[SendEmail] Content prepared:');
+      console.log('[SendEmail] - Subject:', content.subject);
+      console.log('[SendEmail] - Heading:', content.heading);
+      console.log('[SendEmail] - Body length:', content.body?.length);
+      console.log('[SendEmail] - Details:', content.details);
+      console.log('[SendEmail] - Intro:', content.intro);
 
       // Validate required fields
       const validation = validateEmailContent(content);
@@ -107,7 +129,12 @@ export class SendEmailStepHandler implements StepHandler {
       }
 
       // Render to HTML and text
+      console.log('[SendEmail] Rendering email to HTML...');
       const rendered = renderEmail(content);
+      console.log('[SendEmail] HTML length:', rendered.html?.length);
+      console.log('[SendEmail] Text length:', rendered.text?.length);
+
+      console.log('[SendEmail] First 500 chars of HTML:', rendered.html?.substring(0, 500));
 
       return {
         subject: content.subject,
@@ -115,15 +142,19 @@ export class SendEmailStepHandler implements StepHandler {
         text: rendered.text,
       };
     } else {
+      console.log('[SendEmail] Using LEGACY format');
       // Legacy format - use existing body as-is
       const subject = templateResolver.resolve(config.subject, context);
       const body = templateResolver.resolve(config.body, context);
 
-      return {
+      const result = {
         subject,
         html: body.includes('<') ? body : undefined,
         text: body.includes('<') ? undefined : body,
       };
+
+      console.log('[SendEmail] ==================================================');
+      return result;
     }
   }
 
