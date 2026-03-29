@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, Wand2, Clock, Calendar, Zap, Check } from "lucide-react";
 import { SchedulePicker } from "@/components/workflows/schedule-picker";
 import { EventTriggerSelector } from "@/components/workflows/event-trigger-selector";
+import { EmailPreferencesEditor } from "@/components/workflows/email-preferences-editor";
 
 type TriggerType = 'now' | 'schedule' | 'event';
 
@@ -14,6 +15,12 @@ interface ScheduleData {
   frequency: 'daily' | 'weekly' | 'monthly';
   day?: string;
   time: string;
+}
+
+interface EmailPreferences {
+  tone?: 'formal' | 'casual' | 'friendly' | 'urgent';
+  structure?: 'detailed' | 'brief' | 'minimal';
+  customInstructions?: string;
 }
 
 type ProgressStep = 'understanding' | 'parsing' | 'validating' | 'complete';
@@ -36,6 +43,7 @@ export default function NewWorkflowPage() {
   });
   const [event, setEvent] = useState('');
   const [additionalContext, setAdditionalContext] = useState('');
+  const [emailPreferences, setEmailPreferences] = useState<EmailPreferences>({});
   const [loading, setLoading] = useState(false);
   const [progressStep, setProgressStep] = useState<ProgressStep>('understanding');
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +102,11 @@ export default function NewWorkflowPage() {
 
       if (additionalContext.trim()) {
         payload.additionalContext = additionalContext.trim();
+      }
+
+      // Add email preferences if any are set
+      if (emailPreferences.tone || emailPreferences.structure || emailPreferences.customInstructions) {
+        payload.emailPreferences = emailPreferences;
       }
 
       // Call the workflow generation API
@@ -267,6 +280,22 @@ export default function NewWorkflowPage() {
             />
             <p className="text-sm text-white/40">
               Add any special instructions, context, or requirements.
+            </p>
+          </div>
+
+          {/* Section 4: Email Style (Optional) */}
+          <div className="space-y-3">
+            <label className="block text-lg font-semibold text-white">
+              Email Style <span className="font-normal text-white/50">(optional)</span>
+            </label>
+            <div className="p-6 bg-white/[0.02] border border-white/10 rounded-2xl">
+              <EmailPreferencesEditor
+                value={emailPreferences}
+                onChange={setEmailPreferences}
+              />
+            </div>
+            <p className="text-sm text-white/40">
+              Customize how emails are generated. Leave blank for intelligent defaults.
             </p>
           </div>
 

@@ -6,3 +6,5 @@ export * from './email-content-generator.js';
 export * from './prompts/email-prompts.js';
 export * from './action-templates/index.js';
 export * from './structured-email-generator.js';
+export * from './email-types.js';
+export * from './dynamic-email-generator.js';

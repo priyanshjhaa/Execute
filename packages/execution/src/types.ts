@@ -21,6 +21,7 @@ export interface ExecutionContext {
   workflow: {
     id: string;
     name: string;
+    description?: string;
   };
   /** Data from the trigger (webhook payload, etc.) */
   triggerData?: Record<string, any>;
@@ -93,6 +94,7 @@ export interface WorkflowDefinition {
 export interface WorkflowInput {
   id: string;
   name: string;
+  description?: string;
   userId: string;
   definition: WorkflowDefinition;
   triggerType: string;

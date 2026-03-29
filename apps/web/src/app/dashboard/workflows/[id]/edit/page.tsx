@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { getWorkflowActionAvailability, isPremiumLockedAction } from "@execute/validation";
 import {
   ArrowLeft,
   Play,
@@ -142,6 +143,11 @@ export default function EditWorkflowPage() {
   };
 
   const addStep = (type: string) => {
+    if (isPremiumLockedAction(type)) {
+      setShowStepPicker(false);
+      return;
+    }
+
     const newStep: Step = {
       id: generateStepId(),
       type,
@@ -399,6 +405,8 @@ export default function EditWorkflowPage() {
               <div className="space-y-4 mb-6">
                 {sortedSteps.map((step, index) => {
                   const isTrigger = step.id === triggerStepId;
+                  const availability = getWorkflowActionAvailability(step.type);
+                  const isPremiumLocked = availability.premiumLocked;
                   return (
                     <div
                       key={step.id}
@@ -448,6 +456,11 @@ export default function EditWorkflowPage() {
                             <span className="px-2 py-0.5 rounded text-xs bg-white/10 text-white/50 border border-white/10 capitalize">
                               {step.type.replace(/_/g, " ")}
                             </span>
+                            {isPremiumLocked && (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-white/5 text-white/40 border border-white/10 rounded-full">
+                                {availability.statusLabel || "Coming Soon"}
+                              </span>
+                            )}
                           </div>
                           <input
                             type="text"
@@ -456,6 +469,11 @@ export default function EditWorkflowPage() {
                             placeholder="Add a description..."
                             className="w-full bg-transparent text-sm text-white/50 focus:outline-none placeholder:text-white/30"
                           />
+                          {isPremiumLocked && (
+                            <p className="mt-2 text-xs text-white/35">
+                              Premium action. This step can stay visible here, but it is not yet executable.
+                            </p>
+                          )}
                         </div>
 
                         {/* Actions */}
@@ -499,14 +517,26 @@ export default function EditWorkflowPage() {
                   <div className="absolute z-10 w-64 mt-2 bg-white/[0.05] border border-white/10 rounded-lg shadow-xl overflow-hidden">
                     {STEP_TYPES.map((stepType) => {
                       const Icon = stepType.icon;
+                      const availability = getWorkflowActionAvailability(stepType.value);
+                      const isPremiumLocked = availability.premiumLocked;
                       return (
                         <button
                           key={stepType.value}
                           onClick={() => addStep(stepType.value)}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors"
+                          disabled={isPremiumLocked}
+                          className={`w-full flex items-center gap-3 px-4 py-3 transition-colors ${
+                            isPremiumLocked
+                              ? "cursor-not-allowed opacity-70"
+                              : "hover:bg-white/5"
+                          }`}
                         >
                           <Icon className="h-4 w-4 text-white/60" />
                           <span className="text-white">{stepType.label}</span>
+                          {isPremiumLocked && (
+                            <span className="ml-auto inline-flex items-center gap-1 px-2 py-1 text-xs bg-white/5 text-white/40 border border-white/10 rounded-full">
+                              {availability.statusLabel || "Coming Soon"}
+                            </span>
+                          )}
                         </button>
                       );
                     })}

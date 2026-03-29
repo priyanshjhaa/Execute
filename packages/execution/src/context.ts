@@ -137,7 +137,7 @@ export class TemplateResolver {
  */
 export function createContext(
   user: { id: string; email: string; name?: string },
-  workflow: { id: string; name: string },
+  workflow: { id: string; name: string; description?: string },
   executionId: string,
   triggerData?: Record<string, any>
 ): ExecutionContext {

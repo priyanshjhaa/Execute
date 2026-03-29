@@ -2,7 +2,11 @@ import postgres from 'postgres';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:Pankupriyansh@db.pxkpgxemevefwscraico.supabase.co:5432/postgres';
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error('DATABASE_URL environment variable is not set');
+}
 
 const sql = postgres(connectionString);
 

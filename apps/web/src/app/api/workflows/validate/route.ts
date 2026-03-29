@@ -20,7 +20,7 @@ const ValidateRequestSchema = z.object({
       config: z.record(z.any()),
       position: z.number(),
     })).min(1, 'Workflow must have at least one step'),
-    triggerStepId: z.string().uuid('Invalid trigger step ID'),
+    triggerStepId: z.string().min(1, 'Trigger step ID is required'),
   }),
 });
 

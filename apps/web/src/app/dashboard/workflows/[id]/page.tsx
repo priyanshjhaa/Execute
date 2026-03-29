@@ -144,6 +144,7 @@ export default function WorkflowDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [runningExecutionId, setRunningExecutionId] = useState<string | null>(null);
+  const [startingExecution, setStartingExecution] = useState(false);
 
   const fetchWorkflow = useCallback(async () => {
     try {
@@ -212,12 +213,13 @@ export default function WorkflowDetailPage() {
   const sortedSteps = [...workflow.definition.steps].sort((a, b) => a.position - b.position);
 
   // Show execution loader if workflow is running
-  if (runningExecutionId) {
+  if (startingExecution || runningExecutionId) {
     return (
       <WorkflowExecutionLoader
         executionId={runningExecutionId}
         workflowName={workflow.name}
         onComplete={() => {
+          setStartingExecution(false);
           setRunningExecutionId(null);
           fetchWorkflow();
         }}
@@ -274,12 +276,19 @@ export default function WorkflowDetailPage() {
                 size="lg"
                 className="text-base btn-gradient text-black px-6 py-5 rounded-full"
                 onClick={async () => {
-                  const response = await fetch(`/api/workflows/${workflow.id}/run`, {
-                    method: "POST",
-                  });
-                  if (response.ok) {
+                  try {
+                    setStartingExecution(true);
+                    const response = await fetch(`/api/workflows/${workflow.id}/run`, {
+                      method: "POST",
+                    });
                     const data = await response.json();
+                    if (!response.ok) {
+                      throw new Error(data.error || "Failed to run workflow");
+                    }
                     setRunningExecutionId(data.executionId);
+                  } catch (err) {
+                    console.error("Error starting workflow:", err);
+                    setStartingExecution(false);
                   }
                 }}
               >
@@ -317,7 +326,7 @@ export default function WorkflowDetailPage() {
               <div>
                 <p className="text-sm text-white/50">Success Rate</p>
                 <p className="text-2xl font-semibold text-white">
-                  {workflow.successRate}%
+                  {workflow.totalExecutions === 0 ? "Not run yet" : `${workflow.successRate}%`}
                 </p>
               </div>
             </div>

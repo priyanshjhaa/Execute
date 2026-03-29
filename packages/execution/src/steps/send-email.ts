@@ -17,11 +17,21 @@ import { renderEmail, validateEmailContent, type EmailContent } from '../email/r
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || '';
 const RESEND_API_URL = 'https://api.resend.com/emails';
+const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
+const APP_URL = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 interface SendEmailResult {
   ok: boolean;
   messageId?: string;
   error?: string;
+}
+
+interface GeneratedEmailData {
+  type: 'reminder' | 'request' | 'notification';
+  subject: string;
+  heading: string;
+  message: string;
 }
 
 export class SendEmailStepHandler implements StepHandler {
@@ -80,7 +90,11 @@ export class SendEmailStepHandler implements StepHandler {
   /**
    * Prepare email content from config (handles both structured and legacy formats)
    */
-  private prepareEmailContent(config: any, context: ExecutionContext): { html?: string; text?: string; subject: string } {
+  private async prepareEmailContent(
+    step: Step,
+    config: any,
+    context: ExecutionContext
+  ): Promise<{ html?: string; text?: string; subject: string }> {
     console.log('[SendEmail] ==================================================');
     console.log('[SendEmail] Preparing email content...');
     console.log('[SendEmail] Config keys:', Object.keys(config));
@@ -93,20 +107,40 @@ export class SendEmailStepHandler implements StepHandler {
     if (this.isStructuredContent(config)) {
       console.log('[SendEmail] Using NEW structured format');
 
+      const refinedContent = this.shouldUseStructuredGeneration(config)
+        ? await this.generateStructuredEmailFromWorkflow(step, config, context)
+        : null;
+
       // New structured format
       const content: EmailContent = {
-        subject: templateResolver.resolve(config.subject, context),
-        heading: templateResolver.resolve(config.heading, context),
-        body: templateResolver.resolve(config.body, context),
-        intro: config.intro ? templateResolver.resolve(config.intro, context) : undefined,
-        details: config.details ? templateResolver.resolve(config.details, context) : undefined,
-        ctaText: config.ctaText ? templateResolver.resolve(config.ctaText, context) : undefined,
-        ctaLink: config.ctaLink ? templateResolver.resolve(config.ctaLink, context) : undefined,
+        subject: templateResolver.resolve(refinedContent?.subject || config.subject, context),
+        heading: templateResolver.resolve(refinedContent?.heading || config.heading, context),
+        body: templateResolver.resolve(refinedContent?.body || config.body, context),
+        intro: refinedContent?.intro
+          ? templateResolver.resolve(refinedContent.intro, context)
+          : config.intro
+            ? templateResolver.resolve(config.intro, context)
+            : undefined,
+        details: refinedContent?.details
+          ? templateResolver.resolve(refinedContent.details, context)
+          : config.details
+            ? templateResolver.resolve(config.details, context)
+            : undefined,
+        ctaText: refinedContent?.ctaText
+          ? templateResolver.resolve(refinedContent.ctaText, context)
+          : config.ctaText
+            ? templateResolver.resolve(config.ctaText, context)
+            : undefined,
+        ctaLink: refinedContent?.ctaLink
+          ? templateResolver.resolve(refinedContent.ctaLink, context)
+          : config.ctaLink
+            ? templateResolver.resolve(config.ctaLink, context)
+            : undefined,
         signatureName: config.signatureName ? templateResolver.resolve(config.signatureName, context) : undefined,
         replyHint: config.replyHint ? templateResolver.resolve(config.replyHint, context) : undefined,
-        showBranding: config.showBranding !== undefined ? config.showBranding : true,
-        showFooter: config.showFooter !== undefined ? config.showFooter : true,
-        showReplyHint: config.showReplyHint !== undefined ? config.showReplyHint : true,
+        showBranding: refinedContent?.showBranding ?? (config.showBranding !== undefined ? config.showBranding : true),
+        showFooter: refinedContent?.showFooter ?? (config.showFooter !== undefined ? config.showFooter : true),
+        showReplyHint: refinedContent?.showReplyHint ?? (config.showReplyHint !== undefined ? config.showReplyHint : true),
       };
 
       console.log('[SendEmail] Content prepared:');
@@ -306,7 +340,7 @@ export class SendEmailStepHandler implements StepHandler {
           };
 
           // Prepare email content (handles both structured and legacy)
-          const emailContent = this.prepareEmailContent(config, personalizedContext);
+          const emailContent = await this.prepareEmailContent(step, config, personalizedContext);
 
           const payload = this.buildPayload(from, email, emailContent.subject, emailContent.html, emailContent.text, config);
 
@@ -351,7 +385,7 @@ export class SendEmailStepHandler implements StepHandler {
       }
 
       // Batch send (non-personalized or single recipient)
-      const emailContent = this.prepareEmailContent(config, context);
+      const emailContent = await this.prepareEmailContent(step, config, context);
       const payload = this.buildPayload(from, to, emailContent.subject, emailContent.html, emailContent.text, config);
 
       // Use retry logic if configured
@@ -471,5 +505,171 @@ export class SendEmailStepHandler implements StepHandler {
       ok: true,
       messageId: responseData.id,
     };
+  }
+
+  private shouldUseStructuredGeneration(config: any): boolean {
+    return config?._emailMetadata?.templateUsed === 'custom_business' ||
+      (config?.showBranding === false && config?.showFooter === false);
+  }
+
+  private async generateStructuredEmailFromWorkflow(
+    step: Step,
+    config: any,
+    context: ExecutionContext
+  ): Promise<Partial<EmailContent> | null> {
+    try {
+      const rawRecipient = typeof config.to === 'string' ? config.to : Array.isArray(config.to) ? config.to[0] : undefined;
+      const emailData = await this.generateEmailData({
+        workflowName: context.workflow.name,
+        description: context.workflow.description || '',
+        stepName: step.name,
+        stepDescription: step.description || '',
+        to: rawRecipient || '',
+        subject: config.subject || '',
+        body: config.body || '',
+      });
+
+      return {
+        subject: this.normalizeSubject(emailData.subject),
+        heading: emailData.heading,
+        intro: `Hi ${this.getRecipientDisplayName(rawRecipient)},`,
+        body: emailData.message,
+        ctaText: undefined,
+        ctaLink: undefined,
+        showBranding: false,
+        showFooter: false,
+        showReplyHint: false,
+      };
+    } catch (error) {
+      console.error('[SendEmail] Structured email generation failed, using stored content:', error);
+      return null;
+    }
+  }
+
+  private async generateEmailData(input: Record<string, string>): Promise<GeneratedEmailData> {
+    const systemPrompt = `You are an AI assistant that converts workflow steps into structured email data.
+
+Return ONLY JSON.`;
+
+    const userPrompt = `Understand the intent of the workflow and generate a professional email.
+
+Rules:
+- Subject should be natural (not title case spam)
+- Heading should be short and clear
+- Message should be concise and actionable
+- Do NOT generate generic templates
+- Do NOT say "Thank you for submitting"
+
+Context:
+- Workflow Name: ${input.workflowName}
+- Description: ${input.description}
+- Step: ${input.stepName}
+- Step Description: ${input.stepDescription}
+- Recipient: ${input.to}
+- Existing Subject Hint: ${input.subject}
+- Existing Body Hint: ${input.body}
+
+Return JSON only in this format:
+{
+  "type": "reminder | request | notification",
+  "subject": "...",
+  "heading": "...",
+  "message": "..."
+}`;
+
+    const providers = [
+      GROQ_API_KEY ? {
+        url: 'https://api.groq.com/openai/v1/chat/completions',
+        apiKey: GROQ_API_KEY,
+        headers: {},
+        model: 'llama-3.3-70b-versatile',
+      } : null,
+      OPENROUTER_API_KEY ? {
+        url: 'https://openrouter.ai/api/v1/chat/completions',
+        apiKey: OPENROUTER_API_KEY,
+        headers: {
+          'HTTP-Referer': APP_URL,
+          'X-Title': 'Execute Email Generation',
+        },
+        model: 'google/gemma-3-4b-it',
+      } : null,
+    ].filter(Boolean) as Array<{ url: string; apiKey: string; headers: Record<string, string>; model: string }>;
+
+    if (providers.length === 0) {
+      throw new Error('No LLM API keys configured for runtime email generation');
+    }
+
+    const errors: string[] = [];
+    for (const provider of providers) {
+      try {
+        const response = await fetch(provider.url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${provider.apiKey}`,
+            'Content-Type': 'application/json',
+            ...provider.headers,
+          },
+          body: JSON.stringify({
+            model: provider.model,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+            temperature: 0.2,
+            max_tokens: 500,
+            response_format: { type: 'json_object' },
+          }),
+        });
+
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.error?.message || payload?.message || response.statusText);
+        }
+
+        const content = payload.choices?.[0]?.message?.content;
+        if (!content) {
+          throw new Error('Empty response from LLM');
+        }
+
+        const parsed = JSON.parse(content.replace(/```json\s*|\s*```/g, '').trim()) as GeneratedEmailData;
+        if (!parsed.subject || !parsed.heading || !parsed.message) {
+          throw new Error('Incomplete structured email response');
+        }
+
+        return parsed;
+      } catch (error: any) {
+        errors.push(error.message);
+      }
+    }
+
+    throw new Error(`All runtime email generation providers failed: ${errors.join('; ')}`);
+  }
+
+  private normalizeSubject(subject: string): string {
+    if (!subject) return subject;
+    const trimmed = subject.trim();
+    if (!trimmed) return trimmed;
+
+    return trimmed
+      .split(/\s+/)
+      .map((word, index) => {
+        const normalized = word.toLowerCase();
+        return index === 0
+          ? normalized.charAt(0).toUpperCase() + normalized.slice(1)
+          : normalized;
+      })
+      .join(' ');
+  }
+
+  private getRecipientDisplayName(rawRecipient?: string): string {
+    if (!rawRecipient) {
+      return 'there';
+    }
+
+    if (rawRecipient.includes('@')) {
+      return rawRecipient.split('@')[0];
+    }
+
+    return rawRecipient.replace(/^to\s+/i, '').trim() || 'there';
   }
 }

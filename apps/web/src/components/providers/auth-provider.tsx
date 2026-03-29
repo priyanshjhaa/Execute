@@ -2,9 +2,9 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import type { AuthUser, AuthContextType } from '@/types/auth'
-import type { User as SupabaseUser } from '@supabase/supabase-js'
+import type { AuthChangeEvent, Session, User as SupabaseUser } from '@supabase/supabase-js'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
@@ -12,14 +12,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
-    console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
-    console.log('Supabase client created:', supabase)
-
     // Get initial session and sync user
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
       const currentUser = session?.user ? transformUser(session.user) : null
       setUser(currentUser)
 
@@ -44,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
       const currentUser = session?.user ? transformUser(session.user) : null
       setUser(currentUser)
 
@@ -65,7 +62,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Redirect on sign out
       if (event === 'SIGNED_OUT') {
-        router.push('/login')
+        setUser(null)
+        if (typeof window !== 'undefined') {
+          window.location.replace('/')
+        }
       }
 
       setLoading(false)
@@ -131,7 +131,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut()
-    router.push('/login')
+    setUser(null)
+    if (typeof window !== 'undefined') {
+      window.location.replace('/')
+      return
+    }
+    router.replace('/')
     router.refresh()
   }
 

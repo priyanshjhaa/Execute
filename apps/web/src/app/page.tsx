@@ -11,11 +11,14 @@ import {
   Terminal,
   Sparkles,
   GitBranch,
-  BarChart3,
+  Lock,
   Mail,
   MessageSquare,
   Users,
   Globe,
+  Phone,
+  ListChecks,
+  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -78,31 +81,43 @@ export default function Home() {
         <div className="container mx-auto max-w-6xl">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white text-sm font-medium mb-8">
             <Sparkles className="h-4 w-4" />
-            <span>Automate Without Code</span>
+            <span>Email, Slack, API, and scheduled workflows</span>
           </div>
 
           <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold text-white mb-6 tracking-tight leading-[1.1]">
-            Set it once.
+            Turn simple instructions
             <br />
-            <span className="text-white/60">We'll make sure it happens.</span>
+            <span className="orb-gradient-text">into automated workflows.</span>
           </h1>
 
           <p className="text-xl md:text-2xl text-white/50 mb-10 max-w-3xl leading-relaxed">
-            Execute takes care of important recurring work so you don't have to follow up, remind, or worry.
+            Send emails, call APIs, and run tasks - all from plain English.
+          </p>
+
+          <p className="text-base md:text-lg text-white/65 mb-10 max-w-2xl">
+            No code. No setup. Just describe what you want.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-start items-start">
             <Link href="/signup" className="w-full sm:w-auto">
-              <Button size="lg" className="text-base btn-gradient text-black px-8 py-6 w-full sm:w-auto rounded-full">
-                Create your first execution <ArrowRight className="ml-2 h-5 w-5" />
+              <Button
+                size="lg"
+                className="text-base btn-gradient text-black px-10 py-7 w-full sm:w-auto rounded-full transition-all duration-300 hover:scale-[1.02] hover:opacity-95"
+                style={{ animationDuration: "20s" }}
+              >
+                Start building workflows <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
             <Link href="#how-it-works" className="w-full sm:w-auto">
               <Button size="lg" variant="outline" className="text-base border-white/20 text-white hover:bg-white/5 hover:text-white px-8 py-6 w-full sm:w-auto rounded-full">
-                See how it works
+                View demo
               </Button>
             </Link>
           </div>
+
+          <p className="mt-8 text-sm md:text-base text-white/45">
+            Send onboarding emails • Notify your team • Trigger APIs • Schedule reminders
+          </p>
 
           <div className="mt-16 flex flex-wrap gap-8 text-sm text-white/40">
             <div className="flex items-center gap-2">
@@ -111,15 +126,15 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-white/60" />
-              <span>Email automation</span>
+              <span>Email workflows</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-white/60" />
-              <span>Slack integration</span>
+              <span>Slack messages</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-white/60" />
-              <span>Contact management</span>
+              <span>API calls, delays, and logic</span>
             </div>
           </div>
         </div>
@@ -278,6 +293,133 @@ export default function Home() {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Basic vs Premium */}
+      <section className="py-28 px-6 relative z-10">
+        <div className="container mx-auto max-w-6xl">
+          <div className="mb-16 text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/80 text-sm font-medium mb-6">
+              <Lock className="h-4 w-4" />
+              <span>Workflow action plans</span>
+            </div>
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+              Choose between what runs now
+              <br />
+              <span className="text-white/70">and what expands with Premium.</span>
+            </h2>
+            <p className="text-lg text-white/50 max-w-3xl mx-auto">
+              Basic includes the workflow actions Execute can reliably run today. Premium includes all of Basic plus the higher-level actions already defined in the product vision.
+            </p>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-8">
+            <div className="relative p-8 rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
+              <div className="absolute inset-0 opacity-5">
+                <div className="absolute inset-0 card-gradient-bg"></div>
+              </div>
+              <div className="relative z-10">
+                <div className="text-xs uppercase tracking-[0.2em] text-white/40 mb-3">Available today</div>
+                <h3 className="text-3xl font-bold text-white mb-2">Basic</h3>
+                <p className="text-white/50 mb-8">For teams starting with live, executable workflow actions</p>
+
+                <div className="space-y-4 mb-10">
+                  {[
+                    "Send emails",
+                    "Trigger HTTP requests",
+                    "Add delays and schedules",
+                    "Branch with conditional logic",
+                    "Track workflow execution",
+                    "Add contacts to lists",
+                  ].map((feature) => (
+                    <div key={feature} className="flex items-center gap-3 text-white/80">
+                      <CheckCircle2 className="h-5 w-5 text-white/75 flex-shrink-0" />
+                      <span>{feature}</span>
+                    </div>
+                  ))}
+
+                  {[
+                    "Post Slack messages",
+                    "Send SMS",
+                    "Create tasks",
+                  ].map((feature) => (
+                    <div key={feature} className="flex items-center gap-3 text-white/35">
+                      <X className="h-5 w-5 text-white/25 flex-shrink-0" />
+                      <span>{feature}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <Link href="/signup" className="block">
+                  <Button className="w-full bg-white text-black hover:bg-white/90 rounded-full py-6 text-base font-medium">
+                    Start with Basic
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            <div className="relative p-8 rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute inset-0 card-gradient-bg"></div>
+              </div>
+              <div className="absolute right-6 top-6">
+                <span className="inline-flex items-center gap-1 px-3 py-1 text-xs bg-white/10 text-white/80 border border-white/15 rounded-full">
+                  Coming Soon
+                </span>
+              </div>
+              <div className="relative z-10">
+                <div className="text-xs uppercase tracking-[0.2em] text-white/50 mb-3">Expanded plan</div>
+                <h3 className="text-3xl font-bold text-white mb-2">Premium</h3>
+                <p className="text-white/50">Everything in Basic, plus advanced workflow actions as they unlock</p>
+                <div className="mt-5 mb-8">
+                  <div className="text-4xl font-bold text-white">₹499<span className="text-xl text-white/75 font-medium">/month</span></div>
+                  <div className="text-sm text-white/40 mt-1">~$5.69/month</div>
+                </div>
+
+                <div className="space-y-4 mb-10">
+                  {[
+                    "Send emails",
+                    "Post Slack messages",
+                    "Trigger HTTP requests",
+                    "Add delays and schedules",
+                    "Branch with conditional logic",
+                    "Track workflow execution",
+                    "Add contacts to lists",
+                    "Send SMS",
+                    "Create tasks",
+                  ].map((feature) => (
+                    <div key={feature} className="flex items-center gap-3 text-white/85">
+                      <CheckCircle2 className="h-5 w-5 text-white/80 flex-shrink-0" />
+                      <span>{feature}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  variant="outline"
+                  className="w-full border-white/20 text-white/80 hover:bg-white/5 hover:text-white rounded-full py-6 text-base font-medium"
+                >
+                  Explore Premium
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 flex flex-wrap justify-center gap-3 text-sm text-white/45">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2">
+              <Mail className="h-4 w-4" />
+              Basic runs live workflow actions today
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2">
+              <MessageSquare className="h-4 w-4" />
+              Premium adds Slack, SMS, and task automation
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2">
+              <Users className="h-4 w-4" />
+              List automation is included in Basic
+            </span>
           </div>
         </div>
       </section>

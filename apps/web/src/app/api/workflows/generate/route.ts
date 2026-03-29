@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db, workflows, users } from '@execute/db';
-import { createParser, enhanceEmailStepStructured } from '@execute/llm';
+import { createParser, enhanceEmailStepStructured, generateDynamicEmail, type EmailPreferences } from '@execute/llm';
+import { findPremiumLockedSteps } from '@execute/validation';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 
@@ -16,6 +17,18 @@ const StructuredRequestSchema = z.object({
   }).optional(),
   event: z.string().optional(),
   additionalContext: z.string().optional(),
+  // NEW: Email preferences
+  emailPreferences: z.object({
+    tone: z.enum(['formal', 'casual', 'friendly', 'urgent']).optional(),
+    structure: z.enum(['detailed', 'brief', 'minimal']).optional(),
+    style: z.enum(['professional', 'conversational', 'direct']).optional(),
+    customInstructions: z.string().optional(),
+    overrides: z.object({
+      subject: z.string().optional(),
+      heading: z.string().optional(),
+      body: z.string().optional(),
+    }).optional(),
+  }).optional(),
 }).refine(
   (data) => {
     if (data.when === 'schedule') return !!data.schedule;
@@ -87,43 +100,89 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4.5. Enhance email steps with structured templates
+    const premiumLockedStepErrors = findPremiumLockedSteps(result.workflow.steps || []);
+    if (premiumLockedStepErrors.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'Workflow contains premium actions that are not yet available',
+          details: premiumLockedStepErrors.join(' '),
+        },
+        { status: 422 }
+      );
+    }
+
+    // 4.5. Enhance email steps with dynamic email generation
     const originalIntent = isStructuredInput ? validatedData.what : validatedData.instruction;
+    const emailPreferences = validatedData.emailPreferences as EmailPreferences | undefined;
+
+    // Get trigger type early for email generation
+    if (!result.workflow) {
+      throw new Error('Workflow is undefined');
+    }
+    const triggerStep = result.workflow.steps.find(step => step.id === result.workflow!.triggerStepId);
+    const triggerType = triggerStep?.type || 'webhook';
 
     for (const step of result.workflow.steps) {
       if (step.type === 'send_email' && step.config) {
         try {
           console.log('[WorkflowGen] ==================================================');
-          console.log('[WorkflowGen] Using structured email templates...');
+          console.log('[WorkflowGen] Using dynamic email generation...');
           console.log('[WorkflowGen] Original intent:', originalIntent);
+          console.log('[WorkflowGen] Email preferences:', emailPreferences);
           console.log('[WorkflowGen] Original config:', JSON.stringify(step.config, null, 2));
 
-          const enhanced = await enhanceEmailStepStructured(originalIntent, step.config);
+          // Use new dynamic email generator
+          const enhanced = await generateDynamicEmail({
+            userIntent: originalIntent,
+            triggerType,
+            preferences: emailPreferences,
+            stepConfig: step.config,
+            recipientInfo: {
+              name: step.config.to,
+            },
+          });
 
           console.log('[WorkflowGen] Enhanced config:', JSON.stringify(enhanced, null, 2));
-          console.log('[WorkflowGen] Action type:', enhanced._actionType);
-          console.log('[WorkflowGen] Has details field:', !!enhanced.details);
-          console.log('[WorkflowGen] Details content:', enhanced.details);
+          console.log('[WorkflowGen] Generated heading:', enhanced.heading);
+          console.log('[WorkflowGen] Template used:', enhanced.metadata?.templateUsed);
 
-          step.config = enhanced;
+          // Merge enhanced email with existing config
+          step.config = {
+            ...step.config,
+            subject: enhanced.subject,
+            heading: enhanced.heading,
+            body: enhanced.body,
+            intro: enhanced.intro,
+            details: enhanced.details,
+            ctaText: enhanced.ctaText,
+            ctaLink: enhanced.ctaLink,
+            replyHint: enhanced.replyHint,
+            signatureName: enhanced.signatureName,
+            showBranding: enhanced.showBranding,
+            showFooter: enhanced.showFooter,
+            showReplyHint: enhanced.showReplyHint,
+            // Store metadata for debugging
+            _emailMetadata: enhanced.metadata,
+          };
+
           console.log('[WorkflowGen] ==================================================');
         } catch (error: any) {
           console.error('[WorkflowGen] Failed to enhance email step:', error.message);
           console.error('[WorkflowGen] Error stack:', error.stack);
-          // Continue with original config if enhancement fails
+          // Fallback to legacy enhancement if dynamic generation fails
+          try {
+            console.log('[WorkflowGen] Falling back to legacy email enhancement...');
+            const legacyEnhanced = await enhanceEmailStepStructured(originalIntent, step.config);
+            step.config = legacyEnhanced;
+          } catch (fallbackError: any) {
+            console.error('[WorkflowGen] Legacy fallback also failed:', fallbackError.message);
+            // Continue with original config
+          }
         }
       }
     }
 
     // 5. Save workflow to database
-    // Get trigger type from the first step (which is always the trigger)
-    if (!result.workflow) {
-      throw new Error('Workflow is undefined');
-    }
-
-    const triggerStep = result.workflow.steps.find(step => step.id === result.workflow!.triggerStepId);
-    const triggerType = triggerStep?.type || 'webhook';
-
     // Find or create internal user record
     let [internalUser] = await db.select().from(users).where(eq(users.supabaseId, user.id));
 

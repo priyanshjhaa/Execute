@@ -15,8 +15,7 @@ import {
   type StructuredAction,
 } from './action-templates/index.js';
 import { enhanceEmailWithPreset, inferTemplateType, type EmailTemplateType } from './email-presets.js';
-import { classifyEmailIntent } from './email-classifier.js';
-import { generateSmartEmail } from './smart-email-templates.js';
+import { generateDynamicEmail } from './dynamic-email-generator.js';
 import { renderEmail } from '@execute/execution';
 
 // Get API keys from environment
@@ -96,10 +95,10 @@ async function callLLM(systemPrompt: string, userPrompt: string): Promise<string
 /**
  * Generate email content using structured templates
  *
- * NEW FLOW (Smart Classification):
- * 1. Classify email type (Reminder/Notification/Alert)
- * 2. Extract structured intent (task, entity, urgency)
- * 3. Generate clean, product-level email
+ * NEW FLOW (Universal Business Template):
+ * 1. Merge workflow intent + step config context
+ * 2. Generate a single business-email structure
+ * 3. Render the final email using Execute's renderer
  *
  * OLD FLOW (fallback):
  * 1. LLM classifies intent → action_type
@@ -118,37 +117,27 @@ export async function generateStructuredEmailContent(
 }> {
   console.log(`[StructuredEmail] Generating email for intent: "${userIntent}"`);
 
-  // Try smart classification first (NEW FLOW)
+  // Try universal business template first (NEW FLOW)
   try {
-    const emailIntent = await classifyEmailIntent(userIntent);
+    const businessEmail = await generateDynamicEmail({
+      userIntent,
+      recipientInfo,
+    });
+    const rendered = renderEmail(businessEmail);
 
-    // Merge with recipient info
-    if (recipientInfo?.name && !emailIntent.recipient_name) {
-      emailIntent.recipient_name = recipientInfo.name;
-    }
-
-    // Generate smart email
-    const smartEmail = generateSmartEmail(emailIntent);
-
-    // Render using the smart template
-    const rendered = renderEmail(smartEmail);
-
-    console.log(`[StructuredEmail] Generated smart ${emailIntent.type} email`);
+    console.log('[StructuredEmail] Generated custom business email');
 
     return {
-      subject: smartEmail.subject,
+      subject: businessEmail.subject,
       html: rendered.html,
       text: rendered.text,
-      actionType: `EMAIL.${emailIntent.type.toUpperCase()}`,
+      actionType: 'EMAIL.CUSTOM_BUSINESS',
       variables: {
-        task: emailIntent.task || '',
-        entity: emailIntent.entity || '',
-        recipient_name: emailIntent.recipient_name || recipientInfo?.name || '',
-        urgency: emailIntent.urgency || 'medium',
+        recipient_name: recipientInfo?.name || '',
       },
     };
   } catch (error) {
-    console.error(`[StructuredEmail] Smart classification failed, falling back:`, error);
+    console.error(`[StructuredEmail] Business template generation failed, falling back:`, error);
 
     // FALLBACK: Use old flow
     return await generateStructuredEmailContentLegacy(userIntent, recipientInfo);
@@ -282,70 +271,13 @@ export async function enhanceEmailStepStructured(
   }
 
   // Fall back to LLM-based generation for custom templates
-  // This will now use smart classification!
   const generated = await generateStructuredEmailContent(userIntent, recipientInfo);
-
-  // For smart classification, the response already has structured data
-  if (generated.actionType === 'EMAIL.REMINDER' ||
-      generated.actionType === 'EMAIL.NOTIFICATION' ||
-      generated.actionType === 'EMAIL.ALERT') {
-
-    // Parse the HTML to extract structured content
-    const headingMatch = generated.html.match(/<h2[^>]*>(.*?)<\/h2>/is);
-    const heading = headingMatch ? headingMatch[1].replace(/<[^>]*>/g, '').trim() : 'Update';
-
-    // Extract paragraphs
-    const paragraphMatches = [...generated.html.matchAll(/<p[^>]*>(.*?)<\/p>/gis)];
-    const paragraphs: string[] = [];
-    for (const match of paragraphMatches) {
-      const text = match[1].replace(/<[^>]*>/g, '').trim();
-      if (text && text.length > 0) {
-        paragraphs.push(text);
-      }
-    }
-
-    // First paragraph is intro
-    const intro = paragraphs.length > 0 ? paragraphs[0] : undefined;
-
-    // Find details box (div with background #f5f5f5)
-    const detailsMatch = generated.html.match(/<div[^>]*style="[^"]*background:\s*#f5f5f5[^"]*"[^>]*>(.*?)<\/div>/is);
-    const details = detailsMatch ? detailsMatch[1].replace(/<p[^>]*style="[^"]*"[^>]*>/g, '').replace(/<\/p>/g, '\n').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim() : undefined;
-
-    // Body is the main message
-    const body = paragraphs[1] || 'Please review the information above.';
-
-    // Extract CTA
-    const ctaMatch = generated.html.match(/<a[^>]*href=["']([^"']*)["'][^>]*>(.*?)<\/a>/is);
-    let ctaText: string | undefined;
-    let ctaLink: string | undefined;
-
-    if (ctaMatch) {
-      ctaText = ctaMatch[2].replace(/<[^>]*>/g, '').trim();
-      ctaLink = ctaMatch[1];
-    }
-
-    return {
-      to: currentConfig.to,
-      subject: generated.subject,
-      heading,
-      intro,
-      body,
-      details,
-      ctaText,
-      ctaLink,
-      templateType: 'custom',
-      _actionType: generated.actionType,
-      showBranding: true,
-      showFooter: true,
-      showReplyHint: true,
-    };
-  }
 
   // Legacy path for old action types
   const actionType = generated.actionType;
 
   // Extract heading from HTML with better pattern
-  const headingMatch = generated.html.match(/<h1[^>]*>(.*?)<\/h1>/is);
+  const headingMatch = generated.html.match(/<h[12][^>]*>(.*?)<\/h[12]>/is);
   let heading = 'Update from Execute';
   if (headingMatch) {
     const extracted = headingMatch[1].replace(/<[^>]*>/g, '').trim();
@@ -369,6 +301,18 @@ export async function enhanceEmailStepStructured(
 
   // Remaining paragraphs form the body - preserve all content
   const body = paragraphs.slice(1).join('\n\n') || paragraphs.join('\n\n') || 'Please review the update above.';
+
+  const detailsMatch = generated.html.match(/<div[^>]*>(.*?)<\/div>/is);
+  const details = detailsMatch
+    ? detailsMatch[1]
+        .replace(/<p[^>]*>/g, '')
+        .replace(/<\/p>/g, '\n')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .trim()
+    : undefined;
 
   // Extract CTA if present
   const ctaMatch = generated.html.match(/<a[^>]*href=["']([^"']*)["'][^>]*>(.*?)<\/a>/is);
@@ -404,14 +348,15 @@ export async function enhanceEmailStepStructured(
     heading: heading as string,
     body: body as string,
     intro,
+    details,
     ctaText,
     ctaLink,
     signatureName,
     replyHint,
     templateType: 'custom',
     _actionType: actionType,
-    showBranding: true,
-    showFooter: true,
-    showReplyHint: true,
+    showBranding: actionType === 'EMAIL.CUSTOM_BUSINESS' ? false : true,
+    showFooter: actionType === 'EMAIL.CUSTOM_BUSINESS' ? false : true,
+    showReplyHint: actionType === 'EMAIL.CUSTOM_BUSINESS' ? false : true,
   };
 }

@@ -15,7 +15,7 @@ interface ExecutionStep {
 }
 
 interface WorkflowExecutionLoaderProps {
-  executionId: string;
+  executionId?: string | null;
   workflowName: string;
   onComplete?: () => void;
 }
@@ -35,6 +35,10 @@ export function WorkflowExecutionLoader({
 
   // Poll execution status
   useEffect(() => {
+    if (!executionId) {
+      return;
+    }
+
     const pollInterval = setInterval(async () => {
       try {
         const response = await fetch(`/api/executions/${executionId}`);
@@ -167,7 +171,9 @@ export function WorkflowExecutionLoader({
               </h2>
               <p className="text-white/50">
                 {status === "running" &&
-                  (steps.length > 0
+                  (!executionId
+                    ? "Starting execution..."
+                    : steps.length > 0
                     ? `Processing step ${currentStepIndex + 1} of ${steps.length}`
                     : "Initializing...")}
                 {status === "completed" && "Redirecting to execution details..."}
@@ -243,7 +249,9 @@ export function WorkflowExecutionLoader({
           {steps.length === 0 && (
             <div className="bg-white/[0.02] border border-white/10 rounded-xl p-12 text-center">
               <Loader2 className="h-12 w-12 text-white/20 mx-auto mb-4 animate-spin" />
-              <p className="text-white/40">Initializing workflow execution...</p>
+              <p className="text-white/40">
+                {executionId ? "Initializing workflow execution..." : "Starting workflow execution..."}
+              </p>
             </div>
           )}
         </div>

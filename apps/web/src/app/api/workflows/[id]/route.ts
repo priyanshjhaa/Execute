@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db, workflows, users } from '@execute/db';
+import { findPremiumLockedSteps } from '@execute/validation';
 import { eq, and } from 'drizzle-orm';
 
 // Validate UUID format
@@ -150,6 +151,21 @@ export async function PATCH(
       );
     }
 
+    const nextDefinition = definition ?? existingWorkflow.definition;
+    const premiumLockedStepErrors = nextDefinition?.steps
+      ? findPremiumLockedSteps(nextDefinition.steps)
+      : [];
+
+    if (premiumLockedStepErrors.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'Workflow contains premium actions that are not yet available',
+          details: premiumLockedStepErrors.join(' '),
+        },
+        { status: 422 }
+      );
+    }
+
     // 5. Generate webhookId if triggerType is being set to webhook and none exists
     let webhookId = existingWorkflow.webhookId;
     if (newTriggerType === 'webhook' && !webhookId) {
@@ -162,7 +178,7 @@ export async function PATCH(
         name: name ?? existingWorkflow.name,
         description: description ?? existingWorkflow.description,
         status: status ?? existingWorkflow.status,
-        definition: definition ?? existingWorkflow.definition,
+        definition: nextDefinition,
         triggerType: newTriggerType ?? existingWorkflow.triggerType,
         webhookId: webhookId ?? existingWorkflow.webhookId,
         updatedAt: new Date(),

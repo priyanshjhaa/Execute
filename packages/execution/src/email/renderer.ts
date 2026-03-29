@@ -1,26 +1,21 @@
 /**
  * Universal Email Renderer
  *
- * Renders structured email content into branded HTML and plain text formats.
- * All Execute emails use a consistent, professional layout.
+ * Renders structured email content into HTML and plain text formats.
+ * Supports both branded product emails and unbranded custom business emails.
  */
 
 export interface EmailContent {
-  // Required fields
   subject: string;
   heading: string;
   body: string;
-
-  // Optional fields
   intro?: string;
-  details?: string; // Structured details box for smart templates
+  details?: string;
   ctaText?: string;
   ctaLink?: string;
   signatureName?: string;
   replyHint?: string;
-  urgency?: 'low' | 'medium' | 'high' | 'urgent'; // For smart templates
-
-  // Presentation flags (default: true for backward compatibility)
+  urgency?: 'low' | 'medium' | 'high' | 'urgent';
   showBranding?: boolean;
   showFooter?: boolean;
   showReplyHint?: boolean;
@@ -31,9 +26,6 @@ export interface RenderedEmail {
   text: string;
 }
 
-/**
- * Render structured email content into both HTML and plain text formats
- */
 export function renderEmail(content: EmailContent): RenderedEmail {
   return {
     html: renderHTML(content),
@@ -41,11 +33,9 @@ export function renderEmail(content: EmailContent): RenderedEmail {
   };
 }
 
-/**
- * Render HTML version with branded Execute styling
- */
 function renderHTML(content: EmailContent): string {
   const {
+    subject,
     heading,
     intro,
     body,
@@ -54,13 +44,11 @@ function renderHTML(content: EmailContent): string {
     ctaLink,
     signatureName,
     replyHint,
-    urgency,
     showBranding = true,
     showFooter = true,
     showReplyHint = true,
   } = content;
 
-  // Build the HTML email using clean, modern template
   const parts: string[] = [];
 
   parts.push('<!DOCTYPE html>');
@@ -68,104 +56,80 @@ function renderHTML(content: EmailContent): string {
   parts.push('<head>');
   parts.push('<meta charset="UTF-8">');
   parts.push('<meta name="viewport" content="width=device-width, initial-scale=1.0">');
-  parts.push('<title>Email from Execute</title>');
+  parts.push(`<title>${escapeHTML(subject)}</title>`);
   parts.push('</head>');
-  parts.push('<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background: #f9f9f9;">');
+  parts.push('<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif;">');
+  parts.push('<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f4f4f5;padding:32px 16px;">');
+  parts.push('<tr><td align="center">');
+  parts.push('<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:640px;background-color:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e4e4e7;">');
 
-  // Main container with padding
-  parts.push('<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; background: #f9f9f9;">');
-
-  // Email card
-  parts.push('<div style="background: #ffffff; padding: 24px; border-radius: 10px; border: 1px solid #eee;">');
-
-  // Header
-  parts.push('<h2 style="margin-bottom: 10px;">');
+  parts.push('<tr><td style="padding:32px 36px 20px;border-bottom:1px solid #e4e4e7;">');
+  parts.push('<h1 style="margin:0;font-size:26px;line-height:1.25;color:#18181b;font-weight:700;">');
   parts.push(escapeHTML(heading));
-  parts.push('</h2>');
+  parts.push('</h1>');
+  parts.push('</td></tr>');
 
-  // Intro (optional)
+  parts.push('<tr><td style="padding:28px 36px 32px;">');
+
   if (intro) {
-    parts.push('<p style="color: #555; font-size: 14px;">');
+    parts.push('<p style="margin:0 0 16px;font-size:16px;line-height:1.7;color:#3f3f46;">');
     parts.push(escapeHTML(intro));
     parts.push('</p>');
   }
 
-  // Body content
-  parts.push('<p style="font-size: 14px; color: #555;">');
-  parts.push(escapeHTML(body));
-  parts.push('</p>');
+  parts.push('<div style="font-size:16px;line-height:1.7;color:#3f3f46;">');
+  parts.push(formatBodyHTML(body));
+  parts.push('</div>');
 
-  // Details box (for smart templates)
   if (details) {
-    parts.push('<div style="margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 8px;">');
+    parts.push('<div style="margin-top:24px;padding:18px 20px;background-color:#fafafa;border:1px solid #e4e4e7;border-radius:10px;">');
     parts.push(formatDetailsHTML(details));
     parts.push('</div>');
   }
 
-  // Closing paragraph
-  if (!details) {
-    parts.push('<p style="font-size: 14px; color: #555;">');
-    parts.push('Please make sure to complete this as soon as possible.');
+  if (ctaText && ctaLink) {
+    parts.push('<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;"><tr><td style="background-color:#18181b;border-radius:8px;">');
+    parts.push(`<a href="${escapeHTML(ctaLink)}" style="display:inline-block;padding:12px 22px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;">`);
+    parts.push(escapeHTML(ctaText));
+    parts.push('</a></td></tr></table>');
+  }
+
+  if (signatureName) {
+    parts.push('<p style="margin:24px 0 0;font-size:16px;line-height:1.7;color:#3f3f46;">Best regards,<br>');
+    parts.push(`<strong>${escapeHTML(signatureName)}</strong>`);
     parts.push('</p>');
   }
 
-  // CTA button
-  if (ctaText && ctaLink) {
-    parts.push('<a href="' + escapeHTML(ctaLink) + '" ');
-    parts.push('style="display: inline-block; margin-top: 20px; padding: 12px 20px; background: black; color: white; text-decoration: none; border-radius: 6px;">');
-    parts.push(escapeHTML(ctaText));
-    parts.push('</a>');
-  }
+  parts.push('</td></tr>');
 
-  parts.push('</div>'); // End email card
-
-  // Footer
   if (showFooter) {
-    parts.push('<p style="text-align: center; font-size: 12px; color: #999; margin-top: 15px;">');
-
+    parts.push('<tr><td style="padding:22px 36px;background-color:#f4f4f5;border-top:1px solid #e4e4e7;">');
+    parts.push('<p style="margin:0;font-size:13px;line-height:1.6;color:#71717a;">');
     if (showBranding) {
-      parts.push('Powered by <strong>Execute</strong> — Turn instructions into actions');
+      parts.push('Powered by <a href="https://execute.com" style="color:#18181b;text-decoration:underline;font-weight:600;">Execute</a> - Workflow automation');
     }
-
     if (showReplyHint && replyHint) {
       if (showBranding) {
-        parts.push('<br>');
+        parts.push('<br><br>');
       }
       parts.push(escapeHTML(replyHint));
     }
-
-    parts.push('</p>');
+    parts.push('</p></td></tr>');
   }
 
-  parts.push('</div>'); // End main container
+  parts.push('</table>');
+  parts.push('</td></tr></table>');
+  parts.push('</body></html>');
 
   return parts.join('');
 }
 
-/**
- * Format details box for smart templates
- * Handles markdown-style bold and newlines
- */
-function formatDetailsHTML(details: string): string {
-  const lines = details.split('\n');
-  return lines.map(line => {
-    const escaped = escapeHTML(line);
-    // Check if it's a bold line (**key: value** format)
-    if (line.match(/^\*\*.*\*\*:|^.*:/)) {
-      return `<p style="margin: 5px 0;">${escaped}</p>`;
-    }
-    return `<p style="margin: 5px 0;">${escaped}</p>`;
-  }).join('');
-}
-
-/**
- * Render plain text version
- */
 function renderText(content: EmailContent): string {
   const {
     heading,
     intro,
     body,
+    details,
     ctaText,
     ctaLink,
     signatureName,
@@ -177,43 +141,40 @@ function renderText(content: EmailContent): string {
 
   const lines: string[] = [];
 
-  // Heading
   lines.push('='.repeat(60));
   lines.push(heading.toUpperCase());
   lines.push('='.repeat(60));
   lines.push('');
 
-  // Intro (optional)
   if (intro) {
     lines.push(intro);
     lines.push('');
   }
 
-  // Body (required)
   lines.push(body);
-  lines.push('');
 
-  // CTA (optional)
-  if (ctaText && ctaLink) {
-    lines.push(`${ctaText}: ${ctaLink}`);
+  if (details) {
     lines.push('');
+    lines.push(details);
   }
 
-  // Signature (optional)
+  if (ctaText && ctaLink) {
+    lines.push('');
+    lines.push(`${ctaText}: ${ctaLink}`);
+  }
+
   if (signatureName) {
+    lines.push('');
     lines.push('Best regards,');
     lines.push(signatureName);
-    lines.push('');
   }
 
-  // Footer (optional)
   if (showFooter) {
+    lines.push('');
     lines.push('---');
     if (showBranding) {
       lines.push('Powered by Execute - Workflow automation');
     }
-
-    // Reply hint (optional, only if showReplyHint is true)
     if (showReplyHint && replyHint) {
       lines.push('');
       lines.push(replyHint);
@@ -223,34 +184,27 @@ function renderText(content: EmailContent): string {
   return lines.join('\n');
 }
 
-/**
- * Format body content - convert newlines to paragraphs with better formatting
- */
 function formatBodyHTML(body: string): string {
-  // Split by double newlines to separate paragraphs
-  const paragraphs = body.split(/\n\n+/);
+  return body
+    .split(/\n\n+/)
+    .map(paragraph => paragraph.trim())
+    .filter(Boolean)
+    .map(paragraph => `<p style="margin:0 0 16px;">${escapeHTML(paragraph)}</p>`)
+    .join('');
+}
 
-  return paragraphs
-    .map(para => {
-      // Escape HTML first
-      const escaped = escapeHTML(para);
-      // Check if it looks like a detail line (key: value format)
-      if (para.match(/^\*\*.*\*\*:|^.*:/)) {
-        return `<p style="margin: 5px 0; font-size: 14px; color: #555;">${escaped}</p>`;
-      }
-      // Check if it's a horizontal rule indicator
-      if (para.trim() === '---' || para.trim() === '***') {
-        return '<hr style="margin: 20px 0;" />';
-      }
-      // Wrap other paragraphs
-      return `<p style="margin: 5px 0; font-size: 14px; color: #555;">${escaped}</p>`;
+function formatDetailsHTML(details: string): string {
+  return details
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean)
+    .map(line => {
+      const formatted = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      return `<p style="margin:0 0 8px;font-size:14px;line-height:1.6;color:#52525b;">${escapeHTMLPreservingStrong(formatted)}</p>`;
     })
     .join('');
 }
 
-/**
- * Escape HTML special characters
- */
 function escapeHTML(str: string): string {
   return str
     .replace(/&/g, '&amp;')
@@ -260,9 +214,12 @@ function escapeHTML(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
-/**
- * Validate required fields in email content
- */
+function escapeHTMLPreservingStrong(str: string): string {
+  return escapeHTML(str)
+    .replace(/&lt;strong&gt;/g, '<strong>')
+    .replace(/&lt;\/strong&gt;/g, '</strong>');
+}
+
 export function validateEmailContent(content: any): { valid: boolean; error?: string } {
   if (!content.subject || typeof content.subject !== 'string') {
     return { valid: false, error: 'Email subject is required and must be a string' };
@@ -276,9 +233,12 @@ export function validateEmailContent(content: any): { valid: boolean; error?: st
     return { valid: false, error: 'Email body is required and must be a string' };
   }
 
-  // Validate optional fields if present
   if (content.intro && typeof content.intro !== 'string') {
     return { valid: false, error: 'Email intro must be a string if provided' };
+  }
+
+  if (content.details && typeof content.details !== 'string') {
+    return { valid: false, error: 'Email details must be a string if provided' };
   }
 
   if (content.ctaText && typeof content.ctaText !== 'string') {

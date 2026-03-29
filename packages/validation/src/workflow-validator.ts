@@ -4,6 +4,7 @@ import {
   ValidationContext,
 } from './types';
 import { getStepValidator } from './step-validators';
+import { getPremiumLockedStepMessage, isPremiumLockedAction } from './action-availability';
 import { isEmpty } from './utils';
 
 /**
@@ -120,6 +121,19 @@ export class WorkflowValidator {
 
     if (!step.name || step.name.trim() === '') {
       errors.push('Step must have a name');
+    }
+
+    if (step.type && isPremiumLockedAction(step.type)) {
+      errors.push(getPremiumLockedStepMessage(step.name || step.type, step.type));
+      return {
+        valid: false,
+        stepId: step.id || 'unknown',
+        stepType: step.type,
+        errors,
+        warnings,
+        missingFields,
+        invalidFields,
+      };
     }
 
     // 2. Get validator for this step type

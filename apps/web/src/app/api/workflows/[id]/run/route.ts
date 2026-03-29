@@ -186,11 +186,18 @@ export async function POST(
         })
         .where(eq(executions.id, executionId));
 
-      if (result.status === 'completed') {
+      const shouldCountExecution = result.status === 'completed' || result.status === 'failed';
+      if (shouldCountExecution) {
+        const nextTotalExecutions = (workflow.totalExecutions || 0) + 1;
+        const priorSuccessCount = Math.round(((workflow.successRate || 0) / 100) * (workflow.totalExecutions || 0));
+        const nextSuccessCount = priorSuccessCount + (result.status === 'completed' ? 1 : 0);
+        const nextSuccessRate = Math.round((nextSuccessCount / nextTotalExecutions) * 100);
+
         await db.update(workflows)
           .set({
             lastExecutedAt: now,
-            totalExecutions: (workflow.totalExecutions || 0) + 1,
+            totalExecutions: nextTotalExecutions,
+            successRate: nextSuccessRate,
           })
           .where(eq(workflows.id, workflow.id));
       }

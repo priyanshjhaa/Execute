@@ -57,6 +57,16 @@
     animation: gradient-shift-slow 8s ease infinite;
   }
 
+  .orb-gradient-text {
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.95) 0%, rgba(255, 255, 255, 0.92) 45%, rgba(14, 165, 233, 0.95) 100%);
+    background-size: 200% 200%;
+    animation: gradient-shift 16s ease-in-out infinite;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 0 24px rgba(236, 72, 153, 0.16), 0 0 32px rgba(14, 165, 233, 0.14);
+  }
+
   /* Fixed gradient background for the entire page */
   .gradient-bg {
     position: fixed;

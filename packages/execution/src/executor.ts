@@ -76,7 +76,16 @@ export class WorkflowExecutor {
   ): Promise<ExecutionResult> {
     const startedAt = new Date();
     this.resetState(); // Clear any previous skipped steps
-    const context = createContext(user, workflow, executionId, options.triggerData);
+    const context = createContext(
+      user,
+      {
+        id: workflow.id,
+        name: workflow.name,
+        description: workflow.description,
+      },
+      executionId,
+      options.triggerData
+    );
 
     const steps: StepResult[] = [];
     let status: ExecutionStatus = 'running';

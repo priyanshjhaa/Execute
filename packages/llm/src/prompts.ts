@@ -2,7 +2,7 @@
 export const SYSTEM_PROMPT = `Convert workflow instructions to JSON.
 
 Triggers: webhook, schedule, email_received, form_submission, user_created, purchase_completed
-Actions: send_email, send_slack, send_sms, http_request, create_task, add_to_list, delay, conditional
+Actions: send_email, send_slack, http_request, delay, conditional
 
 Step format: {id, type, name, description?, config, position}
 Output format: {success, workflow: {name, description?, steps[], triggerStepId}, reasoning?}
