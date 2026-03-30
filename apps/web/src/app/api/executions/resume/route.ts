@@ -10,6 +10,26 @@ function isValidUUID(str: string): boolean {
   return uuidRegex.test(str);
 }
 
+function isAuthorizedSchedulerRequest(request: NextRequest, querySecret: string | null): boolean {
+  const authHeader = request.headers.get('authorization');
+  const cronSecret = process.env.CRON_SECRET;
+  const resumeSecret = process.env.RESUME_SECRET;
+
+  if (cronSecret && authHeader === `Bearer ${cronSecret}`) {
+    return true;
+  }
+
+  if (resumeSecret && querySecret === resumeSecret) {
+    return true;
+  }
+
+  if (cronSecret && querySecret === cronSecret) {
+    return true;
+  }
+
+  return false;
+}
+
 /**
  * Resume endpoint for waiting executions (e.g., after delay)
  * This can be called by a cron job or scheduler to resume executions
@@ -25,8 +45,8 @@ export async function GET(request: NextRequest) {
     const executionId = searchParams.get('executionId');
     const secret = searchParams.get('secret');
 
-    // Simple secret check to prevent unauthorized resumes
-    if (secret !== process.env.RESUME_SECRET) {
+    // Allow either Vercel CRON_SECRET auth header or the existing query secret.
+    if (!isAuthorizedSchedulerRequest(request, secret)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -255,11 +275,18 @@ async function resumeExecution(executionId: string) {
     })
     .where(eq(executions.id, executionId));
 
-  if (result.status === 'completed') {
+  const shouldCountExecution = result.status === 'completed' || result.status === 'failed';
+  if (shouldCountExecution) {
+    const nextTotalExecutions = (workflow.totalExecutions || 0) + 1;
+    const priorSuccessCount = Math.round(((workflow.successRate || 0) / 100) * (workflow.totalExecutions || 0));
+    const nextSuccessCount = priorSuccessCount + (result.status === 'completed' ? 1 : 0);
+    const nextSuccessRate = Math.round((nextSuccessCount / nextTotalExecutions) * 100);
+
     await db.update(workflows)
       .set({
         lastExecutedAt: now,
-        totalExecutions: (workflow.totalExecutions || 0) + 1,
+        totalExecutions: nextTotalExecutions,
+        successRate: nextSuccessRate,
       })
       .where(eq(workflows.id, workflow.id));
   }
