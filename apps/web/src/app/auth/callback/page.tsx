@@ -2,56 +2,90 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { Terminal, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import type { EmailOtpType } from '@supabase/supabase-js'
 
 export default function AuthCallbackPage() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [message, setMessage] = useState('')
   const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      try {
-        console.log('Auth callback URL:', window.location.href)
-        console.log('URL search:', window.location.search)
-        console.log('URL hash:', window.location.hash)
+      const supabase = getSupabaseBrowserClient()
 
-        // First, try to get the current session (Supabase might have already set it)
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      try {
+        const searchParams = new URLSearchParams(window.location.search)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1))
+        const code = searchParams.get('code')
+        const tokenHash = searchParams.get('token_hash')
+        const otpType = searchParams.get('type') as EmailOtpType | null
+        const urlError = searchParams.get('error') || hashParams.get('error')
+        const urlErrorDescription =
+          searchParams.get('error_description') || hashParams.get('error_description')
+
+        if (urlError) {
+          setStatus('error')
+          setMessage(urlErrorDescription || 'Authentication failed. Please try again.')
+          return
+        }
+
+        // Supabase PKCE flows return an auth code that must be exchanged for a session.
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code)
+
+          if (error) {
+            setStatus('error')
+            setMessage(error.message)
+            return
+          }
+        }
+
+        // Email confirmation links can arrive as token_hash + type.
+        if (tokenHash && otpType) {
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: otpType,
+          })
+
+          if (error) {
+            setStatus('error')
+            setMessage(error.message)
+            return
+          }
+        }
+
+        // First, try to get the current session after any exchange/verification step.
+        const { data: { session } } = await supabase.auth.getSession()
 
         if (session) {
+          await fetch('/api/auth/sync', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              supabaseId: session.user.id,
+              email: session.user.email!,
+              name: session.user.user_metadata?.name,
+            }),
+          }).catch(() => null)
+
           setStatus('success')
           setMessage('Authentication successful! Redirecting to dashboard...')
           setTimeout(() => {
-            router.push('/dashboard')
+            router.replace('/dashboard')
           }, 1000)
           return
         }
 
-        // If no session, check for error in URL
-        const searchParams = new URLSearchParams(window.location.search)
-        const hashParams = new URLSearchParams(window.location.hash.substring(1))
-        const error = searchParams.get('error') || hashParams.get('error')
-        const errorDescription = searchParams.get('error_description') || hashParams.get('error_description')
-
-        if (error) {
-          setStatus('error')
-          setMessage(errorDescription || 'Authentication failed. Please try again.')
-          console.error('Auth error:', error, errorDescription)
-          return
-        }
-
-        // Try to parse tokens from hash
+        // Legacy token-in-hash fallback.
         const accessToken = hashParams.get('access_token')
         const refreshToken = hashParams.get('refresh_token')
 
-        console.log('Access token from hash:', accessToken ? 'Found' : 'Not found')
-        console.log('Refresh token from hash:', refreshToken ? 'Found' : 'Not found')
-
         if (accessToken && refreshToken) {
-          const { data, error: setError } = await supabase.auth.setSession({
+          const { error: setError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           })
@@ -67,18 +101,14 @@ export default function AuthCallbackPage() {
           setMessage('Signed in successfully! Redirecting to dashboard...')
 
           setTimeout(() => {
-            router.push('/dashboard')
+            router.replace('/dashboard')
           }, 1000)
         } else {
-          // No tokens found - this might be an email confirmation link
-          // Try to parse from query params as fallback
           const queryAccessToken = searchParams.get('access_token')
           const queryRefreshToken = searchParams.get('refresh_token')
 
-          console.log('Access token from query:', queryAccessToken ? 'Found' : 'Not found')
-
           if (queryAccessToken && queryRefreshToken) {
-            const { data, error: setError } = await supabase.auth.setSession({
+            const { error: setError } = await supabase.auth.setSession({
               access_token: queryAccessToken,
               refresh_token: queryRefreshToken,
             })
@@ -93,23 +123,21 @@ export default function AuthCallbackPage() {
             setMessage('Authentication successful! Redirecting to dashboard...')
 
             setTimeout(() => {
-              router.push('/dashboard')
+              router.replace('/dashboard')
             }, 1000)
           } else {
             setStatus('error')
             setMessage('Invalid authentication link. Please try signing in again.')
-            console.error('No tokens found in URL')
           }
         }
       } catch (err) {
-        console.error('Auth callback error:', err)
         setStatus('error')
         setMessage('An unexpected error occurred during authentication.')
       }
     }
 
     handleAuthCallback()
-  }, [router, supabase])
+  }, [router])
 
   return (
     <main className="min-h-screen bg-black flex items-center justify-center px-6">
