@@ -159,6 +159,22 @@ OPENROUTER_API_KEY=your-openrouter-api-key
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
+### Delayed Execution Scheduler
+
+If you use delay-based workflows, configure an external scheduler to resume waiting executions.
+
+Using `cron-job.org`, create a job that runs every 10 minutes and calls:
+
+```text
+https://your-domain.com/api/executions/resume?secret=YOUR_RESUME_SECRET
+```
+
+Required:
+- Set `RESUME_SECRET` in your production environment
+- Use your deployed app URL as the base domain
+
+This scheduler only checks waiting executions and resumes the ones whose `resumeAt` time has passed.
+
 ## Development
 
 ### Commands
