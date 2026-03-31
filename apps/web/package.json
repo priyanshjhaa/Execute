@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "pnpm --filter @execute/db build && pnpm --filter @execute/execution build && pnpm --filter @execute/llm build && pnpm --filter @execute/validation build && next build",
     "start": "next start",
     "lint": "eslint ."
   },

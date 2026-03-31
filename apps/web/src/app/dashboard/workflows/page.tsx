@@ -78,8 +78,8 @@ export default function WorkflowsPage() {
     <div className="min-h-screen bg-black">
       {/* Header */}
       <div className="border-b border-white/10 bg-black">
-        <div className="container mx-auto px-8 py-8">
-          <div className="flex items-center justify-between">
+        <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-bold text-white mb-2">Workflows</h1>
               <p className="text-white/50">Manage all your automation workflows</p>
@@ -87,7 +87,7 @@ export default function WorkflowsPage() {
             <Link href="/dashboard/workflows/new">
               <Button
                 size="lg"
-                className="text-base btn-gradient text-black px-6 py-5 rounded-full"
+                className="btn-gradient w-full rounded-full px-6 py-5 text-base text-black sm:w-auto"
               >
                 <Plus className="mr-2 h-5 w-5" />
                 Create Workflow
@@ -98,7 +98,7 @@ export default function WorkflowsPage() {
       </div>
 
       {/* Workflow List */}
-      <div className="container mx-auto px-8 py-8">
+      <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 text-white/40 animate-spin" />
@@ -122,12 +122,12 @@ export default function WorkflowsPage() {
             {workflows.map((workflow) => (
               <div
                 key={workflow.id}
-                className="group relative p-6 rounded-xl border border-white/10 bg-white/[0.02] hover:border-white/20 transition-all duration-300"
+                className="group relative rounded-xl border border-white/10 bg-white/[0.02] p-5 transition-all duration-300 hover:border-white/20 sm:p-6"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-6 flex-1">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex min-w-0 items-start gap-4 sm:gap-6 lg:flex-1">
                     {/* Status Icon */}
-                    <div className="flex-shrink-0">
+                    <div className="flex-shrink-0 pt-1">
                       {workflow.status === "active" ? (
                         <CheckCircle2 className="h-5 w-5 text-green-500" />
                       ) : (
@@ -141,9 +141,9 @@ export default function WorkflowsPage() {
                         {workflow.name}
                       </h3>
                       {workflow.description && (
-                        <p className="text-sm text-white/40 mb-2 truncate">{workflow.description}</p>
+                        <p className="mb-2 text-sm text-white/40 sm:truncate">{workflow.description}</p>
                       )}
-                      <div className="flex items-center gap-3 text-sm">
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
                         <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60 capitalize">
                           {workflow.triggerType}
                         </span>
@@ -158,7 +158,7 @@ export default function WorkflowsPage() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <Link href={`/dashboard/workflows/${workflow.id}/edit`}>
                       <Button
                         variant="ghost"

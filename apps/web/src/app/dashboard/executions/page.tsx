@@ -121,8 +121,8 @@ export default function ExecutionsPage() {
     <div className="min-h-screen bg-black">
       {/* Header */}
       <div className="border-b border-white/10 bg-black">
-        <div className="container mx-auto px-8 py-8">
-          <div className="flex items-center justify-between">
+        <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-bold text-white mb-2">Executions</h1>
               <p className="text-white/50">View all workflow execution history</p>
@@ -146,11 +146,11 @@ export default function ExecutionsPage() {
       </div>
 
       {/* Content */}
-      <div className="container mx-auto px-8 py-8">
+      <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         {/* Filter Tabs */}
-        <div className="flex items-center gap-2 mb-6">
+        <div className="mb-6 flex flex-wrap items-center gap-2">
           <Filter className="h-4 w-4 text-white/50" />
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             {(["all", "running", "completed", "failed"] as FilterType[]).map((f) => (
               <button
                 key={f}
@@ -188,23 +188,23 @@ export default function ExecutionsPage() {
                   href={`/dashboard/executions/${execution.id}`}
                   className="block hover:bg-white/[0.03] transition-colors"
                 >
-                  <div className="p-6 flex items-center gap-6">
-                    <div className="flex-shrink-0">
+                  <div className="flex items-start gap-4 p-4 sm:p-6">
+                    <div className="flex-shrink-0 pt-1">
                       {getStatusIcon(execution.status)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-white/80 font-semibold text-lg">
+                      <p className="text-base font-semibold text-white/80 sm:text-lg">
                         {execution.workflow?.name || "Unknown Workflow"}
                       </p>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-white/40">
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/40">
                         <span>{formatTimeAgo(execution.startedAt)}</span>
-                        <span>•</span>
+                        <span className="hidden sm:inline">•</span>
                         <span>{formatDuration(execution.duration)}</span>
-                        <span>•</span>
+                        <span className="hidden sm:inline">•</span>
                         <span className={getStatusColor(execution.status)}>
                           {execution.status}
                         </span>
-                        <span>•</span>
+                        <span className="hidden sm:inline">•</span>
                         <span className="capitalize">{execution.triggerType}</span>
                       </div>
                       {execution.error && (

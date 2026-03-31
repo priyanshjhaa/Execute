@@ -147,7 +147,7 @@ export default function IntegrationsPage() {
     <div className="min-h-screen bg-black">
       {/* Header */}
       <div className="border-b border-white/10 bg-black">
-        <div className="container mx-auto px-8 py-8">
+        <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
           <Link href="/dashboard">
             <Button
               variant="ghost"
@@ -171,8 +171,8 @@ export default function IntegrationsPage() {
 
       {/* Success/Error Messages */}
       {success === "slack_connected" && (
-        <div className="container mx-auto px-8 py-4">
-          <div className="flex items-center gap-3 px-4 py-3 bg-green-500/10 border border-green-500/30 rounded-xl">
+        <div className="container mx-auto px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-start gap-3 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3">
             <CheckCircle className="h-5 w-5 text-green-400" />
             <p className="text-green-400">Slack connected successfully!</p>
           </div>
@@ -180,8 +180,8 @@ export default function IntegrationsPage() {
       )}
 
       {error && (
-        <div className="container mx-auto px-8 py-4">
-          <div className="flex items-center gap-3 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl">
+        <div className="container mx-auto px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
             <XCircle className="h-5 w-5 text-red-400" />
             <p className="text-red-400">
               {error === "access_denied" && "Connection was cancelled."}
@@ -200,7 +200,7 @@ export default function IntegrationsPage() {
       )}
 
       {/* Content */}
-      <div className="container mx-auto px-8 py-8">
+      <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-8 w-8 text-white/40 animate-spin" />
@@ -210,17 +210,17 @@ export default function IntegrationsPage() {
             {availableIntegrations.map((integration) => (
               <div
                 key={integration.id}
-                className={`bg-white/[0.02] border border-white/10 rounded-xl p-6 transition-all hover:border-white/20 ${
+                className={`rounded-xl border border-white/10 bg-white/[0.02] p-5 transition-all hover:border-white/20 sm:p-6 ${
                   integration.comingSoon ? "opacity-50" : ""
                 }`}
               >
                 {/* Integration Icon */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-4">
+                <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex items-start gap-4">
                     <div className="flex-shrink-0 p-3 bg-white/5 rounded-lg">
                       {integration.icon}
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <h3 className="text-lg font-semibold text-white">
                         {integration.name}
                       </h3>
@@ -238,7 +238,7 @@ export default function IntegrationsPage() {
                   </div>
 
                   {/* Status Badge */}
-                  <div>
+                  <div className="sm:text-right">
                     {integration.connected ? (
                       <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-500/10 text-green-400 border border-green-500/30 rounded-full">
                         <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
@@ -273,7 +273,7 @@ export default function IntegrationsPage() {
                     Connect {integration.name}
                   </Button>
                 ) : integration.connected ? (
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <Button
                       variant="outline"
                       className="flex-1 border-white/20 text-white hover:bg-white/5"

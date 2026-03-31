@@ -56,19 +56,19 @@ export default function Home() {
           isVisible ? "translate-y-0" : "-translate-y-full"
         }`}
       >
-        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="container mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Terminal className="h-5 w-5 text-white" />
-            <span className="text-lg font-semibold text-white">Execute</span>
+            <span className="text-base sm:text-lg font-semibold text-white">Execute</span>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 sm:gap-6">
             <Link href="/login">
-              <Button variant="ghost" className="text-white/80 hover:text-white hover:bg-white/5 rounded-full">
+              <Button variant="ghost" className="text-white/80 hover:text-white hover:bg-white/5 rounded-full px-3 sm:px-4">
                 Sign In
               </Button>
             </Link>
             <Link href="/signup">
-              <Button className="bg-white text-black hover:bg-white/90 font-medium rounded-full">
+              <Button className="bg-white text-black hover:bg-white/90 font-medium rounded-full px-4 sm:px-5">
                 Get Started
               </Button>
             </Link>
@@ -77,49 +77,49 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="min-h-screen pt-32 pb-20 px-6 relative z-10">
+      <section className="min-h-screen pt-28 sm:pt-32 pb-16 sm:pb-20 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white text-sm font-medium mb-8">
+          <div className="inline-flex max-w-full items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white text-xs sm:text-sm font-medium mb-6 sm:mb-8">
             <Sparkles className="h-4 w-4" />
-            <span>Email, Slack, API, and scheduled workflows</span>
+            <span className="truncate">Email, Slack, API, and scheduled workflows</span>
           </div>
 
-          <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold text-white mb-6 tracking-tight leading-[1.1]">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-5 sm:mb-6 tracking-tight leading-[1.05] sm:leading-[1.1]">
             Turn simple instructions
             <br />
             <span className="orb-gradient-text">into automated workflows.</span>
           </h1>
 
-          <p className="text-xl md:text-2xl text-white/50 mb-10 max-w-3xl leading-relaxed">
+          <p className="text-lg sm:text-xl md:text-2xl text-white/50 mb-6 sm:mb-8 max-w-3xl leading-relaxed">
             Send emails, call APIs, and run tasks - all from plain English.
           </p>
 
-          <p className="text-base md:text-lg text-white/65 mb-10 max-w-2xl">
+          <p className="text-sm sm:text-base md:text-lg text-white/65 mb-8 sm:mb-10 max-w-2xl">
             No code. No setup. Just describe what you want.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-start items-start">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-start items-stretch sm:items-start">
             <Link href="/signup" className="w-full sm:w-auto">
               <Button
                 size="lg"
-                className="text-base btn-gradient text-black px-10 py-7 w-full sm:w-auto rounded-full transition-all duration-300 hover:scale-[1.02] hover:opacity-95"
+                className="text-sm sm:text-base btn-gradient text-black px-6 sm:px-10 py-6 sm:py-7 w-full sm:w-auto rounded-full transition-all duration-300 hover:scale-[1.02] hover:opacity-95"
                 style={{ animationDuration: "20s" }}
               >
                 Start building workflows <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
             <Link href="#how-it-works" className="w-full sm:w-auto">
-              <Button size="lg" variant="outline" className="text-base border-white/20 text-white hover:bg-white/5 hover:text-white px-8 py-6 w-full sm:w-auto rounded-full">
+              <Button size="lg" variant="outline" className="text-sm sm:text-base border-white/20 text-white hover:bg-white/5 hover:text-white px-6 sm:px-8 py-6 w-full sm:w-auto rounded-full">
                 View demo
               </Button>
             </Link>
           </div>
 
-          <p className="mt-8 text-sm md:text-base text-white/45">
+          <p className="mt-6 sm:mt-8 text-sm md:text-base text-white/45 leading-6">
             Send onboarding emails • Notify your team • Trigger APIs • Schedule reminders
           </p>
 
-          <div className="mt-16 flex flex-wrap gap-8 text-sm text-white/40">
+          <div className="mt-10 sm:mt-16 flex flex-col sm:flex-row sm:flex-wrap gap-4 sm:gap-8 text-sm text-white/40">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-white/60" />
               <span>No coding required</span>
@@ -141,16 +141,16 @@ export default function Home() {
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works" className="py-32 px-6 relative z-10">
+      <section id="how-it-works" className="py-20 sm:py-32 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
-          <div className="mb-20">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">How It Works</h2>
-            <p className="text-xl text-white/50">
+          <div className="mb-12 sm:mb-20">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">How It Works</h2>
+            <p className="text-lg sm:text-xl text-white/50">
               You set it up once. Execute runs it on time and shows you exactly what happened.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-12">
+          <div className="grid md:grid-cols-3 gap-8 sm:gap-12">
             {/* Step 1 */}
             <div className="space-y-4">
               <div className="h-14 w-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
@@ -191,14 +191,14 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section className="py-32 px-6 relative z-10">
+      <section className="py-20 sm:py-32 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
-          <div className="mb-20">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">Schedule tasks, send emails, and track execution without remembering or checking.</h2>
+          <div className="mb-12 sm:mb-20">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">Schedule tasks, send emails, and track execution without remembering or checking.</h2>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="group relative p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
+            <div className="group relative p-6 sm:p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500">
                 <div className="absolute inset-0 card-gradient-bg"></div>
               </div>
@@ -214,7 +214,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="group relative p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
+            <div className="group relative p-6 sm:p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500">
                 <div className="absolute inset-0 card-gradient-bg"></div>
               </div>
@@ -230,7 +230,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="group relative p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
+            <div className="group relative p-6 sm:p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500">
                 <div className="absolute inset-0 card-gradient-bg"></div>
               </div>
@@ -246,7 +246,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="group relative p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
+            <div className="group relative p-6 sm:p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500">
                 <div className="absolute inset-0 card-gradient-bg"></div>
               </div>
@@ -262,7 +262,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="group relative p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
+            <div className="group relative p-6 sm:p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500">
                 <div className="absolute inset-0 card-gradient-bg"></div>
               </div>
@@ -278,7 +278,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="group relative p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
+            <div className="group relative p-6 sm:p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500">
                 <div className="absolute inset-0 card-gradient-bg"></div>
               </div>
@@ -298,32 +298,32 @@ export default function Home() {
       </section>
 
       {/* Basic vs Premium */}
-      <section className="py-28 px-6 relative z-10">
+      <section className="py-20 sm:py-28 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
-          <div className="mb-16 text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/80 text-sm font-medium mb-6">
+          <div className="mb-12 sm:mb-16 text-center">
+            <div className="inline-flex max-w-full items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/80 text-xs sm:text-sm font-medium mb-6">
               <Lock className="h-4 w-4" />
-              <span>Workflow action plans</span>
+              <span className="truncate">Workflow action plans</span>
             </div>
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
               Choose between what runs now
               <br />
               <span className="text-white/70">and what expands with Premium.</span>
             </h2>
-            <p className="text-lg text-white/50 max-w-3xl mx-auto">
+            <p className="text-base sm:text-lg text-white/50 max-w-3xl mx-auto">
               Basic includes the workflow actions Execute can reliably run today. Premium includes all of Basic plus the higher-level actions already defined in the product vision.
             </p>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8">
-            <div className="relative p-8 rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
+            <div className="relative p-6 sm:p-8 rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
               <div className="absolute inset-0 opacity-5">
                 <div className="absolute inset-0 card-gradient-bg"></div>
               </div>
               <div className="relative z-10">
                 <div className="text-xs uppercase tracking-[0.2em] text-white/40 mb-3">Available today</div>
-                <h3 className="text-3xl font-bold text-white mb-2">Basic</h3>
-                <p className="text-white/50 mb-8">For teams starting with live, executable workflow actions</p>
+                <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2">Basic</h3>
+                <p className="text-sm sm:text-base text-white/50 mb-6 sm:mb-8">For teams starting with live, executable workflow actions</p>
 
                 <div className="space-y-4 mb-10">
                   {[
@@ -353,28 +353,28 @@ export default function Home() {
                 </div>
 
                 <Link href="/signup" className="block">
-                  <Button className="w-full bg-white text-black hover:bg-white/90 rounded-full py-6 text-base font-medium">
+                  <Button className="w-full bg-white text-black hover:bg-white/90 rounded-full py-6 text-sm sm:text-base font-medium">
                     Start with Basic
                   </Button>
                 </Link>
               </div>
             </div>
 
-            <div className="relative p-8 rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
+            <div className="relative p-6 sm:p-8 rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
               <div className="absolute inset-0 opacity-10">
                 <div className="absolute inset-0 card-gradient-bg"></div>
               </div>
-              <div className="absolute right-6 top-6">
-                <span className="inline-flex items-center gap-1 px-3 py-1 text-xs bg-white/10 text-white/80 border border-white/15 rounded-full">
+              <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
+                <span className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1 text-[10px] sm:text-xs bg-white/10 text-white/80 border border-white/15 rounded-full">
                   Coming Soon
                 </span>
               </div>
               <div className="relative z-10">
                 <div className="text-xs uppercase tracking-[0.2em] text-white/50 mb-3">Expanded plan</div>
-                <h3 className="text-3xl font-bold text-white mb-2">Premium</h3>
-                <p className="text-white/50">Everything in Basic, plus advanced workflow actions as they unlock</p>
-                <div className="mt-5 mb-8">
-                  <div className="text-4xl font-bold text-white">₹499<span className="text-xl text-white/75 font-medium">/month</span></div>
+                <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2">Premium</h3>
+                <p className="text-sm sm:text-base text-white/50">Everything in Basic, plus advanced workflow actions as they unlock</p>
+                <div className="mt-5 mb-6 sm:mb-8">
+                  <div className="text-3xl sm:text-4xl font-bold text-white">₹499<span className="text-lg sm:text-xl text-white/75 font-medium">/month</span></div>
                   <div className="text-sm text-white/40 mt-1">~$5.69/month</div>
                 </div>
 
@@ -399,7 +399,7 @@ export default function Home() {
 
                 <Button
                   variant="outline"
-                  className="w-full border-white/20 text-white/80 hover:bg-white/5 hover:text-white rounded-full py-6 text-base font-medium"
+                  className="w-full border-white/20 text-white/80 hover:bg-white/5 hover:text-white rounded-full py-6 text-sm sm:text-base font-medium"
                 >
                   Explore Premium
                 </Button>
@@ -407,7 +407,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-8 flex flex-wrap justify-center gap-3 text-sm text-white/45">
+          <div className="mt-8 flex flex-col sm:flex-row sm:flex-wrap justify-center gap-3 text-sm text-white/45">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2">
               <Mail className="h-4 w-4" />
               Basic runs live workflow actions today
@@ -425,18 +425,18 @@ export default function Home() {
       </section>
 
       {/* Example Use Cases */}
-      <section className="py-32 px-6 relative z-10">
+      <section className="py-20 sm:py-32 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
-          <div className="mb-20">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">What You Can Build</h2>
-            <p className="text-xl text-white/50">
+          <div className="mb-12 sm:mb-20">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">What You Can Build</h2>
+            <p className="text-lg sm:text-xl text-white/50">
               Real workflows you can create today
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="p-8 rounded-xl border border-white/10 bg-white/[0.02]">
-              <code className="text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10">
+            <div className="p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
+              <code className="text-xs sm:text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10 break-words leading-6">
                 &quot;Send a personalized welcome email to new contacts from my Marketing list&quot;
               </code>
               <p className="text-white/40">
@@ -444,8 +444,8 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="p-8 rounded-xl border border-white/10 bg-white/[0.02]">
-              <code className="text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10">
+            <div className="p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
+              <code className="text-xs sm:text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10 break-words leading-6">
                 &quot;Send a daily summary email to the team and post a notification to our Slack channel&quot;
               </code>
               <p className="text-white/40">
@@ -453,8 +453,8 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="p-8 rounded-xl border border-white/10 bg-white/[0.02]">
-              <code className="text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10">
+            <div className="p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
+              <code className="text-xs sm:text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10 break-words leading-6">
                 &quot;If the first email fails, wait 5 minutes and retry, then alert me on Slack&quot;
               </code>
               <p className="text-white/40">
@@ -462,8 +462,8 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="p-8 rounded-xl border border-white/10 bg-white/[0.02]">
-              <code className="text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10">
+            <div className="p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
+              <code className="text-xs sm:text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10 break-words leading-6">
                 &quot;Send a follow-up email 3 days after initial contact to all leads in Sales group&quot;
               </code>
               <p className="text-white/40">
@@ -475,22 +475,22 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-32 px-6 relative z-10">
+      <section className="py-20 sm:py-32 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-4xl text-center">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 tracking-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-6 tracking-tight">
             Ready to stop worrying about recurring tasks?
           </h2>
-          <p className="text-xl text-white/50 mb-10 max-w-2xl mx-auto">
+          <p className="text-lg sm:text-xl text-white/50 mb-8 sm:mb-10 max-w-2xl mx-auto">
             Set it up once, and we'll make sure it happens every time
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/signup" className="w-full sm:w-auto">
-              <Button size="lg" className="text-base btn-gradient text-black px-8 py-6 w-full sm:w-auto rounded-full">
+              <Button size="lg" className="text-sm sm:text-base btn-gradient text-black px-6 sm:px-8 py-6 w-full sm:w-auto rounded-full">
                 Create your first execution <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
             <Link href="#how-it-works" className="w-full sm:w-auto">
-              <Button size="lg" variant="outline" className="text-base border-white/20 text-white hover:bg-white/5 hover:text-white px-8 py-6 w-full sm:w-auto rounded-full">
+              <Button size="lg" variant="outline" className="text-sm sm:text-base border-white/20 text-white hover:bg-white/5 hover:text-white px-6 sm:px-8 py-6 w-full sm:w-auto rounded-full">
                 See how it works
               </Button>
             </Link>

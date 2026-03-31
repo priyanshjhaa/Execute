@@ -45,8 +45,8 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-black">
       {/* Top Section */}
       <div className="border-b border-white/10 bg-black">
-        <div className="container mx-auto px-8 py-8">
-          <div className="flex items-center justify-between">
+        <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-bold text-white mb-2">Dashboard</h1>
               <p className="text-white/50">
@@ -56,7 +56,7 @@ export default function DashboardPage() {
             <Link href="/dashboard/workflows/new">
               <Button
                 size="lg"
-                className="text-base btn-gradient text-black px-6 py-5 rounded-full"
+                className="btn-gradient w-full rounded-full px-6 py-5 text-base text-black sm:w-auto"
               >
                 <Plus className="mr-2 h-5 w-5" />
                 Create Workflow
@@ -66,22 +66,22 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="container mx-auto px-8 py-8">
+      <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         {/* Forms Section */}
         <div className="mb-12">
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-xl font-semibold text-white">Forms</h2>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
               <Link
                 href="/dashboard/forms"
-                className="inline-flex items-center gap-2 text-white hover:text-white/80 transition-colors"
+                className="inline-flex items-center gap-2 text-sm text-white transition-colors hover:text-white/80"
               >
-                <span className="text-sm">Manage Forms</span>
+                <span>Manage Forms</span>
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Button
                 onClick={() => router.push('/dashboard/forms/new')}
-                className="bg-white hover:bg-white/90 text-black border-white/20 text-sm px-4 py-2 rounded-full"
+                className="rounded-full border-white/20 bg-white px-4 py-2 text-sm text-black hover:bg-white/90"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Create Form
@@ -104,26 +104,26 @@ export default function DashboardPage() {
               {forms.slice(0, 6).map((form: Form) => (
                 <div
                   key={form.id}
-                  className="group relative p-5 rounded-xl border border-white/10 bg-white/[0.02] hover:border-white/20 transition-all duration-300"
+                  className="group relative rounded-xl border border-white/10 bg-white/[0.02] p-5 transition-all duration-300 hover:border-white/20"
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${form.isActive ? 'bg-green-500' : 'bg-white/20'}`} />
-                      <h3 className="text-lg font-semibold text-white truncate">{form.name}</h3>
+                      <h3 className="truncate text-lg font-semibold text-white">{form.name}</h3>
                     </div>
                     {form.hasWorkflow && (
-                      <Zap className="h-4 w-4 text-sky-400" />
+                      <Zap className="h-4 w-4 flex-shrink-0 text-sky-400" />
                     )}
                   </div>
                   {form.description && (
                     <p className="text-white/50 text-sm mb-3 line-clamp-2">{form.description}</p>
                   )}
-                  <div className="flex items-center justify-between text-xs text-white/40">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-white/40">
                     <span>{form.fieldCount} field{form.fieldCount !== 1 ? 's' : ''}</span>
                     <span>Created {formatTimeAgo(form.createdAt)}</span>
                   </div>
-                  <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between">
-                    <span className="text-xs text-white/30 font-mono">{form.publicSlug}</span>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3">
+                    <span className="max-w-full truncate font-mono text-xs text-white/30">{form.publicSlug}</span>
                     <Link href={`/f/${form.publicSlug}`} target="_blank" className="text-xs text-white hover:text-white/80">
                       View
                     </Link>
@@ -136,19 +136,19 @@ export default function DashboardPage() {
 
         {/* Quick Commands CTA Card */}
         <Link href="/dashboard/quick-commands" className="mb-12 block">
-            <div className="group relative p-6 md:p-8 rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] overflow-hidden transition-all duration-300">
+            <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition-all duration-300 hover:bg-white/[0.04] sm:p-6 md:p-8">
               {/* Pink gradient orb at top left */}
               <div className="absolute -top-8 -left-8 w-40 h-40 bg-gradient-to-br from-pink-500/40 via-pink-400/20 to-transparent rounded-full blur-[40px] pointer-events-none"></div>
               {/* Sky blue gradient orb at bottom right */}
               <div className="absolute -bottom-8 -right-8 w-40 h-40 bg-gradient-to-tl from-sky-500/40 via-sky-400/20 to-transparent rounded-full blur-[40px] pointer-events-none"></div>
 
               {/* Header */}
-              <div className="flex items-center justify-between mb-6 relative">
-                <div className="flex items-center gap-4 md:gap-6">
+              <div className="relative mb-6 flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4 md:items-center md:gap-6">
                   <div className="flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-xl bg-white/10 border border-white/20 group-hover:scale-110 transition-transform duration-300">
                     <Wand2 className="h-6 w-6 md:h-8 md:w-8 text-white/70" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <h2 className="text-xl md:text-2xl font-bold text-white mb-1">Quick Commands</h2>
                     <p className="text-white/60 text-sm md:text-base">
                       Tell Execute what happened or what you want done
@@ -178,7 +178,7 @@ export default function DashboardPage() {
 
         {/* Workflow List Section */}
         <div className="mb-12">
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-xl font-semibold text-white">Workflows</h2>
             <Link href="/dashboard/workflows">
               <Button variant="ghost" className="text-white/60 hover:text-white rounded-full">
@@ -210,12 +210,12 @@ export default function DashboardPage() {
               {workflows.slice(0, 4).map((workflow: Workflow) => (
                 <div
                   key={workflow.id}
-                  className="group relative p-6 rounded-xl border border-white/10 bg-white/[0.02] hover:border-white/20 transition-all duration-300"
+                  className="group relative rounded-xl border border-white/10 bg-white/[0.02] p-5 transition-all duration-300 hover:border-white/20 sm:p-6"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-6 flex-1">
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex min-w-0 items-start gap-4 sm:gap-6 lg:flex-1">
                       {/* Status Icon */}
-                      <div className="flex-shrink-0">
+                      <div className="flex-shrink-0 pt-1">
                         {workflow.status === "active" ? (
                           <CheckCircle2 className="h-5 w-5 text-green-500" />
                         ) : (
@@ -228,7 +228,7 @@ export default function DashboardPage() {
                         <h3 className="text-lg font-semibold text-white mb-1">
                           {workflow.name}
                         </h3>
-                        <div className="flex items-center gap-3 text-sm">
+                        <div className="flex flex-wrap items-center gap-2 text-sm">
                           <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60 capitalize">
                             {workflow.triggerType}
                           </span>
@@ -252,7 +252,7 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <Link href={`/dashboard/workflows/${workflow.id}`}>
                         <Button
                           variant="outline"
@@ -282,7 +282,7 @@ export default function DashboardPage() {
 
         {/* Recent Executions Section */}
         <div>
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-xl font-semibold text-white">Recent Executions</h2>
             <Link href="/dashboard/executions">
               <Button variant="ghost" className="text-white/60 hover:text-white rounded-full">
