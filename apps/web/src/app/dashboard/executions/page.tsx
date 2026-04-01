@@ -1,24 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, XCircle, Clock, ArrowRight, Loader2, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-interface Execution {
-  id: string;
-  workflowId: string;
-  status: "running" | "completed" | "failed" | "waiting";
-  triggerType: string;
-  startedAt: string;
-  completedAt?: string;
-  duration?: number;
-  error?: string;
-  workflow?: {
-    id: string;
-    name: string;
-  };
-}
+import { useExecutions, type Execution } from "@/lib/query/hooks";
 
 function getStatusIcon(status: string) {
   switch (status) {
@@ -50,7 +36,7 @@ function getStatusColor(status: string) {
   }
 }
 
-function formatDuration(duration?: number): string {
+function formatDuration(duration?: number | null): string {
   if (!duration) return "-";
   if (duration < 1000) return `${duration}ms`;
   return `${(duration / 1000).toFixed(1)}s`;
@@ -74,48 +60,13 @@ function formatTimeAgo(dateString: string): string {
 type FilterType = "all" | "running" | "completed" | "failed";
 
 export default function ExecutionsPage() {
-  const [executions, setExecutions] = useState<Execution[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>("all");
+  const { data: executions = [], isLoading: loading, refetch } = useExecutions();
 
-  useEffect(() => {
-    fetchExecutions();
-  // Refresh every 5 seconds if there are running executions
-    const interval = setInterval(() => {
-      if (executions.some(e => e.status === "running")) {
-        fetchExecutions();
-      }
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchExecutions = async () => {
-    try {
-      const response = await fetch("/api/executions");
-      if (!response.ok) {
-        // Handle 401 gracefully - user might need to sync
-        if (response.status === 401) {
-          setExecutions([]);
-          return;
-        }
-        // Silently handle other errors (likely DB connection issues)
-        setExecutions([]);
-        return;
-      }
-      const data = await response.json();
-      setExecutions(data.executions || []);
-    } catch (err) {
-      // Network error or other issue - silently handle
-      setExecutions([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredExecutions = executions.filter(execution => {
+  const filteredExecutions = useMemo(() => executions.filter((execution: Execution) => {
     if (filter === "all") return true;
     return execution.status === filter;
-  });
+  }), [executions, filter]);
 
   return (
     <div className="min-h-screen bg-black">
@@ -131,7 +82,7 @@ export default function ExecutionsPage() {
               variant="outline"
               size="sm"
               className="border-white/20 text-white hover:bg-white/5 rounded-full"
-              onClick={fetchExecutions}
+              onClick={() => refetch()}
               disabled={loading}
             >
               {loading ? (
@@ -182,7 +133,7 @@ export default function ExecutionsPage() {
         ) : (
           <div className="bg-white/[0.02] border border-white/10 rounded-xl overflow-hidden">
             <div className="divide-y divide-white/10">
-              {filteredExecutions.map((execution) => (
+              {filteredExecutions.map((execution: Execution) => (
                 <Link
                   key={execution.id}
                   href={`/dashboard/executions/${execution.id}`}

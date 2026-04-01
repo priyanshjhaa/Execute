@@ -1,20 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle, Clock, Eye, Play, Plus, Loader2, Edit } from "lucide-react";
-
-interface Workflow {
-  id: string;
-  name: string;
-  description?: string;
-  triggerType: string;
-  status: string;
-  totalExecutions: number;
-  successRate: number;
-  createdAt: string;
-}
+import { useWorkflows, type Workflow } from "@/lib/query/hooks";
 
 function getStatusIcon(status: string) {
   switch (status) {
@@ -43,36 +32,7 @@ function getStatusColor(status: string) {
 }
 
 export default function WorkflowsPage() {
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchWorkflows();
-  }, []);
-
-  const fetchWorkflows = async () => {
-    try {
-      const response = await fetch('/api/workflows');
-      if (!response.ok) {
-        // If unauthorized, just set empty workflows (user might need to sync)
-        if (response.status === 401) {
-          setWorkflows([]);
-          return;
-        }
-        // Silently handle other errors (likely DB connection issues)
-        setWorkflows([]);
-        return;
-      }
-
-      const data = await response.json();
-      setWorkflows(data.workflows || []);
-    } catch (error) {
-      // Network error or other issue - silently handle
-      setWorkflows([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: workflows = [], isLoading: loading } = useWorkflows();
 
   return (
     <div className="min-h-screen bg-black">
@@ -119,7 +79,7 @@ export default function WorkflowsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {workflows.map((workflow) => (
+            {workflows.map((workflow: Workflow) => (
               <div
                 key={workflow.id}
                 className="group relative rounded-xl border border-white/10 bg-white/[0.02] p-5 transition-all duration-300 hover:border-white/20 sm:p-6"

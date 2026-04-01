@@ -6,13 +6,31 @@ export async function POST(request: NextRequest) {
   try {
     const { supabaseId, email, name } = await request.json()
 
-    // Check if user exists
+    // First try exact Supabase user match.
     const existingUser = await db.query.users.findFirst({
       where: eq(users.supabaseId, supabaseId)
     })
 
     if (existingUser) {
       return NextResponse.json({ user: existingUser })
+    }
+
+    // If the email already exists, reconnect that row to the current Supabase user.
+    const existingEmailUser = await db.query.users.findFirst({
+      where: eq(users.email, email)
+    })
+
+    if (existingEmailUser) {
+      const [updatedUser] = await db.update(users)
+        .set({
+          supabaseId,
+          name: name || existingEmailUser.name,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, existingEmailUser.id))
+        .returning()
+
+      return NextResponse.json({ user: updatedUser })
     }
 
     // Create new user
