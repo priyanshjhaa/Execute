@@ -15,6 +15,7 @@ interface ScheduleData {
   frequency: 'daily' | 'weekly' | 'monthly';
   day?: string;
   time: string;
+  timezone?: string;
 }
 
 interface EmailPreferences {
@@ -39,7 +40,8 @@ export default function NewWorkflowPage() {
   const [schedule, setSchedule] = useState<ScheduleData>({
     frequency: 'weekly',
     day: 'Monday',
-    time: '09:00'
+    time: '09:00',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
   const [event, setEvent] = useState('');
   const [additionalContext, setAdditionalContext] = useState('');

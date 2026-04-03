@@ -293,7 +293,7 @@ export default function WorkflowDetailPage() {
                 }}
               >
                 <Zap className="mr-2 h-5 w-5" />
-                Run Workflow
+                {workflow.triggerType === "schedule" ? "Run Now" : "Run Workflow"}
               </Button>
             </div>
           </div>

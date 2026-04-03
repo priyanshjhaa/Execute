@@ -5,6 +5,7 @@ import { createParser, enhanceEmailStepStructured, generateDynamicEmail, type Em
 import { findPremiumLockedSteps } from '@execute/validation';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
+import { buildScheduleExpression, type ScheduleConfig } from '@/lib/schedule';
 
 // Request schema validation for new structured input
 const StructuredRequestSchema = z.object({
@@ -14,6 +15,7 @@ const StructuredRequestSchema = z.object({
     frequency: z.enum(['daily', 'weekly', 'monthly']),
     day: z.string().optional(),
     time: z.string(),
+    timezone: z.string().optional(),
   }).optional(),
   event: z.string().optional(),
   additionalContext: z.string().optional(),
@@ -120,7 +122,12 @@ export async function POST(request: NextRequest) {
       throw new Error('Workflow is undefined');
     }
     const triggerStep = result.workflow.steps.find(step => step.id === result.workflow!.triggerStepId);
-    const triggerType = triggerStep?.type || 'webhook';
+    const triggerType =
+      validatedData.when === 'schedule'
+        ? 'schedule'
+        : validatedData.when === 'event'
+          ? 'webhook'
+          : (triggerStep?.type || 'webhook');
 
     for (const step of result.workflow.steps) {
       if (step.type === 'send_email' && step.config) {
@@ -197,6 +204,13 @@ export async function POST(request: NextRequest) {
         .returning();
     }
 
+    const scheduleConfig = validatedData.when === 'schedule'
+      ? {
+          ...(validatedData.schedule as ScheduleConfig),
+        }
+      : null;
+    const scheduleExpression = buildScheduleExpression(scheduleConfig);
+
     // Generate webhookId for webhook-based workflows
     const webhookId = triggerType === 'webhook' ? crypto.randomUUID() : null;
 
@@ -209,11 +223,14 @@ export async function POST(request: NextRequest) {
         triggerStepId: result.workflow!.triggerStepId,
       },
       triggerType: triggerType,
-      triggerConfig: triggerStep?.config || {},
-      status: 'draft',
+      triggerConfig: triggerType === 'schedule'
+        ? scheduleConfig
+        : triggerStep?.config || {},
+      status: triggerType === 'schedule' ? 'active' : 'draft',
       totalExecutions: 0,
       successRate: 0,
       webhookId: webhookId,
+      scheduleExpression,
     };
 
     const [workflow] = await db.insert(workflows)

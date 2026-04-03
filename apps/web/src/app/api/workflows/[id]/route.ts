@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { db, workflows, users } from '@execute/db';
 import { findPremiumLockedSteps } from '@execute/validation';
 import { eq, and } from 'drizzle-orm';
+import { buildScheduleExpression, type ScheduleConfig } from '@/lib/schedule';
 
 // Validate UUID format
 function isValidUUID(str: string): boolean {
@@ -132,7 +133,7 @@ export async function PATCH(
 
     // 3. Parse request body
     const body = await request.json();
-    const { name, description, status, definition, triggerType: newTriggerType } = body;
+    const { name, description, status, definition, triggerType: newTriggerType, triggerConfig, scheduleExpression } = body;
 
     // 4. Verify ownership and get existing workflow
     const [existingWorkflow] = await db.select()
@@ -172,6 +173,12 @@ export async function PATCH(
       webhookId = crypto.randomUUID();
     }
 
+    const nextTriggerType = newTriggerType ?? existingWorkflow.triggerType;
+    const nextTriggerConfig = triggerConfig ?? existingWorkflow.triggerConfig;
+    const nextScheduleExpression = nextTriggerType === 'schedule'
+      ? scheduleExpression ?? buildScheduleExpression(nextTriggerConfig as ScheduleConfig | null)
+      : null;
+
     // 6. Update workflow
     const [updated] = await db.update(workflows)
       .set({
@@ -179,8 +186,10 @@ export async function PATCH(
         description: description ?? existingWorkflow.description,
         status: status ?? existingWorkflow.status,
         definition: nextDefinition,
-        triggerType: newTriggerType ?? existingWorkflow.triggerType,
-        webhookId: webhookId ?? existingWorkflow.webhookId,
+        triggerType: nextTriggerType,
+        triggerConfig: nextTriggerConfig,
+        scheduleExpression: nextScheduleExpression,
+        webhookId: nextTriggerType === 'webhook' ? (webhookId ?? existingWorkflow.webhookId) : null,
         updatedAt: new Date(),
       })
       .where(eq(workflows.id, id))

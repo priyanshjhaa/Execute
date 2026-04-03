@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { getWorkflowActionAvailability, isPremiumLockedAction } from "@execute/validation";
+import { SchedulePicker } from "@/components/workflows/schedule-picker";
+import { buildScheduleExpression } from "@/lib/schedule";
 import {
   ArrowLeft,
   Play,
@@ -48,6 +50,13 @@ interface Workflow {
     steps: Step[];
     triggerStepId: string;
   };
+}
+
+interface ScheduleData {
+  frequency: 'daily' | 'weekly' | 'monthly';
+  day?: string;
+  time: string;
+  timezone?: string;
 }
 
 function getStepIcon(type: string) {
@@ -111,6 +120,12 @@ export default function EditWorkflowPage() {
   const [steps, setSteps] = useState<Step[]>([]);
   const [triggerStepId, setTriggerStepId] = useState<string>("");
   const [showStepPicker, setShowStepPicker] = useState(false);
+  const [schedule, setSchedule] = useState<ScheduleData>({
+    frequency: 'weekly',
+    day: 'Monday',
+    time: '09:00',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  });
 
   const fetchWorkflow = useCallback(async () => {
     try {
@@ -126,6 +141,14 @@ export default function EditWorkflowPage() {
       setTriggerType(data.workflow.triggerType || "webhook");
       setSteps(data.workflow.definition?.steps || []);
       setTriggerStepId(data.workflow.definition?.triggerStepId || "");
+      if (data.workflow.triggerType === "schedule" && data.workflow.triggerConfig) {
+        setSchedule({
+          frequency: data.workflow.triggerConfig.frequency || 'weekly',
+          day: data.workflow.triggerConfig.day || 'Monday',
+          time: data.workflow.triggerConfig.time || '09:00',
+          timezone: data.workflow.triggerConfig.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        });
+      }
     } catch (err) {
       console.error("Error fetching workflow:", err);
       setError("Failed to fetch workflow");
@@ -209,10 +232,12 @@ export default function EditWorkflowPage() {
           name: name.trim(),
           description: description.trim() || undefined,
           status,
+          triggerType,
+          triggerConfig: triggerType === 'schedule' ? schedule : undefined,
+          scheduleExpression: triggerType === 'schedule' ? buildScheduleExpression(schedule) : undefined,
           definition: {
             steps: steps.map((step, index) => ({ ...step, position: index })),
             triggerStepId,
-            triggerType,
           },
         }),
       });
@@ -379,6 +404,12 @@ export default function EditWorkflowPage() {
                   </select>
                 </div>
               </div>
+
+              {triggerType === "schedule" && (
+                <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                  <SchedulePicker value={schedule} onChange={setSchedule} />
+                </div>
+              )}
             </div>
           </div>
 

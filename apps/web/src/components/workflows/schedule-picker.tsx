@@ -6,6 +6,7 @@ interface ScheduleData {
   frequency: 'daily' | 'weekly' | 'monthly';
   day?: string;
   time: string;
+  timezone?: string;
 }
 
 interface SchedulePickerProps {
@@ -15,6 +16,7 @@ interface SchedulePickerProps {
 
 export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const daysOfMonth = Array.from({ length: 28 }, (_, index) => String(index + 1));
 
   return (
     <div className="space-y-4">
@@ -66,6 +68,26 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
         </div>
       )}
 
+      {/* Day of month selector */}
+      {value.frequency === 'monthly' && (
+        <div>
+          <label className="block text-sm font-medium text-white/80 mb-2">
+            On day
+          </label>
+          <select
+            value={value.day || '1'}
+            onChange={(e) => onChange({ ...value, day: e.target.value })}
+            className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/20 transition-colors"
+          >
+            {daysOfMonth.map((day) => (
+              <option key={day} value={day} className="bg-black">
+                {day}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Time Picker */}
       <div>
         <label className="block text-sm font-medium text-white/80 mb-2">
@@ -77,6 +99,9 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
           onChange={(e) => onChange({ ...value, time: e.target.value })}
           className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/20 transition-colors"
         />
+        <p className="mt-2 text-xs text-white/40">
+          Timezone: {value.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}
+        </p>
       </div>
     </div>
   );
