@@ -1,7 +1,12 @@
 import type { NextRequest } from 'next/server'
 
 function normalizeSecret(secret?: string | null) {
-  return secret?.trim() || null
+  const trimmed = secret?.trim()
+  if (!trimmed) {
+    return null
+  }
+
+  return trimmed.replace(/^['"]|['"]$/g, '') || null
 }
 
 function collectSecrets() {
