@@ -3,31 +3,12 @@ import { createClient } from '@/lib/supabase/server';
 import { db, executions, users, workflows, steps } from '@execute/db';
 import { eq, and, lte } from 'drizzle-orm';
 import { createExecutor, getAllHandlers } from '@execute/execution';
+import { isAuthorizedSchedulerRequest } from '@/lib/scheduler-auth';
 
 // Validate UUID format
 function isValidUUID(str: string): boolean {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return uuidRegex.test(str);
-}
-
-function isAuthorizedSchedulerRequest(request: NextRequest, querySecret: string | null): boolean {
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-  const resumeSecret = process.env.RESUME_SECRET;
-
-  if (cronSecret && authHeader === `Bearer ${cronSecret}`) {
-    return true;
-  }
-
-  if (resumeSecret && querySecret === resumeSecret) {
-    return true;
-  }
-
-  if (cronSecret && querySecret === cronSecret) {
-    return true;
-  }
-
-  return false;
 }
 
 /**

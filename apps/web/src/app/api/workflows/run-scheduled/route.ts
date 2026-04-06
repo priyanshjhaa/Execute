@@ -3,21 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { db, users, workflows } from '@execute/db'
 import { executeWorkflow, hasActiveExecution } from '@/lib/workflow-execution'
 import { isScheduledWorkflowDue, type ScheduleConfig } from '@/lib/schedule'
-
-function isAuthorizedSchedulerRequest(request: NextRequest, querySecret: string | null): boolean {
-  const authHeader = request.headers.get('authorization')
-  const schedulerSecret = process.env.SCHEDULER_SECRET || process.env.RESUME_SECRET
-
-  if (!schedulerSecret) {
-    return false
-  }
-
-  if (authHeader === `Bearer ${schedulerSecret}`) {
-    return true
-  }
-
-  return querySecret === schedulerSecret
-}
+import { isAuthorizedSchedulerRequest } from '@/lib/scheduler-auth'
 
 export async function GET(request: NextRequest) {
   try {
