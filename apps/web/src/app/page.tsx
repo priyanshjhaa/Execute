@@ -81,21 +81,21 @@ export default function Home() {
         <div className="container mx-auto max-w-6xl">
           <div className="inline-flex max-w-full items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white text-xs sm:text-sm font-medium mb-6 sm:mb-8">
             <Sparkles className="h-4 w-4" />
-            <span className="truncate">Email, Slack, API, and scheduled workflows</span>
+            <span className="truncate">Quick commands, forms, schedules, and live workflow execution</span>
           </div>
 
           <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-5 sm:mb-6 tracking-tight leading-[1.05] sm:leading-[1.1]">
-            Turn simple instructions
+            Turn instructions
             <br />
-            <span className="orb-gradient-text">into automated workflows.</span>
+            <span className="orb-gradient-text">into workflows that actually run.</span>
           </h1>
 
           <p className="text-lg sm:text-xl md:text-2xl text-white/50 mb-6 sm:mb-8 max-w-3xl leading-relaxed">
-            Send emails, call APIs, and run tasks - all from plain English.
+            Send emails, post to Slack, call APIs, add delays, and branch with logic from plain English, quick commands, or hosted form triggers.
           </p>
 
           <p className="text-sm sm:text-base md:text-lg text-white/65 mb-8 sm:mb-10 max-w-2xl">
-            No code. No setup. Just describe what you want.
+            No code. No busywork. Just describe what you want or trigger it from a form, command, or schedule.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-start items-stretch sm:items-start">
@@ -116,7 +116,7 @@ export default function Home() {
           </div>
 
           <p className="mt-6 sm:mt-8 text-sm md:text-base text-white/45 leading-6">
-            Send onboarding emails • Notify your team • Trigger APIs • Schedule reminders
+            Run quick commands • Trigger workflows from forms • Send emails and Slack updates • Call APIs on schedule
           </p>
 
           <div className="mt-10 sm:mt-16 flex flex-col sm:flex-row sm:flex-wrap gap-4 sm:gap-8 text-sm text-white/40">
@@ -126,15 +126,15 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-white/60" />
-              <span>Email workflows</span>
+              <span>Quick commands</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-white/60" />
-              <span>Slack messages</span>
+              <span>Form-triggered workflows</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-white/60" />
-              <span>API calls, delays, and logic</span>
+              <span>Email, Slack, API calls, delays, and logic</span>
             </div>
           </div>
         </div>
@@ -146,7 +146,7 @@ export default function Home() {
           <div className="mb-12 sm:mb-20">
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">How It Works</h2>
             <p className="text-lg sm:text-xl text-white/50">
-              You set it up once. Execute runs it on time and shows you exactly what happened.
+              Describe a workflow once, trigger it from forms or events, or kick it off from quick commands and schedules. Execute runs it and logs what happened.
             </p>
           </div>
 
@@ -159,7 +159,7 @@ export default function Home() {
               <div className="text-sm font-medium text-white/50 mb-2">STEP 1</div>
               <h3 className="text-2xl font-bold text-white">Describe What You Want</h3>
               <p className="text-white/40 leading-relaxed">
-                Tell Execute what needs to happen in plain English—like &quot;Send a weekly email to my marketing contacts&quot;
+                Tell Execute what needs to happen in plain English, from one-off automations to recurring workflows.
               </p>
             </div>
 
@@ -169,9 +169,9 @@ export default function Home() {
                 <Sparkles className="h-7 w-7 text-white" />
               </div>
               <div className="text-sm font-medium text-white/50 mb-2">STEP 2</div>
-              <h3 className="text-2xl font-bold text-white">We Build the Steps</h3>
+              <h3 className="text-2xl font-bold text-white">Choose How It Starts</h3>
               <p className="text-white/40 leading-relaxed">
-                AI converts your request into executable steps. Review, edit if needed, then set your schedule.
+                Launch it from a quick command, run it on a schedule, or trigger it from a hosted form or incoming event.
               </p>
             </div>
 
@@ -181,9 +181,9 @@ export default function Home() {
                 <Zap className="h-7 w-7 text-white" />
               </div>
               <div className="text-sm font-medium text-white/50 mb-2">STEP 3</div>
-              <h3 className="text-2xl font-bold text-white">It Just Happens</h3>
+              <h3 className="text-2xl font-bold text-white">Watch Execution Live</h3>
               <p className="text-white/40 leading-relaxed">
-                Execute runs your workflow on schedule. Watch in real-time or check the log to see exactly what happened.
+                Execute runs each step, logs the results, and shows you exactly what happened when a workflow succeeds, waits, or fails.
               </p>
             </div>
           </div>
@@ -194,7 +194,10 @@ export default function Home() {
       <section className="py-20 sm:py-32 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
           <div className="mb-12 sm:mb-20">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">Schedule tasks, send emails, and track execution without remembering or checking.</h2>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">Build automations from instructions, quick commands, forms, and schedules.</h2>
+            <p className="text-lg sm:text-xl text-white/50">
+              The core product today is workflow execution: triggers in, actions out, and clear logs for every run.
+            </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -209,7 +212,7 @@ export default function Home() {
                 <Mail className="h-8 w-8 text-white mb-6" />
                 <h3 className="text-xl font-semibold text-white mb-3">Send Emails</h3>
                 <p className="text-white/40 leading-relaxed">
-                  Automate email sending with personalization using our contact management system
+                  Send structured workflow emails for reminders, updates, outreach, and follow-ups without writing templates by hand.
                 </p>
               </div>
             </div>
@@ -225,7 +228,7 @@ export default function Home() {
                 <MessageSquare className="h-8 w-8 text-white mb-6" />
                 <h3 className="text-xl font-semibold text-white mb-3">Slack Messages</h3>
                 <p className="text-white/40 leading-relaxed">
-                  Send messages to your Slack channels with one-click OAuth integration
+                  Notify channels from live workflows with connected Slack integrations or direct webhook-based delivery.
                 </p>
               </div>
             </div>
@@ -239,9 +242,9 @@ export default function Home() {
               </div>
               <div className="relative z-10">
                 <Users className="h-8 w-8 text-white mb-6" />
-                <h3 className="text-xl font-semibold text-white mb-3">Contact Management</h3>
+                <h3 className="text-xl font-semibold text-white mb-3">Forms As Triggers</h3>
                 <p className="text-white/40 leading-relaxed">
-                  Organize contacts into groups and target specific segments in your workflows
+                  Create hosted forms to collect submissions and trigger workflows automatically when someone fills them out.
                 </p>
               </div>
             </div>
@@ -257,7 +260,7 @@ export default function Home() {
                 <GitBranch className="h-8 w-8 text-white mb-6" />
                 <h3 className="text-xl font-semibold text-white mb-3">Conditional Logic</h3>
                 <p className="text-white/40 leading-relaxed">
-                  Create smart workflows that branch based on conditions and previous results
+                  Branch workflows based on trigger data and step results so the right path runs automatically.
                 </p>
               </div>
             </div>
@@ -271,9 +274,9 @@ export default function Home() {
               </div>
               <div className="relative z-10">
                 <Clock className="h-8 w-8 text-white mb-6" />
-                <h3 className="text-xl font-semibold text-white mb-3">Delays & Scheduling</h3>
+                <h3 className="text-xl font-semibold text-white mb-3">Quick Commands & Timing</h3>
                 <p className="text-white/40 leading-relaxed">
-                  Add waits between steps or schedule workflows to run at specific times
+                  Tell Execute what happened or what you want done, then run it now, on schedule, or after a delay between steps.
                 </p>
               </div>
             </div>
@@ -287,9 +290,9 @@ export default function Home() {
               </div>
               <div className="relative z-10">
                 <Globe className="h-8 w-8 text-white mb-6" />
-                <h3 className="text-xl font-semibold text-white mb-3">HTTP Requests</h3>
+                <h3 className="text-xl font-semibold text-white mb-3">HTTP Requests & Logs</h3>
                 <p className="text-white/40 leading-relaxed">
-                  Connect to any API service with custom HTTP requests for advanced integrations
+                  Connect to external APIs with custom requests and track each workflow run through execution history and step logs.
                 </p>
               </div>
             </div>
@@ -308,10 +311,10 @@ export default function Home() {
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
               Choose between what runs now
               <br />
-              <span className="text-white/70">and what expands with Premium.</span>
+              <span className="text-white/70">and what expands as Execute grows.</span>
             </h2>
             <p className="text-base sm:text-lg text-white/50 max-w-3xl mx-auto">
-              Basic includes the workflow actions Execute can reliably run today. Premium includes all of Basic plus the higher-level actions already defined in the product vision.
+              Basic includes the workflow actions and triggers Execute can reliably run today. Premium includes all of Basic plus the higher-level actions already defined in the product vision.
             </p>
           </div>
 
@@ -430,44 +433,44 @@ export default function Home() {
           <div className="mb-12 sm:mb-20">
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">What You Can Build</h2>
             <p className="text-lg sm:text-xl text-white/50">
-              Real workflows you can create today
+              Real workflows you can launch from instructions, forms, quick commands, and schedules
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
             <div className="p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
               <code className="text-xs sm:text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10 break-words leading-6">
-                &quot;Send a personalized welcome email to new contacts from my Marketing list&quot;
+                &quot;When someone submits my onboarding form, send a welcome email and notify the team in Slack&quot;
               </code>
               <p className="text-white/40">
-                Automated email campaigns for your contact groups
+                Hosted form submissions that kick off real workflows automatically
               </p>
             </div>
 
             <div className="p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
               <code className="text-xs sm:text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10 break-words leading-6">
-                &quot;Send a daily summary email to the team and post a notification to our Slack channel&quot;
+                &quot;We signed Acme Corp&quot;
               </code>
               <p className="text-white/40">
-                Keep your team informed across multiple channels
+                Quick commands that turn business updates into tracked workflow runs
               </p>
             </div>
 
             <div className="p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
               <code className="text-xs sm:text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10 break-words leading-6">
-                &quot;If the first email fails, wait 5 minutes and retry, then alert me on Slack&quot;
+                &quot;Call our internal API, wait 5 minutes, then alert Slack if the response fails&quot;
               </code>
               <p className="text-white/40">
-                Smart error handling with conditional logic
+                API-based automation with delays, retries, and branching logic
               </p>
             </div>
 
             <div className="p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
               <code className="text-xs sm:text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10 break-words leading-6">
-                &quot;Send a follow-up email 3 days after initial contact to all leads in Sales group&quot;
+                &quot;Every Monday at 9 AM, send a project reminder email and log the run for review&quot;
               </code>
               <p className="text-white/40">
-                Timed follow-ups that nurture leads automatically
+                Scheduled workflows with visible execution history
               </p>
             </div>
           </div>
@@ -478,10 +481,10 @@ export default function Home() {
       <section className="py-20 sm:py-32 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-4xl text-center">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-6 tracking-tight">
-            Ready to stop worrying about recurring tasks?
+            Ready to turn instructions into execution?
           </h2>
           <p className="text-lg sm:text-xl text-white/50 mb-8 sm:mb-10 max-w-2xl mx-auto">
-            Set it up once, and we'll make sure it happens every time
+            Build workflows that run from schedules, quick commands, and form submissions without chasing every task manually.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/signup" className="w-full sm:w-auto">
