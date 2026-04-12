@@ -41,6 +41,44 @@ export default function DashboardPage() {
     }
   }
 
+  function getTriggerBadgeLabel(triggerType: string) {
+    switch (triggerType) {
+      case "schedule":
+        return "Scheduled";
+      case "webhook":
+        return "Webhook";
+      case "manual":
+        return "Manual";
+      case "email_received":
+        return "Email Trigger";
+      case "form_submitted":
+        return "Form Trigger";
+      case "user_created":
+        return "User Trigger";
+      case "purchase_completed":
+        return "Purchase Trigger";
+      default:
+        return triggerType.replace(/_/g, " ");
+    }
+  }
+
+  function getTriggerHint(triggerType: string) {
+    switch (triggerType) {
+      case "schedule":
+        return "Runs automatically on schedule";
+      case "webhook":
+      case "email_received":
+      case "form_submitted":
+      case "user_created":
+      case "purchase_completed":
+        return "Runs automatically when triggered";
+      case "manual":
+        return "Runs only when started manually";
+      default:
+        return "Trigger-based workflow";
+    }
+  }
+
   return (
     <div className="min-h-screen bg-black">
       {/* Top Section */}
@@ -230,7 +268,7 @@ export default function DashboardPage() {
                         </h3>
                         <div className="flex flex-wrap items-center gap-2 text-sm">
                           <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60 capitalize">
-                            {workflow.triggerType}
+                            {getTriggerBadgeLabel(workflow.triggerType)}
                           </span>
                           <span
                             className={`px-2 py-1 rounded-md border capitalize ${
@@ -248,6 +286,9 @@ export default function DashboardPage() {
                             Created {formatTimeAgo(workflow.createdAt)}
                           </span>
                         </div>
+                        <p className="mt-2 text-xs text-white/35">
+                          {getTriggerHint(workflow.triggerType)}
+                        </p>
                       </div>
                     </div>
 
@@ -269,7 +310,7 @@ export default function DashboardPage() {
                           className="bg-white/10 hover:bg-white/15 text-black border-white/20 rounded-full"
                         >
                           <Play className="mr-2 h-4 w-4" />
-                          Run
+                          Run Now
                         </Button>
                       )}
                     </div>

@@ -69,6 +69,65 @@ function getStatusColor(status: string) {
   }
 }
 
+function getTriggerLabel(triggerType: string) {
+  switch (triggerType) {
+    case "schedule":
+      return "Scheduled";
+    case "webhook":
+      return "Webhook";
+    case "email_received":
+      return "Email Trigger";
+    case "form_submitted":
+      return "Form Trigger";
+    case "user_created":
+      return "User Trigger";
+    case "purchase_completed":
+      return "Purchase Trigger";
+    case "manual":
+      return "Manual";
+    default:
+      return triggerType.replace(/_/g, " ");
+  }
+}
+
+function getTriggerHelperText(workflow: Workflow) {
+  switch (workflow.triggerType) {
+    case "schedule":
+      return workflow.scheduleExpression
+        ? `Runs automatically on ${workflow.scheduleExpression.toLowerCase()}.`
+        : "Runs automatically on schedule.";
+    case "webhook":
+      return "Runs automatically when its webhook is triggered.";
+    case "email_received":
+      return "Runs automatically when a matching email is received.";
+    case "form_submitted":
+      return "Runs automatically when a form submission is received.";
+    case "user_created":
+      return "Runs automatically when a new user is created.";
+    case "purchase_completed":
+      return "Runs automatically when a purchase is completed.";
+    case "manual":
+    default:
+      return "Runs only when you trigger it manually.";
+  }
+}
+
+function getPrimaryActionLabel(triggerType: string) {
+  switch (triggerType) {
+    case "schedule":
+      return "Test Run";
+    case "webhook":
+    case "email_received":
+    case "form_submitted":
+    case "user_created":
+    case "purchase_completed":
+      return "Test Trigger";
+    case "manual":
+    default:
+      return "Run Now";
+  }
+}
+
 function getStepIcon(type: string) {
   const iconProps = { className: "h-5 w-5" };
   switch (type) {
@@ -256,13 +315,24 @@ export default function WorkflowDetailPage() {
                 <p className="text-white/50">{workflow.description}</p>
               )}
               <div className="flex items-center gap-4 mt-3 text-sm text-white/40">
-                <span className="capitalize">{workflow.triggerType.replace("_", " ")} trigger</span>
+                <span>{getTriggerLabel(workflow.triggerType)}</span>
                 <span>•</span>
                 <span>Created {formatDate(workflow.createdAt)}</span>
               </div>
+              <p className="mt-3 text-sm text-white/50">
+                {getTriggerHelperText(workflow)}
+              </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col items-start gap-3 md:items-end">
+              {workflow.triggerType !== "manual" && (
+                <p className="text-sm text-white/40">
+                  {workflow.triggerType === "schedule"
+                    ? "Use this to test the workflow immediately."
+                    : "Use this to simulate the trigger once."}
+                </p>
+              )}
+              <div className="flex items-center gap-3">
               <Button
                 variant="outline"
                 size="lg"
@@ -293,8 +363,9 @@ export default function WorkflowDetailPage() {
                 }}
               >
                 <Zap className="mr-2 h-5 w-5" />
-                {workflow.triggerType === "schedule" ? "Run Now" : "Run Workflow"}
+                {getPrimaryActionLabel(workflow.triggerType)}
               </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -356,7 +427,11 @@ export default function WorkflowDetailPage() {
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2">
               <span className="text-white/50 w-32">Type:</span>
-              <span className="text-white capitalize">{workflow.triggerType.replace(/_/g, " ")}</span>
+              <span className="text-white">{getTriggerLabel(workflow.triggerType)}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-white/50 w-32">Behavior:</span>
+              <span className="text-white/70">{getTriggerHelperText(workflow)}</span>
             </div>
             {workflow.webhookId && (
               <div className="flex items-center gap-2">

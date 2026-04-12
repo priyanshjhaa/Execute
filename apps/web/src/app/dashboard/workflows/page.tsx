@@ -31,6 +31,44 @@ function getStatusColor(status: string) {
   }
 }
 
+function getTriggerBadgeLabel(triggerType: string) {
+  switch (triggerType) {
+    case "schedule":
+      return "Scheduled";
+    case "webhook":
+      return "Webhook";
+    case "manual":
+      return "Manual";
+    case "email_received":
+      return "Email Trigger";
+    case "form_submitted":
+      return "Form Trigger";
+    case "user_created":
+      return "User Trigger";
+    case "purchase_completed":
+      return "Purchase Trigger";
+    default:
+      return triggerType.replace(/_/g, " ");
+  }
+}
+
+function getTriggerHint(triggerType: string) {
+  switch (triggerType) {
+    case "schedule":
+      return "Runs automatically on schedule";
+    case "webhook":
+    case "email_received":
+    case "form_submitted":
+    case "user_created":
+    case "purchase_completed":
+      return "Runs automatically when triggered";
+    case "manual":
+      return "Runs only when started manually";
+    default:
+      return "Trigger-based workflow";
+  }
+}
+
 export default function WorkflowsPage() {
   const { data: workflows = [], isLoading: loading } = useWorkflows();
 
@@ -105,7 +143,7 @@ export default function WorkflowsPage() {
                       )}
                       <div className="flex flex-wrap items-center gap-2 text-sm">
                         <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-white/60 capitalize">
-                          {workflow.triggerType}
+                          {getTriggerBadgeLabel(workflow.triggerType)}
                         </span>
                         <span className={`px-2 py-1 rounded-md border capitalize ${getStatusColor(workflow.status)}`}>
                           {workflow.status}
@@ -114,6 +152,9 @@ export default function WorkflowsPage() {
                           {workflow.totalExecutions} execution{workflow.totalExecutions !== 1 ? 's' : ''}
                         </span>
                       </div>
+                      <p className="mt-2 text-xs text-white/35">
+                        {getTriggerHint(workflow.triggerType)}
+                      </p>
                     </div>
                   </div>
 
