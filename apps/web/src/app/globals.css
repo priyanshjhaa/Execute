@@ -131,6 +131,19 @@
     height: 34%;
     background: linear-gradient(180deg, transparent 0%, #000000 100%);
   }
+
+  @media (max-width: 640px) {
+    .landing-hero-bg::before {
+      background:
+        radial-gradient(circle at 62% 58%, rgba(14, 165, 233, 0.12), transparent 32%),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.74) 44%, rgba(0, 0, 0, 0.3) 100%),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.22) 0%, rgba(0, 0, 0, 0.12) 56%, #000000 100%);
+    }
+
+    .landing-hero-bg::after {
+      height: 42%;
+    }
+  }
 }
 
 @keyframes gradient-shift {

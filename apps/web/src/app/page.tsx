@@ -75,33 +75,33 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="min-h-screen pt-28 sm:pt-32 pb-16 sm:pb-20 px-4 sm:px-6 relative z-10 overflow-hidden">
+      <section className="min-h-[92vh] sm:min-h-screen pt-24 sm:pt-32 pb-14 sm:pb-20 px-4 sm:px-6 relative z-10 overflow-hidden">
         <div className="landing-hero-bg" aria-hidden="true">
           <img
             src="/execute-hero-scenic.jpg"
             alt=""
-            className="h-full w-full object-cover object-center opacity-90"
+            className="h-full w-full object-cover object-[62%_center] sm:object-center opacity-90"
             decoding="async"
           />
         </div>
         <div className="container mx-auto max-w-7xl relative z-10">
           <div className="max-w-3xl">
-          <div className="inline-flex max-w-full items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/85 text-xs sm:text-sm font-medium mb-6 sm:mb-8">
+          <div className="inline-flex max-w-full items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/85 text-xs sm:text-sm font-medium mb-5 sm:mb-8">
             <Sparkles className="h-4 w-4" />
             <span className="truncate">Quick commands, forms, schedules, and live workflow execution</span>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold text-white mb-5 sm:mb-6 tracking-normal leading-[1.08] sm:leading-[1.12]">
+          <h1 className="text-[3rem] sm:text-5xl md:text-6xl lg:text-7xl font-semibold text-white mb-5 sm:mb-6 tracking-normal leading-[1.02] sm:leading-[1.12]">
             Instructions in.
             <br />
             <span className="orb-gradient-text">Execution out.</span>
           </h1>
 
-          <p className="text-base sm:text-lg md:text-xl text-white/55 mb-6 sm:mb-8 max-w-2xl leading-relaxed">
+          <p className="text-base sm:text-lg md:text-xl text-white/62 mb-5 sm:mb-8 max-w-2xl leading-relaxed">
             Build workflows that send emails, post to Slack, call APIs, wait, branch, and run from commands, forms, or schedules.
           </p>
 
-          <p className="text-sm sm:text-base text-white/62 mb-8 sm:mb-10 max-w-xl">
+          <p className="text-sm sm:text-base text-white/68 mb-7 sm:mb-10 max-w-xl">
             No code. No busywork. Just describe the operation and let Execute handle the run.
           </p>
 
@@ -122,11 +122,11 @@ export default function Home() {
             </Link>
           </div>
 
-          <p className="mt-6 sm:mt-8 text-sm md:text-base text-white/45 leading-6">
+          <p className="mt-5 sm:mt-8 text-sm md:text-base text-white/50 leading-6">
             Run quick commands • Trigger workflows from forms • Send emails and Slack updates • Call APIs on schedule
           </p>
 
-          <div className="mt-10 sm:mt-16 flex flex-col sm:flex-row sm:flex-wrap gap-4 sm:gap-8 text-sm text-white/40">
+          <div className="mt-8 sm:mt-16 grid grid-cols-1 min-[420px]:grid-cols-2 sm:flex sm:flex-row sm:flex-wrap gap-3 sm:gap-8 text-sm text-white/46">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-white/60" />
               <span>No coding required</span>
