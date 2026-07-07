@@ -106,6 +106,31 @@
     right: -200px;
     animation: float 25s ease-in-out infinite reverse;
   }
+
+  .landing-hero-bg {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    background: #030303;
+  }
+
+  .landing-hero-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 22% 38%, rgba(255, 255, 255, 0.08), transparent 28%),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.78) 0%, rgba(0, 0, 0, 0.52) 36%, rgba(0, 0, 0, 0.02) 68%, rgba(0, 0, 0, 0.38) 100%),
+      linear-gradient(180deg, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0.02) 52%, #000000 100%);
+  }
+
+  .landing-hero-bg::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0;
+    height: 34%;
+    background: linear-gradient(180deg, transparent 0%, #000000 100%);
+  }
 }
 
 @keyframes gradient-shift {

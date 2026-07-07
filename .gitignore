@@ -1,5 +1,6 @@
 # Dependencies
 node_modules
+.pnpm-store
 .pnp
 .pnp.js
 
@@ -13,6 +14,7 @@ dist
 # Misc
 .DS_Store
 *.pem
+UI_REFINEMENT_PLAN.md
 
 # Debug
 npm-debug.log*

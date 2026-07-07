@@ -48,8 +48,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-black">
-      {/* Fixed gradient background */}
-      <div className="gradient-bg"></div>
       {/* Navigation */}
       <nav
         className={`fixed top-0 w-full bg-transparent z-50 transition-transform duration-300 ${
@@ -77,8 +75,16 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="min-h-screen pt-28 sm:pt-32 pb-16 sm:pb-20 px-4 sm:px-6 relative z-10">
-        <div className="container mx-auto max-w-6xl">
+      <section className="min-h-screen pt-28 sm:pt-32 pb-16 sm:pb-20 px-4 sm:px-6 relative z-10 overflow-hidden">
+        <div className="landing-hero-bg" aria-hidden="true">
+          <img
+            src="/execute-workflow-hero.svg"
+            alt=""
+            className="h-full w-full object-cover object-center opacity-95"
+            decoding="async"
+          />
+        </div>
+        <div className="container mx-auto max-w-6xl relative z-10">
           <div className="inline-flex max-w-full items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white text-xs sm:text-sm font-medium mb-6 sm:mb-8">
             <Sparkles className="h-4 w-4" />
             <span className="truncate">Quick commands, forms, schedules, and live workflow execution</span>
