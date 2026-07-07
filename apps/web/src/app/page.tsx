@@ -78,30 +78,31 @@ export default function Home() {
       <section className="min-h-screen pt-28 sm:pt-32 pb-16 sm:pb-20 px-4 sm:px-6 relative z-10 overflow-hidden">
         <div className="landing-hero-bg" aria-hidden="true">
           <img
-            src="/execute-workflow-hero.svg"
+            src="/execute-hero-scenic.jpg"
             alt=""
-            className="h-full w-full object-cover object-center opacity-95"
+            className="h-full w-full object-cover object-center opacity-90"
             decoding="async"
           />
         </div>
-        <div className="container mx-auto max-w-6xl relative z-10">
-          <div className="inline-flex max-w-full items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white text-xs sm:text-sm font-medium mb-6 sm:mb-8">
+        <div className="container mx-auto max-w-7xl relative z-10">
+          <div className="max-w-3xl">
+          <div className="inline-flex max-w-full items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/85 text-xs sm:text-sm font-medium mb-6 sm:mb-8">
             <Sparkles className="h-4 w-4" />
             <span className="truncate">Quick commands, forms, schedules, and live workflow execution</span>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-5 sm:mb-6 tracking-tight leading-[1.05] sm:leading-[1.1]">
-            Turn instructions
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold text-white mb-5 sm:mb-6 tracking-normal leading-[1.08] sm:leading-[1.12]">
+            Instructions in.
             <br />
-            <span className="orb-gradient-text">into workflows that actually run.</span>
+            <span className="orb-gradient-text">Execution out.</span>
           </h1>
 
-          <p className="text-lg sm:text-xl md:text-2xl text-white/50 mb-6 sm:mb-8 max-w-3xl leading-relaxed">
-            Send emails, post to Slack, call APIs, add delays, and branch with logic from plain English, quick commands, or hosted form triggers.
+          <p className="text-base sm:text-lg md:text-xl text-white/55 mb-6 sm:mb-8 max-w-2xl leading-relaxed">
+            Build workflows that send emails, post to Slack, call APIs, wait, branch, and run from commands, forms, or schedules.
           </p>
 
-          <p className="text-sm sm:text-base md:text-lg text-white/65 mb-8 sm:mb-10 max-w-2xl">
-            No code. No busywork. Just describe what you want or trigger it from a form, command, or schedule.
+          <p className="text-sm sm:text-base text-white/62 mb-8 sm:mb-10 max-w-xl">
+            No code. No busywork. Just describe the operation and let Execute handle the run.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-start items-stretch sm:items-start">
@@ -142,6 +143,7 @@ export default function Home() {
               <CheckCircle2 className="h-5 w-5 text-white/60" />
               <span>Email, Slack, API calls, delays, and logic</span>
             </div>
+          </div>
           </div>
         </div>
       </section>
