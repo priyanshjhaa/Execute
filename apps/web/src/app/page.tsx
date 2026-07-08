@@ -47,7 +47,7 @@ export default function Home() {
   }, [lastScrollY]);
 
   return (
-    <main className="min-h-screen bg-black">
+    <main className="min-h-screen bg-black overflow-hidden">
       {/* Navigation */}
       <nav
         className={`fixed top-0 w-full bg-transparent z-50 transition-transform duration-300 ${
@@ -80,32 +80,32 @@ export default function Home() {
           <img
             src="/execute-hero-scenic.jpg"
             alt=""
-            className="h-full w-full object-cover object-[62%_center] sm:object-center opacity-90"
+            className="hero-scenic-image h-full w-full object-cover object-[62%_center] sm:object-center opacity-90"
             decoding="async"
           />
         </div>
         <div className="container mx-auto max-w-7xl relative z-10">
           <div className="max-w-3xl">
-          <div className="inline-flex max-w-full items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/85 text-xs sm:text-sm font-medium mb-5 sm:mb-8">
+          <div className="hero-reveal inline-flex max-w-full items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/85 text-xs sm:text-sm font-medium mb-5 sm:mb-8">
             <Sparkles className="h-4 w-4" />
-            <span className="truncate">Quick commands, forms, schedules, and live workflow execution</span>
+            <span className="truncate">Forms, schedules, quick commands, live runs</span>
           </div>
 
-          <h1 className="text-[3rem] sm:text-5xl md:text-6xl lg:text-7xl font-semibold text-white mb-5 sm:mb-6 tracking-normal leading-[1.02] sm:leading-[1.12]">
-            Instructions in.
+          <h1 className="hero-reveal text-[3rem] sm:text-5xl md:text-6xl lg:text-7xl font-semibold text-white mb-5 sm:mb-6 tracking-normal leading-[1.02] sm:leading-[1.12] [animation-delay:90ms]">
+            Describe the work.
             <br />
-            <span className="orb-gradient-text">Execution out.</span>
+            <span className="orb-gradient-text">Execute runs it.</span>
           </h1>
 
-          <p className="text-base sm:text-lg md:text-xl text-white/62 mb-5 sm:mb-8 max-w-2xl leading-relaxed">
-            Build workflows that send emails, post to Slack, call APIs, wait, branch, and run from commands, forms, or schedules.
+          <p className="hero-reveal text-base sm:text-lg md:text-xl text-white/62 mb-5 sm:mb-8 max-w-2xl leading-relaxed [animation-delay:180ms]">
+            Turn plain English, form submissions, and schedules into workflows that email, post to Slack, call APIs, wait, and branch with logic.
           </p>
 
-          <p className="text-sm sm:text-base text-white/68 mb-7 sm:mb-10 max-w-xl">
-            No code. No busywork. Just describe the operation and let Execute handle the run.
+          <p className="hero-reveal text-sm sm:text-base text-white/68 mb-7 sm:mb-10 max-w-xl [animation-delay:260ms]">
+            Every run is visible, testable, and logged from trigger to final step.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-start items-stretch sm:items-start">
+          <div className="hero-reveal flex flex-col sm:flex-row gap-3 sm:gap-4 justify-start items-stretch sm:items-start [animation-delay:340ms]">
             <Link href="/signup" className="w-full sm:w-auto">
               <Button
                 size="lg"
@@ -122,11 +122,11 @@ export default function Home() {
             </Link>
           </div>
 
-          <p className="mt-5 sm:mt-8 text-sm md:text-base text-white/50 leading-6">
-            Run quick commands • Trigger workflows from forms • Send emails and Slack updates • Call APIs on schedule
+          <p className="hero-reveal mt-5 sm:mt-8 text-sm md:text-base text-white/50 leading-6 [animation-delay:420ms]">
+            Trigger from forms • Run quick commands • Send emails and Slack updates • Call APIs on schedule
           </p>
 
-          <div className="mt-8 sm:mt-16 grid grid-cols-1 min-[420px]:grid-cols-2 sm:flex sm:flex-row sm:flex-wrap gap-3 sm:gap-8 text-sm text-white/46">
+          <div className="hero-reveal mt-8 sm:mt-16 grid grid-cols-1 min-[420px]:grid-cols-2 sm:flex sm:flex-row sm:flex-wrap gap-3 sm:gap-8 text-sm text-white/46 [animation-delay:500ms]">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-white/60" />
               <span>No coding required</span>
@@ -149,10 +149,11 @@ export default function Home() {
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works" className="py-20 sm:py-32 px-4 sm:px-6 relative z-10">
+      <section id="how-it-works" className="reveal-on-scroll py-20 sm:py-32 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
           <div className="mb-12 sm:mb-20">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">How It Works</h2>
+            <div className="text-xs uppercase tracking-[0.22em] text-white/35 mb-4">From intent to run history</div>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">Workflows start where your work starts.</h2>
             <p className="text-lg sm:text-xl text-white/50">
               Describe a workflow once, trigger it from forms or events, or kick it off from quick commands and schedules. Execute runs it and logs what happened.
             </p>
@@ -160,7 +161,7 @@ export default function Home() {
 
           <div className="grid md:grid-cols-3 gap-8 sm:gap-12">
             {/* Step 1 */}
-            <div className="space-y-4">
+            <div className="landing-card space-y-4">
               <div className="h-14 w-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
                 <Terminal className="h-7 w-7 text-white" />
               </div>
@@ -172,7 +173,7 @@ export default function Home() {
             </div>
 
             {/* Step 2 */}
-            <div className="space-y-4">
+            <div className="landing-card space-y-4">
               <div className="h-14 w-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
                 <Sparkles className="h-7 w-7 text-white" />
               </div>
@@ -184,7 +185,7 @@ export default function Home() {
             </div>
 
             {/* Step 3 */}
-            <div className="space-y-4">
+            <div className="landing-card space-y-4">
               <div className="h-14 w-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
                 <Zap className="h-7 w-7 text-white" />
               </div>
@@ -199,17 +200,18 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section className="py-20 sm:py-32 px-4 sm:px-6 relative z-10">
+      <section className="reveal-on-scroll py-20 sm:py-32 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
           <div className="mb-12 sm:mb-20">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">Build automations from instructions, quick commands, forms, and schedules.</h2>
+            <div className="text-xs uppercase tracking-[0.22em] text-white/35 mb-4">Runnable capabilities</div>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">A practical automation surface, not another task board.</h2>
             <p className="text-lg sm:text-xl text-white/50">
-              The core product today is workflow execution: triggers in, actions out, and clear logs for every run.
+              Triggers come in from commands, forms, events, and schedules. Actions go out through email, Slack, APIs, delays, and branches.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="group relative p-6 sm:p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
+            <div className="landing-card group relative p-6 sm:p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500">
                 <div className="absolute inset-0 card-gradient-bg"></div>
               </div>
@@ -225,7 +227,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="group relative p-6 sm:p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
+            <div className="landing-card group relative p-6 sm:p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500">
                 <div className="absolute inset-0 card-gradient-bg"></div>
               </div>
@@ -241,7 +243,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="group relative p-6 sm:p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
+            <div className="landing-card group relative p-6 sm:p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500">
                 <div className="absolute inset-0 card-gradient-bg"></div>
               </div>
@@ -257,7 +259,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="group relative p-6 sm:p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
+            <div className="landing-card group relative p-6 sm:p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500">
                 <div className="absolute inset-0 card-gradient-bg"></div>
               </div>
@@ -273,7 +275,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="group relative p-6 sm:p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
+            <div className="landing-card group relative p-6 sm:p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500">
                 <div className="absolute inset-0 card-gradient-bg"></div>
               </div>
@@ -289,7 +291,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="group relative p-6 sm:p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
+            <div className="landing-card group relative p-6 sm:p-8 rounded-xl border border-white/10 transition-all duration-300 bg-white/[0.02] overflow-hidden">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500">
                 <div className="absolute inset-0 card-gradient-bg"></div>
               </div>
@@ -309,7 +311,7 @@ export default function Home() {
       </section>
 
       {/* Basic vs Premium */}
-      <section className="py-20 sm:py-28 px-4 sm:px-6 relative z-10">
+      <section className="reveal-on-scroll py-20 sm:py-28 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
           <div className="mb-12 sm:mb-16 text-center">
             <div className="inline-flex max-w-full items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/80 text-xs sm:text-sm font-medium mb-6">
@@ -317,9 +319,9 @@ export default function Home() {
               <span className="truncate">Workflow action plans</span>
             </div>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
-              Choose between what runs now
+              Start with the actions that run today.
               <br />
-              <span className="text-white/70">and what expands as Execute grows.</span>
+              <span className="text-white/70">Keep the next layer in sight.</span>
             </h2>
             <p className="text-base sm:text-lg text-white/50 max-w-3xl mx-auto">
               Basic includes the workflow actions and triggers Execute can reliably run today. Premium includes all of Basic plus the higher-level actions already defined in the product vision.
@@ -327,7 +329,7 @@ export default function Home() {
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8">
-            <div className="relative p-6 sm:p-8 rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
+            <div className="landing-card relative p-6 sm:p-8 rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
               <div className="absolute inset-0 opacity-5">
                 <div className="absolute inset-0 card-gradient-bg"></div>
               </div>
@@ -371,7 +373,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="relative p-6 sm:p-8 rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
+            <div className="landing-card relative p-6 sm:p-8 rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
               <div className="absolute inset-0 opacity-10">
                 <div className="absolute inset-0 card-gradient-bg"></div>
               </div>
@@ -436,17 +438,18 @@ export default function Home() {
       </section>
 
       {/* Example Use Cases */}
-      <section className="py-20 sm:py-32 px-4 sm:px-6 relative z-10">
+      <section className="reveal-on-scroll py-20 sm:py-32 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
           <div className="mb-12 sm:mb-20">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">What You Can Build</h2>
+            <div className="text-xs uppercase tracking-[0.22em] text-white/35 mb-4">Use cases</div>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">Plain requests become tracked runs.</h2>
             <p className="text-lg sm:text-xl text-white/50">
               Real workflows you can launch from instructions, forms, quick commands, and schedules
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
+            <div className="landing-card p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
               <code className="text-xs sm:text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10 break-words leading-6">
                 &quot;When someone submits my onboarding form, send a welcome email and notify the team in Slack&quot;
               </code>
@@ -455,7 +458,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
+            <div className="landing-card p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
               <code className="text-xs sm:text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10 break-words leading-6">
                 &quot;We signed Acme Corp&quot;
               </code>
@@ -464,7 +467,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
+            <div className="landing-card p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
               <code className="text-xs sm:text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10 break-words leading-6">
                 &quot;Call our internal API, wait 5 minutes, then alert Slack if the response fails&quot;
               </code>
@@ -473,7 +476,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
+            <div className="landing-card p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
               <code className="text-xs sm:text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10 break-words leading-6">
                 &quot;Every Monday at 9 AM, send a project reminder email and log the run for review&quot;
               </code>
@@ -486,10 +489,10 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 sm:py-32 px-4 sm:px-6 relative z-10">
+      <section className="reveal-on-scroll py-20 sm:py-32 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-4xl text-center">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-6 tracking-tight">
-            Ready to turn instructions into execution?
+            Put one workflow on the rails.
           </h2>
           <p className="text-lg sm:text-xl text-white/50 mb-8 sm:mb-10 max-w-2xl mx-auto">
             Build workflows that run from schedules, quick commands, and form submissions without chasing every task manually.
@@ -497,7 +500,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/signup" className="w-full sm:w-auto">
               <Button size="lg" className="text-sm sm:text-base btn-gradient text-black px-6 sm:px-8 py-6 w-full sm:w-auto rounded-full">
-                Create your first execution <ArrowRight className="ml-2 h-5 w-5" />
+                Start building workflows <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
             <Link href="#how-it-works" className="w-full sm:w-auto">
@@ -512,7 +515,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-white/10 py-12 px-6 relative z-10">
         <div className="container mx-auto text-center text-sm text-white/40">
-          <p>&copy; 2025 Execute. All rights reserved.</p>
+          <p>&copy; 2026 Execute. All rights reserved.</p>
         </div>
       </footer>
     </main>
