@@ -47,7 +47,7 @@ export default function Home() {
   }, [lastScrollY]);
 
   return (
-    <main className="min-h-screen bg-black overflow-hidden">
+    <main className="landing-shell min-h-screen bg-black overflow-hidden">
       {/* Navigation */}
       <nav
         className={`fixed top-0 w-full bg-transparent z-50 transition-transform duration-300 ${
@@ -149,7 +149,7 @@ export default function Home() {
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works" className="reveal-on-scroll py-20 sm:py-32 px-4 sm:px-6 relative z-10">
+      <section id="how-it-works" className="landing-section reveal-on-scroll py-20 sm:py-32 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
           <div className="mb-12 sm:mb-20">
             <div className="text-xs uppercase tracking-[0.22em] text-white/35 mb-4">From intent to run history</div>
@@ -200,7 +200,7 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section className="reveal-on-scroll py-20 sm:py-32 px-4 sm:px-6 relative z-10">
+      <section className="landing-section reveal-on-scroll py-20 sm:py-32 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
           <div className="mb-12 sm:mb-20">
             <div className="text-xs uppercase tracking-[0.22em] text-white/35 mb-4">Runnable capabilities</div>
@@ -311,7 +311,7 @@ export default function Home() {
       </section>
 
       {/* Basic vs Premium */}
-      <section className="reveal-on-scroll py-20 sm:py-28 px-4 sm:px-6 relative z-10">
+      <section className="landing-section reveal-on-scroll py-20 sm:py-28 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
           <div className="mb-12 sm:mb-16 text-center">
             <div className="inline-flex max-w-full items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/80 text-xs sm:text-sm font-medium mb-6">
@@ -438,7 +438,7 @@ export default function Home() {
       </section>
 
       {/* Example Use Cases */}
-      <section className="reveal-on-scroll py-20 sm:py-32 px-4 sm:px-6 relative z-10">
+      <section className="landing-section reveal-on-scroll py-20 sm:py-32 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
           <div className="mb-12 sm:mb-20">
             <div className="text-xs uppercase tracking-[0.22em] text-white/35 mb-4">Use cases</div>
@@ -489,7 +489,7 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="reveal-on-scroll py-20 sm:py-32 px-4 sm:px-6 relative z-10">
+      <section className="landing-section reveal-on-scroll py-20 sm:py-32 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-4xl text-center">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-6 tracking-tight">
             Put one workflow on the rails.
