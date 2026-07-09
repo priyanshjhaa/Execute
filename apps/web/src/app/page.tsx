@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
   Zap,
-  Shield,
   Clock,
   CheckCircle2,
   Terminal,
@@ -16,8 +15,6 @@ import {
   MessageSquare,
   Users,
   Globe,
-  Phone,
-  ListChecks,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -86,64 +83,64 @@ export default function Home() {
         </div>
         <div className="container mx-auto max-w-7xl relative z-10">
           <div className="max-w-3xl">
-          <div className="hero-reveal inline-flex max-w-full items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/85 text-xs sm:text-sm font-medium mb-5 sm:mb-8">
-            <Sparkles className="h-4 w-4" />
-            <span className="truncate">Forms, schedules, quick commands, live runs</span>
-          </div>
-
-          <h1 className="hero-reveal text-[3rem] sm:text-5xl md:text-6xl lg:text-7xl font-semibold text-white mb-5 sm:mb-6 tracking-normal leading-[1.02] sm:leading-[1.12] [animation-delay:90ms]">
-            Describe the work.
-            <br />
-            <span className="orb-gradient-text">Execute runs it.</span>
-          </h1>
-
-          <p className="hero-reveal text-base sm:text-lg md:text-xl text-white/62 mb-5 sm:mb-8 max-w-2xl leading-relaxed [animation-delay:180ms]">
-            Turn plain English, form submissions, and schedules into workflows that email, post to Slack, call APIs, wait, and branch with logic.
-          </p>
-
-          <p className="hero-reveal text-sm sm:text-base text-white/68 mb-7 sm:mb-10 max-w-xl [animation-delay:260ms]">
-            Every run is visible, testable, and logged from trigger to final step.
-          </p>
-
-          <div className="hero-reveal flex flex-col sm:flex-row gap-3 sm:gap-4 justify-start items-stretch sm:items-start [animation-delay:340ms]">
-            <Link href="/signup" className="w-full sm:w-auto">
-              <Button
-                size="lg"
-                className="text-sm sm:text-base btn-gradient text-black px-6 sm:px-10 py-6 sm:py-7 w-full sm:w-auto rounded-full transition-all duration-300 hover:scale-[1.02] hover:opacity-95"
-                style={{ animationDuration: "20s" }}
-              >
-                Start building workflows <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
-            <Link href="#how-it-works" className="w-full sm:w-auto">
-              <Button size="lg" variant="outline" className="text-sm sm:text-base border-white/20 text-white hover:bg-white/5 hover:text-white px-6 sm:px-8 py-6 w-full sm:w-auto rounded-full">
-                View demo
-              </Button>
-            </Link>
-          </div>
-
-          <p className="hero-reveal mt-5 sm:mt-8 text-sm md:text-base text-white/50 leading-6 [animation-delay:420ms]">
-            Trigger from forms • Run quick commands • Send emails and Slack updates • Call APIs on schedule
-          </p>
-
-          <div className="hero-reveal mt-8 sm:mt-16 grid grid-cols-1 min-[420px]:grid-cols-2 sm:flex sm:flex-row sm:flex-wrap gap-3 sm:gap-8 text-sm text-white/46 [animation-delay:500ms]">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-white/60" />
-              <span>No coding required</span>
+            <div className="hero-reveal inline-flex max-w-full items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/85 text-xs sm:text-sm font-medium mb-5 sm:mb-8">
+              <Sparkles className="h-4 w-4" />
+              <span className="truncate">Forms, schedules, quick commands, live runs</span>
             </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-white/60" />
-              <span>Quick commands</span>
+
+            <h1 className="hero-reveal text-[3rem] sm:text-5xl md:text-6xl lg:text-7xl font-semibold text-white mb-5 sm:mb-6 tracking-normal leading-[1.02] sm:leading-[1.12] [animation-delay:90ms]">
+              Describe the work.
+              <br />
+              <span className="orb-gradient-text">Execute runs it.</span>
+            </h1>
+
+            <p className="hero-reveal text-base sm:text-lg md:text-xl text-white/62 mb-5 sm:mb-8 max-w-2xl leading-relaxed [animation-delay:180ms]">
+              Turn plain English, form submissions, and schedules into workflows that email, post to Slack, call APIs, wait, and branch with logic.
+            </p>
+
+            <p className="hero-reveal text-sm sm:text-base text-white/68 mb-7 sm:mb-10 max-w-xl [animation-delay:260ms]">
+              Every run is visible, testable, and logged from trigger to final step.
+            </p>
+
+            <div className="hero-reveal flex flex-col sm:flex-row gap-3 sm:gap-4 justify-start items-stretch sm:items-start [animation-delay:340ms]">
+              <Link href="/signup" className="w-full sm:w-auto">
+                <Button
+                  size="lg"
+                  className="text-sm sm:text-base btn-gradient text-black px-6 sm:px-10 py-6 sm:py-7 w-full sm:w-auto rounded-full transition-all duration-300 hover:scale-[1.02] hover:opacity-95"
+                  style={{ animationDuration: "20s" }}
+                >
+                  Start building workflows <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+              <Link href="#how-it-works" className="w-full sm:w-auto">
+                <Button size="lg" variant="outline" className="text-sm sm:text-base border-white/20 text-white hover:bg-white/5 hover:text-white px-6 sm:px-8 py-6 w-full sm:w-auto rounded-full">
+                  View demo
+                </Button>
+              </Link>
             </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-white/60" />
-              <span>Form-triggered workflows</span>
+
+            <p className="hero-reveal mt-5 sm:mt-8 text-sm md:text-base text-white/50 leading-6 [animation-delay:420ms]">
+              Trigger from forms • Run quick commands • Send emails and Slack updates • Call APIs on schedule
+            </p>
+
+            <div className="hero-reveal mt-8 sm:mt-16 grid grid-cols-1 min-[420px]:grid-cols-2 sm:flex sm:flex-row sm:flex-wrap gap-3 sm:gap-8 text-sm text-white/46 [animation-delay:500ms]">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-white/60" />
+                <span>No coding required</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-white/60" />
+                <span>Quick commands</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-white/60" />
+                <span>Form-triggered workflows</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-white/60" />
+                <span>Email, Slack, API calls, delays, and logic</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-white/60" />
-              <span>Email, Slack, API calls, delays, and logic</span>
-            </div>
-          </div>
           </div>
         </div>
       </section>
