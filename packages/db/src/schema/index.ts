@@ -9,3 +9,4 @@ export * from './contact-groups';
 export * from './user-integrations';
 export * from './quick-commands';
 export * from './forms';
+export * from './agent';
