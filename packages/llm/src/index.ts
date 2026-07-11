@@ -8,3 +8,4 @@ export * from './action-templates/index.js';
 export * from './structured-email-generator.js';
 export * from './email-types.js';
 export * from './dynamic-email-generator.js';
+export * from './agent-model.js';

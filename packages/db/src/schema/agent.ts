@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { check, index, jsonb, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { check, index, integer, jsonb, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 import { users } from './users';
 
 export type AgentMessageRole = 'user' | 'assistant' | 'system' | 'tool';
@@ -29,6 +29,11 @@ export const agentMessages = pgTable('agent_messages', {
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   role: varchar('role', { length: 20 }).$type<AgentMessageRole>().notNull(),
   content: jsonb('content').$type<AgentMessageContentBlock[]>().notNull(),
+  provider: varchar('provider', { length: 50 }),
+  model: varchar('model', { length: 255 }),
+  inputTokens: integer('input_tokens'),
+  outputTokens: integer('output_tokens'),
+  latencyMs: integer('latency_ms'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
   threadIdIdx: index('agent_messages_thread_id_idx').on(table.threadId),
