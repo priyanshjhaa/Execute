@@ -11,6 +11,7 @@ import {
   LogOut,
   Users,
   Puzzle,
+  Bot,
   Menu,
   X,
 } from "lucide-react";
@@ -34,6 +35,11 @@ const navItems = [
     name: "Executions",
     href: "/dashboard/executions",
     icon: Activity,
+  },
+  {
+    name: "Agent",
+    href: "/dashboard/agent",
+    icon: Bot,
   },
   {
     name: "Contacts",
@@ -142,7 +148,9 @@ export default function DashboardLayout({
         {/* Navigation */}
         <nav className="space-y-1 p-4">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || (
+              item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`)
+            );
             return (
               <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)}>
                 <div
