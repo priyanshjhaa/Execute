@@ -7,6 +7,7 @@
   "scripts": {
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
+    "migrate:agent": "tsx scripts/migrate-agent.ts",
     "studio": "drizzle-kit studio",
     "build": "tsc",
     "dev": "tsc --watch"
