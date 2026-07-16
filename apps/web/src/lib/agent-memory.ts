@@ -2,6 +2,8 @@ import { and, asc, count, desc, eq } from 'drizzle-orm';
 import { agentMessages, agentThreads, db } from '@execute/db';
 import {
   AGENT_RECENT_HISTORY_LIMIT,
+  AGENT_SUMMARY_BATCH_MESSAGE_LIMIT,
+  AGENT_SUMMARY_INPUT_MAX_TOKENS,
   AGENT_SUMMARY_MAX_TOKENS,
   AgentModelAbortError,
   type AgentModelClient,
@@ -9,6 +11,8 @@ import {
   buildAgentSummaryPrompt,
   capAgentSummary,
   getAgentSummaryRange,
+  resolveAgentContextTokenLimit,
+  selectAgentSummaryBatch,
 } from '@execute/llm';
 
 interface PrepareAgentContextInput {
@@ -28,11 +32,16 @@ function messageText(content: Array<{ type: 'text'; text: string }>): string {
 }
 
 export async function prepareAgentContext(input: PrepareAgentContextInput) {
+  const maxContextTokens = resolveAgentContextTokenLimit(
+    process.env.AGENT_MAX_CONTEXT_TOKENS,
+  );
+
   if (!input.thread) {
     return buildAgentContext({
       systemPrompt: input.systemPrompt,
       recentMessages: [],
       currentMessage: input.currentMessage,
+      maxTokens: maxContextTokens,
     });
   }
 
@@ -79,21 +88,30 @@ export async function prepareAgentContext(input: PrepareAgentContextInput) {
       ))
       .orderBy(asc(agentMessages.createdAt), asc(agentMessages.id))
       .offset(summarizedMessageCount)
-      .limit(messagesToSummarize);
+      .limit(Math.min(messagesToSummarize, AGENT_SUMMARY_BATCH_MESSAGE_LIMIT));
+
+    const summaryBatch = selectAgentSummaryBatch(
+      summary,
+      summaryRows.map((message) => ({
+        role: message.role,
+        content: messageText(message.content),
+      })),
+      AGENT_SUMMARY_INPUT_MAX_TOKENS,
+    );
 
     try {
+      if (summaryBatch.length === 0) {
+        throw new Error('No conversation history fits within the summary input budget');
+      }
       const summaryResponse = await input.modelClient.complete(
-        buildAgentSummaryPrompt(summary, summaryRows.map((message) => ({
-          role: message.role,
-          content: messageText(message.content),
-        }))),
+        buildAgentSummaryPrompt(summary, summaryBatch),
         {
           signal: input.signal,
           maxOutputTokens: AGENT_SUMMARY_MAX_TOKENS,
         },
       );
       const nextSummary = capAgentSummary(summaryResponse.content);
-      const nextSummaryMessageCount = summarizedMessageCount + summaryRows.length;
+      const nextSummaryMessageCount = summarizedMessageCount + summaryBatch.length;
       const summaryUpdatedAt = new Date();
 
       const [updatedThread] = await db.update(agentThreads)
@@ -144,5 +162,6 @@ export async function prepareAgentContext(input: PrepareAgentContextInput) {
     summary,
     recentMessages,
     currentMessage: input.currentMessage,
+    maxTokens: maxContextTokens,
   });
 }

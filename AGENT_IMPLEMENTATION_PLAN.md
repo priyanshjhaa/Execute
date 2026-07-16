@@ -6,7 +6,7 @@ Build the agent through small, independently testable phases. The agent coordina
 
 - Phases 1-3 are complete and were stabilized on July 16, 2026.
 - Phase 4 is complete: provider tokens stream to the UI and active runs can be cancelled safely.
-- Phase 5 is complete: each turn uses a bounded eight-message window plus rolling summary memory.
+- Phase 5 is complete: each turn uses a bounded eight-message window, rolling summary memory, and an explicit total context budget.
 - Successful turns persist the user and assistant messages atomically.
 - Provider failures do not create empty threads or unmatched user messages.
 - Automated tests cover missing configuration, provider fallback, empty responses, output limits, and total provider failure.
@@ -42,6 +42,9 @@ Build the agent through small, independently testable phases. The agent coordina
 - Add incremental rolling summaries capped near 700 tokens.
 - Include rolling memory before recent conversation messages.
 - Enforce the 4,000-character request limit and bounded model output.
+- Enforce a configurable total context budget with conservative token estimates.
+- Truncate oversized legacy content safely while preserving recent information.
+- Process long summary backlogs in bounded chronological batches.
 
 ## Phase 6: Read-Only Workspace Tools
 
