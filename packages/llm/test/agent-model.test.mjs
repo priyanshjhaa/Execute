@@ -112,3 +112,121 @@ test('reports all-provider failure without returning a partial response', async 
     ),
   );
 });
+
+test('streams provider deltas and returns the completed response metadata', async () => {
+  const deltas = [];
+  const abortController = new AbortController();
+  let receivedSignal;
+  const client = new AgentModelClient('', '');
+  client.models = [
+    modelConfig('openrouter', 'stream-model', async (_input, options) => {
+      receivedSignal = options.signal;
+      return (async function* streamChunks() {
+        yield { choices: [{ delta: { content: 'Hello ' } }], usage: null };
+        yield { choices: [{ delta: { content: 'world' } }], usage: null };
+        yield {
+          choices: [],
+          usage: { prompt_tokens: 9, completion_tokens: 2 },
+        };
+      }());
+    }),
+  ];
+
+  const result = await client.stream(
+    [{ role: 'user', content: 'Hello' }],
+    {
+      signal: abortController.signal,
+      onDelta: (delta) => deltas.push(delta),
+    },
+  );
+
+  assert.equal(receivedSignal, abortController.signal);
+  assert.deepEqual(deltas, ['Hello ', 'world']);
+  assert.equal(result.content, 'Hello world');
+  assert.equal(result.provider, 'openrouter');
+  assert.deepEqual(result.usage, { inputTokens: 9, outputTokens: 2 });
+});
+
+test('falls back during streaming only before the first delta', async () => {
+  const attempts = [];
+  const deltas = [];
+  const client = new AgentModelClient('', '');
+  client.models = [
+    modelConfig('groq', 'unavailable-model', async () => {
+      attempts.push('groq');
+      throw new Error('connection failed');
+    }),
+    modelConfig('openrouter', 'stream-model', async () => {
+      attempts.push('openrouter');
+      return (async function* streamChunks() {
+        yield { choices: [{ delta: { content: 'Fallback' } }], usage: null };
+      }());
+    }),
+  ];
+
+  const result = await client.stream(
+    [{ role: 'user', content: 'Hello' }],
+    { onDelta: (delta) => deltas.push(delta) },
+  );
+
+  assert.deepEqual(attempts, ['groq', 'openrouter']);
+  assert.deepEqual(deltas, ['Fallback']);
+  assert.equal(result.content, 'Fallback');
+});
+
+test('does not splice a fallback response after streaming has started', async () => {
+  let fallbackAttempts = 0;
+  const client = new AgentModelClient('', '');
+  client.models = [
+    modelConfig('groq', 'partial-model', async () => (
+      async function* streamChunks() {
+        yield { choices: [{ delta: { content: 'Partial' } }] };
+        throw new Error('stream interrupted');
+      }()
+    )),
+    modelConfig('openrouter', 'fallback-model', async () => {
+      fallbackAttempts += 1;
+      return (async function* streamChunks() {
+        yield { choices: [{ delta: { content: 'Different answer' } }] };
+      }());
+    }),
+  ];
+
+  await assert.rejects(
+    client.stream(
+      [{ role: 'user', content: 'Hello' }],
+      { onDelta: () => undefined },
+    ),
+    (error) => error instanceof AgentModelError && error.code === 'ALL_PROVIDERS_FAILED',
+  );
+  assert.equal(fallbackAttempts, 0);
+});
+
+test('aborts an active model stream', async () => {
+  const abortController = new AbortController();
+  const deltas = [];
+  const client = new AgentModelClient('', '');
+  client.models = [
+    modelConfig('groq', 'stream-model', async () => (
+      async function* streamChunks() {
+        yield { choices: [{ delta: { content: 'First' } }] };
+        yield { choices: [{ delta: { content: 'Second' } }] };
+      }()
+    )),
+  ];
+
+  await assert.rejects(
+    client.stream(
+      [{ role: 'user', content: 'Hello' }],
+      {
+        signal: abortController.signal,
+        onDelta: (delta) => {
+          deltas.push(delta);
+          abortController.abort();
+        },
+      },
+    ),
+    (error) => error.name === 'AgentModelAbortError',
+  );
+  assert.deepEqual(deltas, ['First']);
+});

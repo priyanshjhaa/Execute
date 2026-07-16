@@ -3,6 +3,7 @@ import { check, index, integer, jsonb, pgTable, text, timestamp, uuid, varchar }
 import { users } from './users';
 
 export type AgentMessageRole = 'user' | 'assistant' | 'system' | 'tool';
+export type AgentRunStatus = 'running' | 'completed' | 'cancelled' | 'failed';
 
 export type AgentMessageContentBlock = {
   type: 'text';
@@ -42,7 +43,24 @@ export const agentMessages = pgTable('agent_messages', {
   roleCheck: check('agent_messages_role_check', sql`${table.role} IN ('user', 'assistant', 'system', 'tool')`),
 }));
 
+export const agentRuns = pgTable('agent_runs', {
+  id: uuid('id').primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  threadId: uuid('thread_id').references(() => agentThreads.id, { onDelete: 'set null' }),
+  status: varchar('status', { length: 20 }).$type<AgentRunStatus>().notNull().default('running'),
+  startedAt: timestamp('started_at').defaultNow().notNull(),
+  completedAt: timestamp('completed_at'),
+  cancelledAt: timestamp('cancelled_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('agent_runs_user_id_idx').on(table.userId),
+  userStatusIdx: index('agent_runs_user_status_idx').on(table.userId, table.status),
+  statusCheck: check('agent_runs_status_check', sql`${table.status} IN ('running', 'completed', 'cancelled', 'failed')`),
+}));
+
 export type AgentThread = typeof agentThreads.$inferSelect;
 export type NewAgentThread = typeof agentThreads.$inferInsert;
 export type AgentMessage = typeof agentMessages.$inferSelect;
 export type NewAgentMessage = typeof agentMessages.$inferInsert;
+export type AgentRun = typeof agentRuns.$inferSelect;
+export type NewAgentRun = typeof agentRuns.$inferInsert;

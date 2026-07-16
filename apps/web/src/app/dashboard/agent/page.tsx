@@ -2,7 +2,7 @@
 
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Bot, Loader2, MessageSquare, Plus, Send } from "lucide-react";
+import { ArrowLeft, Bot, Loader2, MessageSquare, Plus, Send, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +37,13 @@ interface SendMessageResponse {
     assistant: AgentMessage;
   };
 }
+
+type AgentStreamEvent =
+  | { type: "start"; runId: string }
+  | { type: "delta"; delta: string }
+  | ({ type: "done" } & SendMessageResponse)
+  | { type: "cancelled" }
+  | { type: "error"; error: string };
 
 const agentQueryKeys = {
   threads: ["agent", "threads"] as const,
@@ -75,7 +82,11 @@ export default function AgentPage() {
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [mobileConversationOpen, setMobileConversationOpen] = useState(false);
+  const [pendingUserText, setPendingUserText] = useState("");
+  const [streamingText, setStreamingText] = useState("");
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const activeRequestRef = useRef<AbortController | null>(null);
 
   const threadsQuery = useQuery<AgentThread[]>({
     queryKey: agentQueryKeys.threads,
@@ -98,21 +109,85 @@ export default function AgentPage() {
     enabled: !!selectedThreadId,
   });
 
-  const sendMessage = useMutation<SendMessageResponse, Error, string>({
+  const sendMessage = useMutation<SendMessageResponse | null, Error, string>({
     mutationFn: async (message) => {
-      const response = await fetch("/api/agent/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message,
-          ...(selectedThreadId ? { threadId: selectedThreadId } : {}),
-        }),
-      });
+      const runId = crypto.randomUUID();
+      const requestController = new AbortController();
+      activeRequestRef.current = requestController;
+      setActiveRunId(runId);
+      setPendingUserText(message);
+      setStreamingText("");
 
-      if (!response.ok) throw await readError(response, "Failed to send message");
-      return response.json();
+      try {
+        const response = await fetch("/api/agent/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            runId,
+            message,
+            ...(selectedThreadId ? { threadId: selectedThreadId } : {}),
+          }),
+          signal: requestController.signal,
+        });
+
+        if (!response.ok) throw await readError(response, "Failed to send message");
+        if (!response.body) throw new Error("Streaming is unavailable");
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let completedResponse: SendMessageResponse | null = null;
+        let wasCancelled = false;
+
+        const handleLine = (line: string) => {
+          if (!line.trim()) return;
+          const event = JSON.parse(line) as AgentStreamEvent;
+
+          if (event.type === "delta") {
+            setStreamingText((current) => current + event.delta);
+          } else if (event.type === "done") {
+            completedResponse = {
+              thread: event.thread,
+              messages: event.messages,
+            };
+          } else if (event.type === "cancelled") {
+            wasCancelled = true;
+          } else if (event.type === "error") {
+            throw new Error(event.error);
+          }
+        };
+
+        while (true) {
+          const { value, done } = await reader.read();
+          buffer += decoder.decode(value, { stream: !done });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          lines.forEach(handleLine);
+
+          if (done) {
+            if (buffer) handleLine(buffer);
+            break;
+          }
+        }
+
+        if (wasCancelled) return null;
+        if (!completedResponse) throw new Error("Agent stream ended before completion");
+        return completedResponse;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return null;
+        }
+        throw error;
+      } finally {
+        activeRequestRef.current = null;
+        setActiveRunId(null);
+      }
     },
     onSuccess: (data) => {
+      setPendingUserText("");
+      setStreamingText("");
+      if (!data) return;
+
       const threadId = data.thread.id;
       queryClient.setQueryData<AgentMessage[]>(
         agentQueryKeys.messages(threadId),
@@ -122,6 +197,10 @@ export default function AgentPage() {
       setDraft("");
       queryClient.invalidateQueries({ queryKey: agentQueryKeys.threads });
     },
+    onError: () => {
+      setPendingUserText("");
+      setStreamingText("");
+    },
   });
 
   const threads = threadsQuery.data || [];
@@ -130,7 +209,7 @@ export default function AgentPage() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, sendMessage.isPending]);
+  }, [messages.length, sendMessage.isPending, streamingText]);
 
   const startConversation = () => {
     setSelectedThreadId(null);
@@ -157,6 +236,14 @@ export default function AgentPage() {
       event.preventDefault();
       submitMessage();
     }
+  };
+
+  const stopResponse = () => {
+    if (!activeRunId) return;
+
+    void fetch(`/api/agent/runs/${activeRunId}/cancel`, { method: "POST" })
+      .catch(() => undefined);
+    activeRequestRef.current?.abort();
   };
 
   return (
@@ -284,7 +371,7 @@ export default function AgentPage() {
                     Try again
                   </button>
                 </div>
-              ) : messages.length === 0 ? (
+              ) : messages.length === 0 && !sendMessage.isPending ? (
                 <div className="flex h-full flex-col items-center justify-center px-6 text-center">
                   <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5">
                     <Bot className="h-5 w-5 text-white/55" />
@@ -314,11 +401,27 @@ export default function AgentPage() {
                       </div>
                     );
                   })}
-                  {sendMessage.isPending && (
-                    <div className="flex items-center gap-2 text-sm text-white/40">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Thinking...</span>
+                  {sendMessage.isPending && pendingUserText && (
+                    <div className="flex justify-end">
+                      <div className="max-w-[88%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-white/10 px-4 py-2.5 text-sm leading-6 text-white sm:max-w-[78%]">
+                        {pendingUserText}
+                      </div>
                     </div>
+                  )}
+                  {sendMessage.isPending && (
+                    streamingText ? (
+                      <div className="flex justify-start">
+                        <div className="max-w-[88%] whitespace-pre-wrap text-sm leading-6 text-white/75 sm:max-w-[78%]">
+                          {streamingText}
+                          <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-white/50 align-middle" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-sm text-white/40">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Thinking...</span>
+                      </div>
+                    )
                   )}
                   <div ref={messagesEndRef} />
                 </div>
@@ -341,17 +444,27 @@ export default function AgentPage() {
                     disabled={sendMessage.isPending}
                     className="max-h-36 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm leading-6 text-white outline-none placeholder:text-white/30 disabled:opacity-60"
                   />
-                  <Button
-                    type="submit"
-                    size="icon"
-                    disabled={!draft.trim() || sendMessage.isPending}
-                    className="h-10 w-10 shrink-0"
-                    aria-label="Send message"
-                  >
-                    {sendMessage.isPending
-                      ? <Loader2 className="h-4 w-4 animate-spin" />
-                      : <Send className="h-4 w-4" />}
-                  </Button>
+                  {sendMessage.isPending ? (
+                    <Button
+                      type="button"
+                      size="icon"
+                      onClick={stopResponse}
+                      className="h-10 w-10 shrink-0"
+                      aria-label="Stop generating"
+                    >
+                      <Square className="h-3.5 w-3.5 fill-current" />
+                    </Button>
+                  ) : (
+                    <Button
+                      type="submit"
+                      size="icon"
+                      disabled={!draft.trim()}
+                      className="h-10 w-10 shrink-0"
+                      aria-label="Send message"
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
                 <p className="mt-2 text-center text-[11px] text-white/25">
                   Enter to send, Shift + Enter for a new line

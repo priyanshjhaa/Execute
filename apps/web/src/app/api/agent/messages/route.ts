@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { agentMessages, agentThreads, db, users } from '@execute/db';
-import { AgentModelError, createAgentModelClient } from '@execute/llm';
+import { agentMessages, agentRuns, agentThreads, db, users } from '@execute/db';
+import {
+  AgentModelAbortError,
+  AgentModelError,
+  createAgentModelClient,
+} from '@execute/llm';
+import { registerAgentRun, unregisterAgentRun } from '@/lib/agent-run-registry';
 import { createClient } from '@/lib/supabase/server';
 
 const AgentMessageRequestSchema = z.object({
+  runId: z.string().uuid(),
   threadId: z.string().uuid().optional(),
   message: z.string().trim().min(1, 'Message is required').max(4000, 'Message is too long'),
 });
@@ -18,6 +24,16 @@ If the user asks you to perform an action, explain that workspace actions will b
 function buildThreadTitle(message: string): string {
   const normalized = message.replace(/\s+/g, ' ').trim();
   return normalized.length > 80 ? `${normalized.slice(0, 77)}...` : normalized;
+}
+
+function modelErrorMessage(error: unknown): string {
+  if (error instanceof AgentModelError && error.code === 'NO_PROVIDERS') {
+    return 'Agent model is not configured';
+  }
+  if (error instanceof AgentModelError) {
+    return 'Agent model is temporarily unavailable';
+  }
+  return 'Failed to generate a response';
 }
 
 export async function POST(request: NextRequest) {
@@ -56,98 +72,204 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const modelClient = createAgentModelClient();
-    const modelResponse = await modelClient.complete([
-      { role: 'system', content: AGENT_SYSTEM_PROMPT },
-      { role: 'user', content: input.message },
-    ]);
-
-    // Do not leave an empty thread or an unmatched user message when a model
-    // provider fails. Once a response exists, persist the complete exchange in
-    // one transaction so database failures cannot save only half of a turn.
-    const completedAt = new Date();
-    const persisted = await db.transaction(async (tx) => {
-      let thread = ownedThread;
-
-      if (!thread) {
-        [thread] = await tx.insert(agentThreads)
-          .values({
-            userId: internalUser.id,
-            title: buildThreadTitle(input.message),
-          })
-          .returning();
-      }
-
-      if (!thread) {
-        throw new Error('Failed to create agent thread');
-      }
-
-      const [userMessage] = await tx.insert(agentMessages)
-        .values({
-          threadId: thread.id,
-          userId: internalUser.id,
-          role: 'user',
-          content: [{ type: 'text', text: input.message }],
-        })
-        .returning();
-
-      const [assistantMessage] = await tx.insert(agentMessages)
-        .values({
-          threadId: thread.id,
-          userId: internalUser.id,
-          role: 'assistant',
-          content: [{ type: 'text', text: modelResponse.content }],
-          provider: modelResponse.provider,
-          model: modelResponse.model,
-          inputTokens: modelResponse.usage.inputTokens,
-          outputTokens: modelResponse.usage.outputTokens,
-          latencyMs: modelResponse.latencyMs,
-        })
-        .returning();
-
-      await tx.update(agentThreads)
-        .set({ lastMessageAt: completedAt, updatedAt: completedAt })
-        .where(eq(agentThreads.id, thread.id));
-
-      return { thread, userMessage, assistantMessage };
+    await db.insert(agentRuns).values({
+      id: input.runId,
+      userId: internalUser.id,
+      threadId: ownedThread?.id,
+      status: 'running',
     });
 
-    const createdThread = !ownedThread;
+    const modelClient = createAgentModelClient();
+    const runController = registerAgentRun(input.runId, internalUser.id);
+    const abortFromRequest = () => runController.abort();
+    if (request.signal.aborted) {
+      runController.abort();
+    } else {
+      request.signal.addEventListener('abort', abortFromRequest, { once: true });
+    }
 
-    return NextResponse.json({
-      success: true,
-      thread: {
-        id: persisted.thread.id,
-        title: persisted.thread.title,
-        created: createdThread,
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        let pollInFlight = false;
+
+        const sendEvent = (event: Record<string, unknown>) => {
+          if (runController.signal.aborted) {
+            throw new AgentModelAbortError();
+          }
+          try {
+            controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+          } catch {
+            runController.abort();
+            throw new AgentModelAbortError();
+          }
+        };
+
+        const cancellationPoll = setInterval(async () => {
+          if (pollInFlight || runController.signal.aborted) return;
+          pollInFlight = true;
+          try {
+            const [run] = await db.select({ status: agentRuns.status })
+              .from(agentRuns)
+              .where(and(
+                eq(agentRuns.id, input.runId),
+                eq(agentRuns.userId, internalUser.id),
+              ))
+              .limit(1);
+            if (!run || run.status === 'cancelled') {
+              runController.abort();
+            }
+          } catch (error) {
+            console.error('Agent cancellation poll error:', error);
+          } finally {
+            pollInFlight = false;
+          }
+        }, 1000);
+
+        try {
+          sendEvent({ type: 'start', runId: input.runId });
+
+          const modelResponse = await modelClient.stream([
+            { role: 'system', content: AGENT_SYSTEM_PROMPT },
+            { role: 'user', content: input.message },
+          ], {
+            signal: runController.signal,
+            onDelta: (delta) => sendEvent({ type: 'delta', delta }),
+          });
+
+          const completedAt = new Date();
+          const persisted = await db.transaction(async (tx) => {
+            let thread = ownedThread;
+
+            if (!thread) {
+              [thread] = await tx.insert(agentThreads)
+                .values({
+                  userId: internalUser.id,
+                  title: buildThreadTitle(input.message),
+                })
+                .returning();
+            }
+
+            if (!thread) {
+              throw new Error('Failed to create agent thread');
+            }
+
+            const [completedRun] = await tx.update(agentRuns)
+              .set({ status: 'completed', threadId: thread.id, completedAt })
+              .where(and(
+                eq(agentRuns.id, input.runId),
+                eq(agentRuns.userId, internalUser.id),
+                eq(agentRuns.status, 'running'),
+              ))
+              .returning({ id: agentRuns.id });
+
+            if (!completedRun) {
+              throw new AgentModelAbortError();
+            }
+
+            const [userMessage] = await tx.insert(agentMessages)
+              .values({
+                threadId: thread.id,
+                userId: internalUser.id,
+                role: 'user',
+                content: [{ type: 'text', text: input.message }],
+              })
+              .returning();
+
+            const [assistantMessage] = await tx.insert(agentMessages)
+              .values({
+                threadId: thread.id,
+                userId: internalUser.id,
+                role: 'assistant',
+                content: [{ type: 'text', text: modelResponse.content }],
+                provider: modelResponse.provider,
+                model: modelResponse.model,
+                inputTokens: modelResponse.usage.inputTokens,
+                outputTokens: modelResponse.usage.outputTokens,
+                latencyMs: modelResponse.latencyMs,
+              })
+              .returning();
+
+            await tx.update(agentThreads)
+              .set({ lastMessageAt: completedAt, updatedAt: completedAt })
+              .where(eq(agentThreads.id, thread.id));
+
+            return { thread, userMessage, assistantMessage };
+          });
+
+          sendEvent({
+            type: 'done',
+            thread: {
+              id: persisted.thread.id,
+              title: persisted.thread.title,
+              created: !ownedThread,
+            },
+            messages: {
+              user: persisted.userMessage,
+              assistant: persisted.assistantMessage,
+            },
+            usage: {
+              provider: modelResponse.provider,
+              model: modelResponse.model,
+              inputTokens: modelResponse.usage.inputTokens,
+              outputTokens: modelResponse.usage.outputTokens,
+              latencyMs: modelResponse.latencyMs,
+            },
+          });
+        } catch (error) {
+          const cancelled = error instanceof AgentModelAbortError || runController.signal.aborted;
+          const completedAt = new Date();
+
+          await db.update(agentRuns)
+            .set(cancelled
+              ? { status: 'cancelled', cancelledAt: completedAt, completedAt }
+              : { status: 'failed', completedAt })
+            .where(and(
+              eq(agentRuns.id, input.runId),
+              eq(agentRuns.userId, internalUser.id),
+              eq(agentRuns.status, 'running'),
+            ));
+
+          if (!cancelled) {
+            console.error('Agent stream error:', error);
+          }
+
+          try {
+            controller.enqueue(encoder.encode(`${JSON.stringify(cancelled
+              ? { type: 'cancelled' }
+              : { type: 'error', error: modelErrorMessage(error) })}\n`));
+          } catch {
+            // The browser may already have closed its side of the stream.
+          }
+        } finally {
+          clearInterval(cancellationPoll);
+          request.signal.removeEventListener('abort', abortFromRequest);
+          unregisterAgentRun(input.runId, internalUser.id);
+          try {
+            controller.close();
+          } catch {
+            // The stream may already be closed by the browser.
+          }
+        }
       },
-      messages: {
-        user: persisted.userMessage,
-        assistant: persisted.assistantMessage,
+      cancel() {
+        runController.abort();
       },
-      usage: {
-        provider: modelResponse.provider,
-        model: modelResponse.model,
-        inputTokens: modelResponse.usage.inputTokens,
-        outputTokens: modelResponse.usage.outputTokens,
-        latencyMs: modelResponse.latencyMs,
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'application/x-ndjson; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        'X-Accel-Buffering': 'no',
       },
-    }, { status: createdThread ? 201 : 200 });
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({
         error: 'Validation error',
         details: error.errors,
       }, { status: 400 });
-    }
-
-    if (error instanceof AgentModelError) {
-      console.error('Agent model error:', error.message);
-      return NextResponse.json({
-        error: error.code === 'NO_PROVIDERS'
-          ? 'Agent model is not configured'
-          : 'Agent model is temporarily unavailable',
-      }, { status: error.code === 'NO_PROVIDERS' ? 503 : 502 });
     }
 
     const message = error instanceof Error ? error.message : 'Unknown error';

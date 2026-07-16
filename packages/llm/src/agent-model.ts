@@ -21,6 +21,11 @@ export interface AgentModelResponse {
   latencyMs: number;
 }
 
+export interface AgentModelStreamOptions {
+  signal?: AbortSignal;
+  onDelta: (delta: string) => void | Promise<void>;
+}
+
 interface AgentModelConfig {
   provider: 'groq' | 'openrouter';
   model: string;
@@ -34,6 +39,13 @@ export class AgentModelError extends Error {
   ) {
     super(message);
     this.name = 'AgentModelError';
+  }
+}
+
+export class AgentModelAbortError extends Error {
+  constructor() {
+    super('Agent response was cancelled');
+    this.name = 'AgentModelAbortError';
   }
 }
 
@@ -119,6 +131,107 @@ export class AgentModelClient {
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown provider error';
         errors.push(`${config.provider}/${config.model}: ${message}`);
+      }
+    }
+
+    throw new AgentModelError(
+      `All configured agent model providers failed: ${errors.join('; ')}`,
+      'ALL_PROVIDERS_FAILED',
+    );
+  }
+
+  async stream(
+    messages: AgentChatMessage[],
+    options: AgentModelStreamOptions,
+  ): Promise<AgentModelResponse> {
+    if (this.models.length === 0) {
+      throw new AgentModelError(
+        'No agent model provider is configured',
+        'NO_PROVIDERS',
+      );
+    }
+
+    const errors: string[] = [];
+
+    for (const config of this.models) {
+      const startedAt = Date.now();
+      let content = '';
+      let emittedDelta = false;
+      let inputTokens = 0;
+      let outputTokens = 0;
+
+      try {
+        if (options.signal?.aborted) {
+          throw new AgentModelAbortError();
+        }
+
+        const stream = config.provider === 'groq'
+          ? await (config.client as Groq).chat.completions.create({
+              model: config.model,
+              messages,
+              temperature: 0.2,
+              max_tokens: getMaxOutputTokens(),
+              stream: true,
+            }, { signal: options.signal })
+          : await (config.client as OpenAI).chat.completions.create({
+              model: config.model,
+              messages,
+              temperature: 0.2,
+              max_tokens: getMaxOutputTokens(),
+              stream: true,
+              stream_options: { include_usage: true },
+            }, { signal: options.signal });
+
+        for await (const chunk of stream) {
+          if (options.signal?.aborted) {
+            throw new AgentModelAbortError();
+          }
+
+          const delta = chunk.choices[0]?.delta?.content || '';
+          if (delta) {
+            emittedDelta = true;
+            content += delta;
+            await options.onDelta(delta);
+          }
+
+          const usage = 'usage' in chunk
+            ? chunk.usage
+            : ('x_groq' in chunk ? chunk.x_groq?.usage : undefined);
+          if (usage) {
+            inputTokens = usage.prompt_tokens || inputTokens;
+            outputTokens = usage.completion_tokens || outputTokens;
+          }
+        }
+
+        if (options.signal?.aborted) {
+          throw new AgentModelAbortError();
+        }
+
+        const completedContent = content.trim();
+        if (!completedContent) {
+          throw new Error('Model returned an empty response');
+        }
+
+        return {
+          content: completedContent,
+          provider: config.provider,
+          model: config.model,
+          usage: { inputTokens, outputTokens },
+          latencyMs: Date.now() - startedAt,
+        };
+      } catch (error) {
+        if (error instanceof AgentModelAbortError || options.signal?.aborted) {
+          throw new AgentModelAbortError();
+        }
+
+        const message = error instanceof Error ? error.message : 'Unknown provider error';
+        errors.push(`${config.provider}/${config.model}: ${message}`);
+
+        // Once output has reached the user, switching providers would splice two
+        // different answers together. Fallback is only safe before the first delta.
+        if (emittedDelta) {
+          break;
+        }
       }
     }
 

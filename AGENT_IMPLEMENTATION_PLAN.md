@@ -5,10 +5,11 @@ Build the agent through small, independently testable phases. The agent coordina
 ## Current Status
 
 - Phases 1-3 are complete and were stabilized on July 16, 2026.
+- Phase 4 is complete: provider tokens stream to the UI and active runs can be cancelled safely.
 - Successful turns persist the user and assistant messages atomically.
 - Provider failures do not create empty threads or unmatched user messages.
 - Automated tests cover missing configuration, provider fallback, empty responses, output limits, and total provider failure.
-- Phase 4, streaming responses and safe cancellation, is next.
+- Phase 5, memory and context limits, is next.
 
 ## Phase 1: Conversation Storage - Complete and Stabilized
 
@@ -28,7 +29,7 @@ Build the agent through small, independently testable phases. The agent coordina
 - Add thread creation, selection, and conversation UI.
 - Add responsive loading, empty, and error states.
 
-## Phase 4: Streaming Responses
+## Phase 4: Streaming Responses - Complete
 
 - Stream assistant text from the server.
 - Persist completed responses.
