@@ -38,12 +38,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const input = AgentMessageRequestSchema.parse(await request.json());
-    let thread;
-    let createdThread = false;
+    const requestBody = await request.json().catch(() => null);
+    const input = AgentMessageRequestSchema.parse(requestBody);
+    let ownedThread: typeof agentThreads.$inferSelect | undefined;
 
     if (input.threadId) {
-      [thread] = await db.select()
+      [ownedThread] = await db.select()
         .from(agentThreads)
         .where(and(
           eq(agentThreads.id, input.threadId),
@@ -51,32 +51,10 @@ export async function POST(request: NextRequest) {
         ))
         .limit(1);
 
-      if (!thread) {
+      if (!ownedThread) {
         return NextResponse.json({ error: 'Thread not found' }, { status: 404 });
       }
-    } else {
-      [thread] = await db.insert(agentThreads)
-        .values({
-          userId: internalUser.id,
-          title: buildThreadTitle(input.message),
-        })
-        .returning();
-      createdThread = true;
     }
-
-    const now = new Date();
-    const [userMessage] = await db.insert(agentMessages)
-      .values({
-        threadId: thread.id,
-        userId: internalUser.id,
-        role: 'user',
-        content: [{ type: 'text', text: input.message }],
-      })
-      .returning();
-
-    await db.update(agentThreads)
-      .set({ lastMessageAt: now, updatedAt: now })
-      .where(eq(agentThreads.id, thread.id));
 
     const modelClient = createAgentModelClient();
     const modelResponse = await modelClient.complete([
@@ -84,35 +62,68 @@ export async function POST(request: NextRequest) {
       { role: 'user', content: input.message },
     ]);
 
+    // Do not leave an empty thread or an unmatched user message when a model
+    // provider fails. Once a response exists, persist the complete exchange in
+    // one transaction so database failures cannot save only half of a turn.
     const completedAt = new Date();
-    const [assistantMessage] = await db.insert(agentMessages)
-      .values({
-        threadId: thread.id,
-        userId: internalUser.id,
-        role: 'assistant',
-        content: [{ type: 'text', text: modelResponse.content }],
-        provider: modelResponse.provider,
-        model: modelResponse.model,
-        inputTokens: modelResponse.usage.inputTokens,
-        outputTokens: modelResponse.usage.outputTokens,
-        latencyMs: modelResponse.latencyMs,
-      })
-      .returning();
+    const persisted = await db.transaction(async (tx) => {
+      let thread = ownedThread;
 
-    await db.update(agentThreads)
-      .set({ lastMessageAt: completedAt, updatedAt: completedAt })
-      .where(eq(agentThreads.id, thread.id));
+      if (!thread) {
+        [thread] = await tx.insert(agentThreads)
+          .values({
+            userId: internalUser.id,
+            title: buildThreadTitle(input.message),
+          })
+          .returning();
+      }
+
+      if (!thread) {
+        throw new Error('Failed to create agent thread');
+      }
+
+      const [userMessage] = await tx.insert(agentMessages)
+        .values({
+          threadId: thread.id,
+          userId: internalUser.id,
+          role: 'user',
+          content: [{ type: 'text', text: input.message }],
+        })
+        .returning();
+
+      const [assistantMessage] = await tx.insert(agentMessages)
+        .values({
+          threadId: thread.id,
+          userId: internalUser.id,
+          role: 'assistant',
+          content: [{ type: 'text', text: modelResponse.content }],
+          provider: modelResponse.provider,
+          model: modelResponse.model,
+          inputTokens: modelResponse.usage.inputTokens,
+          outputTokens: modelResponse.usage.outputTokens,
+          latencyMs: modelResponse.latencyMs,
+        })
+        .returning();
+
+      await tx.update(agentThreads)
+        .set({ lastMessageAt: completedAt, updatedAt: completedAt })
+        .where(eq(agentThreads.id, thread.id));
+
+      return { thread, userMessage, assistantMessage };
+    });
+
+    const createdThread = !ownedThread;
 
     return NextResponse.json({
       success: true,
       thread: {
-        id: thread.id,
-        title: thread.title,
+        id: persisted.thread.id,
+        title: persisted.thread.title,
         created: createdThread,
       },
       messages: {
-        user: userMessage,
-        assistant: assistantMessage,
+        user: persisted.userMessage,
+        assistant: persisted.assistantMessage,
       },
       usage: {
         provider: modelResponse.provider,

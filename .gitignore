@@ -15,7 +15,6 @@ dist
 .DS_Store
 *.pem
 UI_REFINEMENT_PLAN.md
-AGENT_IMPLEMENTATION_PLAN.md
 
 # Debug
 npm-debug.log*

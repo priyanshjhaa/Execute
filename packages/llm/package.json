@@ -14,7 +14,8 @@
   ],
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "test": "pnpm run build && node --test test/*.test.mjs"
   },
   "dependencies": {
     "@execute/execution": "workspace:*",

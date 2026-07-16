@@ -8,6 +8,7 @@
     "build:web": "pnpm --filter web build",
     "start": "pnpm --filter web start",
     "lint": "pnpm --filter web lint",
+    "test": "pnpm --filter @execute/llm test",
     "db:generate": "pnpm --filter db generate",
     "db:migrate": "pnpm --filter db migrate",
     "db:studio": "pnpm --filter db studio"

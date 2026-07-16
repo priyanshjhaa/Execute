@@ -155,6 +155,11 @@ SLACK_REDIRECT_URI=http://localhost:3000/api/integrations/slack/callback
 GROQ_API_KEY=your-groq-api-key
 OPENROUTER_API_KEY=your-openrouter-api-key
 
+# Agent (Optional overrides)
+AGENT_FAST_MODEL=llama-3.1-8b-instant
+AGENT_OPENROUTER_MODEL=google/gemma-3-4b-it
+AGENT_MAX_OUTPUT_TOKENS=500
+
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
@@ -182,6 +187,7 @@ This scheduler only checks waiting executions and resumes the ones whose `resume
 - `pnpm dev` - Start development server
 - `pnpm build` - Build for production
 - `pnpm lint` - Run linter
+- `pnpm test` - Run automated tests
 - `pnpm --filter <package> build` - Build specific package
 - `pnpm --filter <package> test` - Test specific package
 
