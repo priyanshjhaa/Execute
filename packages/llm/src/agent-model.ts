@@ -26,6 +26,11 @@ export interface AgentModelStreamOptions {
   onDelta: (delta: string) => void | Promise<void>;
 }
 
+export interface AgentModelCompletionOptions {
+  signal?: AbortSignal;
+  maxOutputTokens?: number;
+}
+
 interface AgentModelConfig {
   provider: 'groq' | 'openrouter';
   model: string;
@@ -49,7 +54,10 @@ export class AgentModelAbortError extends Error {
   }
 }
 
-function getMaxOutputTokens(): number {
+function getMaxOutputTokens(override?: number): number {
+  if (override !== undefined && Number.isFinite(override)) {
+    return Math.min(Math.max(Math.trunc(override), 64), 1000);
+  }
   const configured = Number.parseInt(process.env.AGENT_MAX_OUTPUT_TOKENS || '500', 10);
   if (!Number.isFinite(configured)) return 500;
   return Math.min(Math.max(configured, 64), 1000);
@@ -85,7 +93,10 @@ export class AgentModelClient {
     }
   }
 
-  async complete(messages: AgentChatMessage[]): Promise<AgentModelResponse> {
+  async complete(
+    messages: AgentChatMessage[],
+    options: AgentModelCompletionOptions = {},
+  ): Promise<AgentModelResponse> {
     if (this.models.length === 0) {
       throw new AgentModelError(
         'No agent model provider is configured',
@@ -99,19 +110,23 @@ export class AgentModelClient {
       const startedAt = Date.now();
 
       try {
+        if (options.signal?.aborted) {
+          throw new AgentModelAbortError();
+        }
+
         const response = config.provider === 'groq'
           ? await (config.client as Groq).chat.completions.create({
               model: config.model,
               messages,
               temperature: 0.2,
-              max_tokens: getMaxOutputTokens(),
-            })
+              max_tokens: getMaxOutputTokens(options.maxOutputTokens),
+            }, { signal: options.signal })
           : await (config.client as OpenAI).chat.completions.create({
               model: config.model,
               messages,
               temperature: 0.2,
-              max_tokens: getMaxOutputTokens(),
-            });
+              max_tokens: getMaxOutputTokens(options.maxOutputTokens),
+            }, { signal: options.signal });
 
         const content = response.choices[0]?.message?.content?.trim();
         if (!content) {
@@ -129,6 +144,9 @@ export class AgentModelClient {
           latencyMs: Date.now() - startedAt,
         };
       } catch (error) {
+        if (error instanceof AgentModelAbortError || options.signal?.aborted) {
+          throw new AgentModelAbortError();
+        }
         const message = error instanceof Error ? error.message : 'Unknown provider error';
         errors.push(`${config.provider}/${config.model}: ${message}`);
       }

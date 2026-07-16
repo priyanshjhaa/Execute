@@ -15,6 +15,8 @@ export const agentThreads = pgTable('agent_threads', {
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   title: varchar('title', { length: 255 }).notNull().default('New conversation'),
   summary: text('summary'),
+  summaryMessageCount: integer('summary_message_count').notNull().default(0),
+  summaryUpdatedAt: timestamp('summary_updated_at'),
   lastMessageAt: timestamp('last_message_at').defaultNow().notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -22,6 +24,10 @@ export const agentThreads = pgTable('agent_threads', {
   userIdIdx: index('agent_threads_user_id_idx').on(table.userId),
   userLastMessageIdx: index('agent_threads_user_last_message_idx').on(table.userId, table.lastMessageAt),
   lastMessageAtIdx: index('agent_threads_last_message_at_idx').on(table.lastMessageAt),
+  summaryMessageCountCheck: check(
+    'agent_threads_summary_message_count_check',
+    sql`${table.summaryMessageCount} >= 0`,
+  ),
 }));
 
 export const agentMessages = pgTable('agent_messages', {

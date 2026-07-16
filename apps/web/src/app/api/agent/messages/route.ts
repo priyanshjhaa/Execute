@@ -5,15 +5,18 @@ import { agentMessages, agentRuns, agentThreads, db, users } from '@execute/db';
 import {
   AgentModelAbortError,
   AgentModelError,
+  AGENT_MESSAGE_MAX_CHARS,
   createAgentModelClient,
 } from '@execute/llm';
+import { prepareAgentContext } from '@/lib/agent-memory';
 import { registerAgentRun, unregisterAgentRun } from '@/lib/agent-run-registry';
 import { createClient } from '@/lib/supabase/server';
 
 const AgentMessageRequestSchema = z.object({
   runId: z.string().uuid(),
   threadId: z.string().uuid().optional(),
-  message: z.string().trim().min(1, 'Message is required').max(4000, 'Message is too long'),
+  message: z.string().trim().min(1, 'Message is required')
+    .max(AGENT_MESSAGE_MAX_CHARS, 'Message is too long'),
 });
 
 const AGENT_SYSTEM_PROMPT = `You are Execute Agent, the assistant for a workflow automation product.
@@ -129,10 +132,16 @@ export async function POST(request: NextRequest) {
         try {
           sendEvent({ type: 'start', runId: input.runId });
 
-          const modelResponse = await modelClient.stream([
-            { role: 'system', content: AGENT_SYSTEM_PROMPT },
-            { role: 'user', content: input.message },
-          ], {
+          const modelContext = await prepareAgentContext({
+            thread: ownedThread,
+            userId: internalUser.id,
+            currentMessage: input.message,
+            systemPrompt: AGENT_SYSTEM_PROMPT,
+            modelClient,
+            signal: runController.signal,
+          });
+
+          const modelResponse = await modelClient.stream(modelContext, {
             signal: runController.signal,
             onDelta: (delta) => sendEvent({ type: 'delta', delta }),
           });

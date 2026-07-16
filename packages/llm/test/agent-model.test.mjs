@@ -91,6 +91,46 @@ test('clamps configured output tokens to the supported maximum', async () => {
   }
 });
 
+test('supports a bounded completion-token override for summaries', async () => {
+  let request;
+  const client = new AgentModelClient('', '');
+  client.models = [
+    modelConfig('groq', 'summary-model', async (input) => {
+      request = input;
+      return completionResponse('Summary');
+    }),
+  ];
+
+  await client.complete(
+    [{ role: 'user', content: 'Summarize' }],
+    { maxOutputTokens: 700 },
+  );
+
+  assert.equal(request.max_tokens, 700);
+});
+
+test('aborts a non-streaming completion used for summary generation', async () => {
+  const abortController = new AbortController();
+  abortController.abort();
+  let attempts = 0;
+  const client = new AgentModelClient('', '');
+  client.models = [
+    modelConfig('groq', 'summary-model', async () => {
+      attempts += 1;
+      return completionResponse('Summary');
+    }),
+  ];
+
+  await assert.rejects(
+    client.complete(
+      [{ role: 'user', content: 'Summarize' }],
+      { signal: abortController.signal },
+    ),
+    (error) => error.name === 'AgentModelAbortError',
+  );
+  assert.equal(attempts, 0);
+});
+
 test('reports all-provider failure without returning a partial response', async () => {
   const client = new AgentModelClient('', '');
   client.models = [
