@@ -37,23 +37,42 @@ export interface AgentModelResponse {
   model: string;
   usage: AgentModelUsage;
   latencyMs: number;
+  tier: 'fast' | 'reasoning';
+}
+
+export interface AgentModelCallTelemetry {
+  provider: 'groq' | 'openrouter';
+  model: string;
+  usage: AgentModelUsage;
+  latencyMs: number;
+  purpose: 'response' | 'summary';
+  tier: 'fast' | 'reasoning';
 }
 
 export interface AgentModelStreamOptions {
   signal?: AbortSignal;
   onDelta: (delta: string) => void | Promise<void>;
   tools?: AgentToolDefinition[];
+  purpose?: 'response' | 'summary';
+  tier?: 'fast' | 'reasoning';
 }
 
 export interface AgentModelCompletionOptions {
   signal?: AbortSignal;
   maxOutputTokens?: number;
+  purpose?: 'response' | 'summary';
+  tier?: 'fast' | 'reasoning';
 }
 
 interface AgentModelConfig {
   provider: 'groq' | 'openrouter';
   model: string;
   client: Groq | OpenAI;
+  tier: 'fast' | 'reasoning';
+}
+
+interface AgentModelClientOptions {
+  onCallComplete?: (telemetry: AgentModelCallTelemetry) => void | Promise<void>;
 }
 
 export class AgentModelError extends Error {
@@ -119,15 +138,19 @@ function toProviderMessages(messages: AgentChatMessage[]) {
 
 export class AgentModelClient {
   private readonly models: AgentModelConfig[];
+  private readonly reasoningModel?: AgentModelConfig;
+  private readonly onCallComplete?: AgentModelClientOptions['onCallComplete'];
 
-  constructor(groqKey: string, openrouterKey: string) {
+  constructor(groqKey: string, openrouterKey: string, options: AgentModelClientOptions = {}) {
     this.models = [];
+    this.onCallComplete = options.onCallComplete;
 
     if (groqKey) {
       this.models.push({
         provider: 'groq',
         model: process.env.AGENT_FAST_MODEL || process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
         client: new Groq({ apiKey: groqKey }),
+        tier: 'fast',
       });
     }
 
@@ -143,7 +166,57 @@ export class AgentModelClient {
             'X-Title': 'Execute Agent',
           },
         }),
+        tier: 'fast',
       });
+
+      const reasoningModel = process.env.AGENT_REASONING_MODEL?.trim();
+      if (reasoningModel) {
+        this.reasoningModel = {
+          provider: 'openrouter',
+          model: reasoningModel,
+          client: new OpenAI({
+            apiKey: openrouterKey,
+            baseURL: 'https://openrouter.ai/api/v1',
+            defaultHeaders: {
+              'HTTP-Referer': process.env.SITE_URL || 'http://localhost:3000',
+              'X-Title': 'Execute Agent',
+            },
+          }),
+          tier: 'reasoning',
+        };
+      }
+    }
+  }
+
+  hasReasoningModel() {
+    return Boolean(this.reasoningModel);
+  }
+
+  private candidates(tier: 'fast' | 'reasoning' = 'fast') {
+    return tier === 'reasoning' && this.reasoningModel
+      ? [
+          this.reasoningModel,
+          ...this.models.filter((model) => (
+            model.provider !== this.reasoningModel?.provider
+            || model.model !== this.reasoningModel.model
+          )),
+        ]
+      : this.models;
+  }
+
+  private async reportCall(response: AgentModelResponse, purpose: 'response' | 'summary') {
+    if (!this.onCallComplete) return;
+    try {
+      await this.onCallComplete({
+        provider: response.provider,
+        model: response.model,
+        usage: response.usage,
+        latencyMs: response.latencyMs,
+        purpose,
+        tier: response.tier,
+      });
+    } catch (error) {
+      console.error('Agent model usage tracking failed:', error);
     }
   }
 
@@ -160,7 +233,7 @@ export class AgentModelClient {
 
     const errors: string[] = [];
 
-    for (const config of this.models) {
+    for (const config of this.candidates(options.tier)) {
       const startedAt = Date.now();
 
       try {
@@ -187,7 +260,7 @@ export class AgentModelClient {
           throw new Error('Model returned an empty response');
         }
 
-        return {
+        const result: AgentModelResponse = {
           content,
           provider: config.provider,
           model: config.model,
@@ -196,7 +269,10 @@ export class AgentModelClient {
             outputTokens: response.usage?.completion_tokens || 0,
           },
           latencyMs: Date.now() - startedAt,
+          tier: config.tier,
         };
+        await this.reportCall(result, options.purpose || 'response');
+        return result;
       } catch (error) {
         if (error instanceof AgentModelAbortError || options.signal?.aborted) {
           throw new AgentModelAbortError();
@@ -225,7 +301,7 @@ export class AgentModelClient {
 
     const errors: string[] = [];
 
-    for (const config of this.models) {
+    for (const config of this.candidates(options.tier)) {
       const startedAt = Date.now();
       let content = '';
       let emittedDelta = false;
@@ -309,14 +385,17 @@ export class AgentModelClient {
           throw new Error('Model returned an empty response');
         }
 
-        return {
+        const result: AgentModelResponse = {
           content: completedContent,
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           provider: config.provider,
           model: config.model,
           usage: { inputTokens, outputTokens },
           latencyMs: Date.now() - startedAt,
+          tier: config.tier,
         };
+        await this.reportCall(result, options.purpose || 'response');
+        return result;
       } catch (error) {
         if (error instanceof AgentModelAbortError || options.signal?.aborted) {
           throw new AgentModelAbortError();
@@ -340,9 +419,10 @@ export class AgentModelClient {
   }
 }
 
-export function createAgentModelClient(): AgentModelClient {
+export function createAgentModelClient(options: AgentModelClientOptions = {}): AgentModelClient {
   return new AgentModelClient(
     process.env.GROQ_API_KEY || '',
     process.env.OPENROUTER_API_KEY || '',
+    options,
   );
 }

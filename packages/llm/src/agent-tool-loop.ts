@@ -9,7 +9,8 @@ import {
 
 export const AGENT_MAX_TOOL_ROUNDS = 4;
 export const AGENT_MAX_TOOL_CALLS = 8;
-export const AGENT_MAX_TOOL_RESULT_CHARS = 12_000;
+export const AGENT_MAX_TOOL_RESULT_CHARS = 8_000;
+export const AGENT_MAX_TOTAL_TOOL_RESULT_CHARS = 24_000;
 
 export class AgentToolLoopError extends Error {
   constructor(message: string) {
@@ -27,19 +28,29 @@ export interface AgentToolLoopOptions {
   signal?: AbortSignal;
   maxRounds?: number;
   maxToolCalls?: number;
+  maxToolResultChars?: number;
+  maxTotalToolResultChars?: number;
+  tier?: 'fast' | 'reasoning';
 }
 
-function serializeToolResult(result: unknown): string {
-  const serialized = JSON.stringify(result);
-  if (serialized.length <= AGENT_MAX_TOOL_RESULT_CHARS) return serialized;
+function serializeToolResult(result: unknown, maxChars: number): string {
+  if (maxChars <= 0) return '';
+  let serialized: string;
+  try {
+    serialized = JSON.stringify(result) ?? 'null';
+  } catch {
+    serialized = JSON.stringify({ ok: false, error: { code: 'TOOL_RESULT_NOT_SERIALIZABLE' } });
+  }
+  if (serialized.length <= maxChars) return serialized;
 
-  return JSON.stringify({
+  const truncated = JSON.stringify({
     ok: false,
     error: {
-      code: 'TOOL_RESULT_TOO_LARGE',
-      message: 'The tool result was too large to include in model context.',
+      code: 'TOOL_RESULT_TRUNCATED',
+      originalChars: serialized.length,
     },
   });
+  return truncated.length <= maxChars ? truncated : JSON.stringify({ ok: false });
 }
 
 export async function runAgentToolLoop(
@@ -47,17 +58,24 @@ export async function runAgentToolLoop(
 ): Promise<AgentModelResponse> {
   const maxRounds = options.maxRounds ?? AGENT_MAX_TOOL_ROUNDS;
   const maxToolCalls = options.maxToolCalls ?? AGENT_MAX_TOOL_CALLS;
+  const maxTotalToolResultChars = Math.max(128, options.maxTotalToolResultChars ?? AGENT_MAX_TOTAL_TOOL_RESULT_CHARS);
+  const maxToolResultChars = Math.min(
+    maxTotalToolResultChars,
+    Math.max(128, options.maxToolResultChars ?? AGENT_MAX_TOOL_RESULT_CHARS),
+  );
   const messages = [...options.messages];
   let callCount = 0;
   let visibleContent = '';
   let inputTokens = 0;
   let outputTokens = 0;
   let latencyMs = 0;
+  let toolResultChars = 0;
 
   for (let round = 0; round < maxRounds; round += 1) {
     const response = await options.modelClient.stream(messages, {
       signal: options.signal,
       tools: options.tools,
+      tier: options.tier,
       onDelta: async (delta) => {
         visibleContent += delta;
         await options.onDelta(delta);
@@ -105,10 +123,13 @@ export async function runAgentToolLoop(
         };
       }
 
+      const remainingChars = Math.max(0, maxTotalToolResultChars - toolResultChars);
+      const serializedResult = serializeToolResult(result, Math.min(maxToolResultChars, remainingChars));
+      toolResultChars += serializedResult.length;
       messages.push({
         role: 'tool',
         toolCallId: toolCall.id,
-        content: serializeToolResult(result),
+        content: serializedResult,
       });
     }
   }

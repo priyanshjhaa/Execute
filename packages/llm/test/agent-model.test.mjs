@@ -12,10 +12,11 @@ function completionResponse(content, usage = {}) {
   };
 }
 
-function modelConfig(provider, model, create) {
+function modelConfig(provider, model, create, tier = 'fast') {
   return {
     provider,
     model,
+    tier,
     client: { chat: { completions: { create } } },
   };
 }
@@ -51,6 +52,7 @@ test('falls back to OpenRouter when Groq fails', async () => {
   assert.equal(result.model, 'fallback-model');
   assert.deepEqual(result.usage, { inputTokens: 21, outputTokens: 5 });
   assert.ok(result.latencyMs >= 0);
+  assert.equal(result.tier, 'fast');
 });
 
 test('falls back when a provider returns an empty response', async () => {
@@ -185,6 +187,41 @@ test('streams provider deltas and returns the completed response metadata', asyn
   assert.equal(result.content, 'Hello world');
   assert.equal(result.provider, 'openrouter');
   assert.deepEqual(result.usage, { inputTokens: 9, outputTokens: 2 });
+  assert.equal(result.tier, 'fast');
+});
+
+test('records call-level provider, model, usage, latency, purpose, and tier', async () => {
+  const calls = [];
+  const client = new AgentModelClient('', '', { onCallComplete: (call) => calls.push(call) });
+  client.models = [modelConfig('groq', 'summary-model', async () => completionResponse('Summary', { inputTokens: 17, outputTokens: 4 }))];
+  await client.complete([{ role: 'user', content: 'Summarize' }], { purpose: 'summary' });
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].usage, { inputTokens: 17, outputTokens: 4 });
+  assert.equal(calls[0].provider, 'groq');
+  assert.equal(calls[0].model, 'summary-model');
+  assert.equal(calls[0].purpose, 'summary');
+  assert.equal(calls[0].tier, 'fast');
+  assert.ok(calls[0].latencyMs >= 0);
+});
+
+test('tries the reasoning model only when the reasoning tier is requested', async () => {
+  const attempts = [];
+  const client = new AgentModelClient('', '');
+  client.models = [modelConfig('groq', 'fast-model', async () => {
+    attempts.push('fast');
+    return completionResponse('Fast');
+  })];
+  client.reasoningModel = modelConfig('openrouter', 'reasoning-model', async () => {
+    attempts.push('reasoning');
+    return completionResponse('Reasoned');
+  }, 'reasoning');
+
+  const fast = await client.complete([{ role: 'user', content: 'List workflows' }]);
+  const reasoned = await client.complete([{ role: 'user', content: 'Analyze architecture' }], { tier: 'reasoning' });
+  assert.equal(fast.model, 'fast-model');
+  assert.equal(reasoned.model, 'reasoning-model');
+  assert.equal(reasoned.tier, 'reasoning');
+  assert.deepEqual(attempts, ['fast', 'reasoning']);
 });
 
 test('collects streamed tool-call fragments without requiring visible content', async () => {

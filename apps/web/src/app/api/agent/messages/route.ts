@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { agentMessages, agentProposedActions, agentRuns, agentThreads, db, users } from '@execute/db';
+import { agentMessages, agentModelCalls, agentProposedActions, agentRuns, agentThreads, db, users } from '@execute/db';
 import {
   AgentModelAbortError,
   AgentModelError,
   AGENT_MESSAGE_MAX_CHARS,
   createAgentModelClient,
   runAgentToolLoop,
+  selectAgentModelTier,
 } from '@execute/llm';
 import { prepareAgentContext } from '@/lib/agent-memory';
 import { registerAgentRun, unregisterAgentRun } from '@/lib/agent-run-registry';
@@ -33,6 +34,7 @@ import {
   createAgentIntegrationProposalCollector,
 } from '@/lib/agent-integration-proposals';
 import { createClient } from '@/lib/supabase/server';
+import { AgentDailyUsageLimitError, recordAgentModelCall, reserveAgentDailyRequest } from '@/lib/agent-usage';
 
 const AgentMessageRequestSchema = z.object({
   runId: z.string().uuid(),
@@ -121,6 +123,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    await reserveAgentDailyRequest(internalUser.id);
+
     await db.insert(agentRuns).values({
       id: input.runId,
       userId: internalUser.id,
@@ -128,7 +132,20 @@ export async function POST(request: NextRequest) {
       status: 'running',
     });
 
-    const modelClient = createAgentModelClient();
+    let modelCallSequence = 0;
+    const modelClient = createAgentModelClient({
+      onCallComplete: async (call) => {
+        modelCallSequence += 1;
+        await recordAgentModelCall({
+          userId: internalUser.id,
+          runId: input.runId,
+          threadId: ownedThread?.id || null,
+          sequence: modelCallSequence,
+          call,
+        });
+      },
+    });
+    const modelTier = selectAgentModelTier(input.message, modelClient.hasReasoningModel());
     const runController = registerAgentRun(input.runId, internalUser.id);
     const abortFromRequest = () => runController.abort();
     if (request.signal.aborted) {
@@ -201,6 +218,7 @@ export async function POST(request: NextRequest) {
             modelClient,
             tools: AGENT_TOOLS,
             signal: runController.signal,
+            tier: modelTier,
             onDelta: (delta) => sendEvent({ type: 'delta', delta }),
             executeTool: (toolCall) => {
               if (workflowProposalCollector.handles(toolCall.name)) {
@@ -301,6 +319,13 @@ export async function POST(request: NextRequest) {
               .set({ lastMessageAt: completedAt, updatedAt: completedAt })
               .where(eq(agentThreads.id, thread.id));
 
+            await tx.update(agentModelCalls)
+              .set({ threadId: thread.id })
+              .where(and(
+                eq(agentModelCalls.runId, input.runId),
+                eq(agentModelCalls.userId, internalUser.id),
+              ));
+
             return { thread, userMessage, assistantMessage, proposedActions };
           });
 
@@ -322,6 +347,8 @@ export async function POST(request: NextRequest) {
               inputTokens: modelResponse.usage.inputTokens,
               outputTokens: modelResponse.usage.outputTokens,
               latencyMs: modelResponse.latencyMs,
+              tier: modelResponse.tier,
+              modelCalls: modelCallSequence,
             },
           });
         } catch (error) {
@@ -373,6 +400,16 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof AgentDailyUsageLimitError) {
+      return NextResponse.json({
+        error: error.message,
+        limit: error.limit,
+        retryAfterSeconds: error.retryAfterSeconds,
+      }, {
+        status: 429,
+        headers: { 'Retry-After': String(error.retryAfterSeconds) },
+      });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({
         error: 'Validation error',

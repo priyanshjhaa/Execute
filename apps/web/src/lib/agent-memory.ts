@@ -14,6 +14,7 @@ import {
   resolveAgentContextTokenLimit,
   selectAgentSummaryBatch,
 } from '@execute/llm';
+import { getCompactWorkspaceContext } from '@/lib/agent-workspace-context';
 
 interface PrepareAgentContextInput {
   thread: typeof agentThreads.$inferSelect | undefined;
@@ -35,10 +36,19 @@ export async function prepareAgentContext(input: PrepareAgentContextInput) {
   const maxContextTokens = resolveAgentContextTokenLimit(
     process.env.AGENT_MAX_CONTEXT_TOKENS,
   );
+  let workspaceContext = '';
+  try {
+    workspaceContext = await getCompactWorkspaceContext(input.userId);
+  } catch (error) {
+    console.error('Agent workspace context cache error:', error);
+  }
+  const systemPrompt = workspaceContext
+    ? `${input.systemPrompt}\n\n${workspaceContext}`
+    : input.systemPrompt;
 
   if (!input.thread) {
     return buildAgentContext({
-      systemPrompt: input.systemPrompt,
+      systemPrompt,
       recentMessages: [],
       currentMessage: input.currentMessage,
       maxTokens: maxContextTokens,
@@ -108,6 +118,7 @@ export async function prepareAgentContext(input: PrepareAgentContextInput) {
         {
           signal: input.signal,
           maxOutputTokens: AGENT_SUMMARY_MAX_TOKENS,
+          purpose: 'summary',
         },
       );
       const nextSummary = capAgentSummary(summaryResponse.content);
@@ -158,7 +169,7 @@ export async function prepareAgentContext(input: PrepareAgentContextInput) {
     }));
 
   return buildAgentContext({
-    systemPrompt: input.systemPrompt,
+    systemPrompt,
     summary,
     recentMessages,
     currentMessage: input.currentMessage,

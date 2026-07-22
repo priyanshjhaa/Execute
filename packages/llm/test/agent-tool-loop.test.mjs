@@ -101,3 +101,53 @@ test('stops a model that repeatedly requests tools', async () => {
     (error) => error instanceof AgentToolLoopError,
   );
 });
+
+test('replaces an oversized tool result with bounded metadata', async () => {
+  const requests = [];
+  let round = 0;
+  const modelClient = {
+    async stream(messages) {
+      requests.push(messages);
+      round += 1;
+      return round === 1
+        ? { content: '', toolCalls: [{ id: 'large', name: 'get_execution', arguments: '{}' }], provider: 'groq', model: 'fast', tier: 'fast', usage: { inputTokens: 1, outputTokens: 1 }, latencyMs: 1 }
+        : { content: 'Done', provider: 'groq', model: 'fast', tier: 'fast', usage: { inputTokens: 1, outputTokens: 1 }, latencyMs: 1 };
+    },
+  };
+  await runAgentToolLoop({
+    messages: [{ role: 'user', content: 'Inspect' }], modelClient, tools,
+    onDelta: () => undefined,
+    executeTool: async () => ({ records: 'x'.repeat(2_000) }),
+    maxToolResultChars: 200,
+  });
+  const toolMessage = requests[1].find((message) => message.role === 'tool');
+  assert.ok(toolMessage.content.length <= 200);
+  assert.equal(JSON.parse(toolMessage.content).error.code, 'TOOL_RESULT_TRUNCATED');
+});
+
+test('enforces a cumulative tool-output budget across calls', async () => {
+  const requests = [];
+  let round = 0;
+  const modelClient = {
+    async stream(messages) {
+      requests.push(messages);
+      round += 1;
+      return round === 1
+        ? { content: '', toolCalls: [
+            { id: 'one', name: 'get_execution', arguments: '{}' },
+            { id: 'two', name: 'get_execution', arguments: '{}' },
+          ], provider: 'groq', model: 'fast', tier: 'fast', usage: { inputTokens: 1, outputTokens: 1 }, latencyMs: 1 }
+        : { content: 'Done', provider: 'groq', model: 'fast', tier: 'fast', usage: { inputTokens: 1, outputTokens: 1 }, latencyMs: 1 };
+    },
+  };
+  await runAgentToolLoop({
+    messages: [{ role: 'user', content: 'Inspect' }], modelClient, tools,
+    onDelta: () => undefined,
+    executeTool: async () => ({ records: 'x'.repeat(2_000) }),
+    maxToolResultChars: 150,
+    maxTotalToolResultChars: 200,
+  });
+  const total = requests[1].filter((message) => message.role === 'tool')
+    .reduce((sum, message) => sum + message.content.length, 0);
+  assert.ok(total <= 200);
+});

@@ -18,6 +18,7 @@ Build the agent through small, independently testable phases. The agent coordina
 - Phase 11 is complete: the agent can search contacts and apply confirmed contact creation, editing, and status changes with case-insensitive email uniqueness.
 - Phase 12 is complete: integration status and OAuth guidance are tenant-scoped, public responses exclude secrets, and disconnection requires explicit approval.
 - Phase 13 is complete: the scheduler creates deduplicated, classified failure findings with non-executing repair guidance and a tenant-scoped Needs Attention inbox.
+- Phase 14 is complete: model calls have detailed usage telemetry, compact workspace context is cached, daily/tool-output budgets are enforced, and reasoning escalation is complexity-gated.
 
 ## Phase 1: Conversation Storage - Complete and Stabilized
 
@@ -106,12 +107,12 @@ Build the agent through small, independently testable phases. The agent coordina
 - Propose repairs without executing them. - Complete
 - Add a Needs Attention inbox and sidebar badge. - Complete
 
-## Phase 14: Cost Controls
+## Phase 14: Cost Controls - Complete
 
-- Track token usage, provider, model, and latency.
-- Cache compact workspace context.
-- Truncate tool output and enforce daily limits.
-- Escalate to a reasoning model only when necessary.
+- Track token usage, provider, model, and latency. - Complete
+- Cache compact workspace context. - Complete
+- Truncate tool output and enforce daily limits. - Complete
+- Escalate to a reasoning model only when necessary. - Complete
 
 ## Phase 15: Security and Release
 
