@@ -47,7 +47,7 @@ export async function POST(
     }
 
     // Removed status check to allow running workflows in draft mode for testing
-    if (await hasActiveExecution(workflow.id)) {
+    if (await hasActiveExecution(workflow.id, internalUser.id)) {
       return NextResponse.json({ error: 'Workflow is already running' }, { status: 409 });
     }
 

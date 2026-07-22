@@ -2,6 +2,7 @@
 
 import { FormEvent, Fragment, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { ArrowLeft, Bot, Check, ChevronRight, Clock3, GitCompareArrows, Loader2, MessageSquare, Plus, Send, ShieldCheck, Square, Workflow as WorkflowIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,10 @@ interface AgentProposedAction {
   status: AgentActionStatus;
   expiresAt: string;
   decidedAt: string | null;
+  executionStartedAt?: string | null;
+  executionCompletedAt?: string | null;
+  result?: Record<string, unknown> | null;
+  errorMessage?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -51,6 +56,7 @@ interface AgentConversation {
 interface AgentActionDecisionResponse {
   action: AgentProposedAction;
   idempotent: boolean;
+  executionHandled?: boolean;
 }
 
 interface SendMessageResponse {
@@ -219,6 +225,63 @@ function WorkflowProposalPreview({ action }: { action: AgentProposedAction }) {
   );
 }
 
+function ExecutionProposalPreview({ action }: { action: AgentProposedAction }) {
+  if (!['workflow.run', 'execution.cancel', 'execution.retry'].includes(action.actionType)) {
+    return null;
+  }
+  const workflowName = typeof action.payload.workflowName === "string"
+    ? action.payload.workflowName
+    : "Workflow execution";
+  const sourceExecutionId = typeof action.payload.executionId === "string"
+    ? action.payload.executionId
+    : null;
+  const result = asRecord(action.result);
+  const resultExecutionId = typeof result?.executionId === "string" ? result.executionId : sourceExecutionId;
+  const href = typeof result?.href === "string"
+    ? result.href
+    : resultExecutionId ? `/dashboard/executions/${resultExecutionId}` : null;
+  const resultStatus = typeof result?.status === "string" ? result.status : null;
+  const verb = action.actionType === "workflow.run"
+    ? "Run workflow"
+    : action.actionType === "execution.cancel" ? "Cancel execution" : "Retry failed execution";
+
+  return (
+    <div className="mt-4 border-y border-white/[0.07] py-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-white/30">{verb}</p>
+          <p className="mt-1 text-xs font-medium text-white/70">{workflowName}</p>
+        </div>
+        {sourceExecutionId && (
+          <span className="font-mono text-[9px] text-white/25">{sourceExecutionId.slice(0, 8)}</span>
+        )}
+      </div>
+
+      {(action.status === "completed" || action.status === "failed") && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/[0.07] bg-black/30 px-3 py-2.5">
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-white/30">Execution receipt</p>
+            <p className={cn(
+              "mt-1 text-xs font-medium",
+              action.status === "failed" ? "text-rose-200/70" : "text-emerald-100/70",
+            )}>
+              {action.status === "failed" ? action.errorMessage || "Action failed" : resultStatus?.replaceAll("_", " ") || "Completed"}
+            </p>
+          </div>
+          {href && (
+            <Link
+              href={href}
+              className="rounded-full border border-white/10 px-3 py-1.5 text-[11px] font-medium text-white/60 transition-colors hover:border-white/20 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+            >
+              View execution
+            </Link>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function actionStatusCopy(action: AgentProposedAction) {
   if (action.status === "pending") {
     return {
@@ -293,6 +356,7 @@ function AgentActionCard({
   const status = actionStatusCopy(action);
   const details = Object.entries(action.payload).slice(0, 4);
   const isWorkflowProposal = action.actionType === "workflow.create" || action.actionType === "workflow.update";
+  const isExecutionProposal = ['workflow.run', 'execution.cancel', 'execution.retry'].includes(action.actionType);
 
   return (
     <div className={cn("relative w-full max-w-xl overflow-hidden rounded-xl border", status.tone)}>
@@ -317,8 +381,9 @@ function AgentActionCard({
         )}
 
         {isWorkflowProposal && <WorkflowProposalPreview action={action} />}
+        {isExecutionProposal && <ExecutionProposalPreview action={action} />}
 
-        {!isWorkflowProposal && details.length > 0 && (
+        {!isWorkflowProposal && !isExecutionProposal && details.length > 0 && (
           <dl className="mt-4 divide-y divide-white/[0.07] border-y border-white/[0.07]">
             {details.map(([key, value]) => (
               <div key={key} className="grid grid-cols-[minmax(0,0.38fr)_minmax(0,0.62fr)] gap-3 py-2 text-xs leading-5">

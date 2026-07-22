@@ -87,6 +87,10 @@ export const agentProposedActions = pgTable('agent_proposed_actions', {
   decidedAt: timestamp('decided_at'),
   approvedAt: timestamp('approved_at'),
   rejectedAt: timestamp('rejected_at'),
+  executionStartedAt: timestamp('execution_started_at'),
+  executionCompletedAt: timestamp('execution_completed_at'),
+  result: jsonb('result').$type<Record<string, unknown>>(),
+  errorMessage: text('error_message'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({

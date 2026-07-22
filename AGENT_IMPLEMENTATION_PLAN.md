@@ -13,6 +13,7 @@ Build the agent through small, independently testable phases. The agent coordina
 - Automated tests cover missing configuration, provider fallback, empty responses, output limits, and total provider failure.
 - Phase 7 is complete: proposed actions are tenant-scoped, expire safely, handle repeated decisions idempotently, and render as confirmation cards in Agent conversations.
 - Phase 8 is in progress: the agent can generate, validate, and display workflow creation and update proposals without applying them.
+- Phase 9 is complete: confirmed execution proposals run through the existing executor, support cancellation and retry, and return linked execution receipts.
 
 ## Phase 1: Conversation Storage - Complete and Stabilized
 
@@ -70,11 +71,11 @@ Build the agent through small, independently testable phases. The agent coordina
 - Create and update workflow definitions after confirmation.
 - Activate or archive workflows after confirmation.
 
-## Phase 9: Workflow Execution
+## Phase 9: Workflow Execution - Complete
 
-- Run workflows through the existing executor after confirmation.
-- Cancel or retry executions.
-- Report and link execution results.
+- Run workflows through the existing executor after confirmation. - Complete
+- Cancel or retry executions. - Complete
+- Report and link execution results. - Complete
 
 ## Phase 10: Forms
 

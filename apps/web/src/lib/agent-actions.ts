@@ -177,6 +177,10 @@ export async function listAgentProposedActionsForThread(userId: string, threadId
     status: agentProposedActions.status,
     expiresAt: agentProposedActions.expiresAt,
     decidedAt: agentProposedActions.decidedAt,
+    executionStartedAt: agentProposedActions.executionStartedAt,
+    executionCompletedAt: agentProposedActions.executionCompletedAt,
+    result: agentProposedActions.result,
+    errorMessage: agentProposedActions.errorMessage,
     createdAt: agentProposedActions.createdAt,
     updatedAt: agentProposedActions.updatedAt,
   }).from(agentProposedActions)

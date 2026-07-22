@@ -4,6 +4,7 @@ import { db, users } from '@execute/db';
 import type { AgentActionDecision } from '@execute/llm';
 import { z } from 'zod';
 import { decideAgentProposedAction } from '@/lib/agent-actions';
+import { executeApprovedAgentAction } from '@/lib/agent-action-executor';
 import { createClient } from '@/lib/supabase/server';
 
 interface AgentActionRouteContext {
@@ -53,9 +54,14 @@ export async function handleAgentActionDecision(
       }, { status: 409 });
     }
 
+    const execution = decision === 'approve'
+      ? await executeApprovedAgentAction(internalUser.id, result.action.id)
+      : null;
+
     return NextResponse.json({
-      action: result.action,
+      action: execution?.action || result.action,
       idempotent: result.kind === 'already_applied',
+      executionHandled: execution?.handled || false,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

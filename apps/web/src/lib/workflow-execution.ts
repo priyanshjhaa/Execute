@@ -36,12 +36,13 @@ function generateId(): string {
   return crypto.randomUUID()
 }
 
-export async function hasActiveExecution(workflowId: string) {
+export async function hasActiveExecution(workflowId: string, userId: string) {
   const [activeExecution] = await db.select()
     .from(executions)
     .where(
       and(
         eq(executions.workflowId, workflowId),
+        eq(executions.userId, userId),
         inArray(executions.status, ['running', 'waiting'])
       )
     )

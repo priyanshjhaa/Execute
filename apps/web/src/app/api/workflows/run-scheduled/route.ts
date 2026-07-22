@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
         continue
       }
 
-      if (await hasActiveExecution(workflow.id)) {
+      if (await hasActiveExecution(workflow.id, workflow.userId)) {
         results.push({
           workflowId: workflow.id,
           workflowName: workflow.name,
