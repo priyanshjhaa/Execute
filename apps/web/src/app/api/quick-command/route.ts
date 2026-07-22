@@ -4,6 +4,7 @@ import { db, quickCommands, loggedEvents, users, contacts } from '@execute/db';
 import { eq, and, desc, count, or, like, sql } from 'drizzle-orm';
 import { createQuickCommandParser } from '@execute/llm';
 import { Resend } from 'resend';
+import { resolveAgentFeaturePolicy } from '@execute/llm';
 
 // Initialize Resend if API key is available
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
@@ -23,6 +24,14 @@ export async function POST(request: NextRequest) {
 
     if (!internalUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const releasePolicy = resolveAgentFeaturePolicy();
+    if (releasePolicy.agentEnabled && releasePolicy.releaseMode === 'general') {
+      return NextResponse.json({
+        error: 'Quick Commands have moved to Execute Agent.',
+        agentHref: '/dashboard/agent',
+      }, { status: 410 });
     }
 
     // Get input

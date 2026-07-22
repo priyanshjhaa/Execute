@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, Clock, Eye, Play, Plus, Loader2, Edit } from "lucide-react";
+import { Bot, CheckCircle2, XCircle, Clock, Eye, Play, Plus, Loader2, Edit } from "lucide-react";
 import { useWorkflows, type Workflow } from "@/lib/query/hooks";
+import { useQuery } from "@tanstack/react-query";
 
 function getStatusIcon(status: string) {
   switch (status) {
@@ -71,6 +72,15 @@ function getTriggerHint(triggerType: string) {
 
 export default function WorkflowsPage() {
   const { data: workflows = [], isLoading: loading } = useWorkflows();
+  const agentAccess = useQuery<{ agent: boolean }>({
+    queryKey: ["agent-feature-access"],
+    queryFn: async () => {
+      const response = await fetch('/api/agent/access');
+      if (!response.ok) return { agent: false };
+      return response.json();
+    },
+    staleTime: 60_000,
+  });
 
   return (
     <div className="min-h-screen bg-black">
@@ -82,15 +92,28 @@ export default function WorkflowsPage() {
               <h1 className="text-3xl font-bold text-white mb-2">Workflows</h1>
               <p className="text-white/50">Manage all your automation workflows</p>
             </div>
-            <Link href="/dashboard/workflows/new">
-              <Button
-                size="lg"
-                className="btn-gradient w-full rounded-full px-6 py-5 text-base text-black sm:w-auto"
-              >
-                <Plus className="mr-2 h-5 w-5" />
-                Create Workflow
-              </Button>
-            </Link>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              {agentAccess.data?.agent && (
+                <Link href="/dashboard/agent?prompt=Create%20a%20new%20workflow%20for%20me">
+                  <Button size="lg" className="btn-gradient w-full rounded-full px-6 py-5 text-base text-black sm:w-auto">
+                    <Bot className="mr-2 h-5 w-5" />
+                    Create with Agent
+                  </Button>
+                </Link>
+              )}
+              <Link href="/dashboard/workflows/new">
+                <Button
+                  size="lg"
+                  variant={agentAccess.data?.agent ? "outline" : "default"}
+                  className={agentAccess.data?.agent
+                    ? "w-full rounded-full border-white/15 bg-transparent px-6 py-5 text-base text-white hover:bg-white/5 sm:w-auto"
+                    : "btn-gradient w-full rounded-full px-6 py-5 text-base text-black sm:w-auto"}
+                >
+                  <Plus className="mr-2 h-5 w-5" />
+                  {agentAccess.data?.agent ? "Advanced builder" : "Create Workflow"}
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -108,10 +131,10 @@ export default function WorkflowsPage() {
             </div>
             <h3 className="text-xl font-semibold text-white mb-2">No workflows yet</h3>
             <p className="text-white/40 mb-6">Create your first workflow to get started</p>
-            <Link href="/dashboard/workflows/new">
+            <Link href={agentAccess.data?.agent ? "/dashboard/agent?prompt=Create%20my%20first%20workflow" : "/dashboard/workflows/new"}>
               <Button className="bg-white/10 hover:bg-white/15 text-white border-white/20">
-                <Plus className="mr-2 h-4 w-4" />
-                Create Workflow
+                {agentAccess.data?.agent ? <Bot className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
+                {agentAccess.data?.agent ? "Create with Agent" : "Create Workflow"}
               </Button>
             </Link>
           </div>

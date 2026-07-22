@@ -1,10 +1,11 @@
-import { and, asc, desc, eq, ilike, or } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, or, sql } from 'drizzle-orm';
 import {
   contacts,
   db,
   executionLogs,
   executions,
   forms,
+  loggedEvents,
   steps,
   userIntegrations,
   workflows,
@@ -73,7 +74,45 @@ const GetIntegrationOAuthGuideSchema = z.object({
   type: z.enum(['slack', 'google-sheets', 'google-calendar', 'notion']),
 }).strict();
 
+const ListEventsSchema = z.object({
+  eventType: z.string().trim().min(1).max(50).optional(),
+  query: z.string().trim().min(1).max(200).optional(),
+  limit: z.number().int().min(1).max(50).default(20),
+}).strict();
+
+const SummarizeEventsSchema = z.object({
+  eventType: z.string().trim().min(1).max(50).optional(),
+}).strict();
+
 export const AGENT_READ_ONLY_TOOLS: AgentToolDefinition[] = [
+  {
+    type: 'function',
+    function: {
+      name: 'list_logged_events',
+      description: 'List tenant-owned expenses, clients, tasks, notes, and other previously logged events. This tool is read-only.',
+      parameters: {
+        type: 'object',
+        properties: {
+          eventType: { type: 'string', minLength: 1, maxLength: 50 },
+          query: { type: 'string', minLength: 1, maxLength: 200 },
+          limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'summarize_logged_events',
+      description: 'Return a tenant-scoped count and expense total for logged events, optionally filtered by event type. This tool is read-only.',
+      parameters: {
+        type: 'object',
+        properties: { eventType: { type: 'string', minLength: 1, maxLength: 50 } },
+        additionalProperties: false,
+      },
+    },
+  },
   {
     type: 'function',
     function: {
@@ -345,6 +384,40 @@ async function listIntegrations(userId: string, args: z.infer<typeof ListIntegra
     .orderBy(desc(userIntegrations.updatedAt))
     .limit(args.limit);
   return { ok: true, integrations: rows.map(sanitizeIntegration) };
+}
+
+async function listLoggedEvents(userId: string, args: z.infer<typeof ListEventsSchema>) {
+  const filters = [eq(loggedEvents.userId, userId)];
+  if (args.eventType) filters.push(eq(loggedEvents.eventType, args.eventType));
+  if (args.query) filters.push(ilike(loggedEvents.title, `%${args.query}%`));
+  const events = await db.select({
+    id: loggedEvents.id,
+    eventType: loggedEvents.eventType,
+    title: loggedEvents.title,
+    data: loggedEvents.data,
+    createdAt: loggedEvents.createdAt,
+  }).from(loggedEvents)
+    .where(and(...filters))
+    .orderBy(desc(loggedEvents.createdAt))
+    .limit(args.limit);
+  return { ok: true, events };
+}
+
+async function summarizeLoggedEvents(userId: string, args: z.infer<typeof SummarizeEventsSchema>) {
+  const filters = [eq(loggedEvents.userId, userId)];
+  if (args.eventType) filters.push(eq(loggedEvents.eventType, args.eventType));
+  const [summary] = await db.select({
+    count: count(),
+    expenseTotal: sql<number>`coalesce(sum(case when ${loggedEvents.eventType} = 'expense' and (${loggedEvents.data}->>'amount') ~ '^-?[0-9]+(\.[0-9]+)?$' then (${loggedEvents.data}->>'amount')::numeric else 0 end), 0)`,
+  }).from(loggedEvents).where(and(...filters));
+  return {
+    ok: true,
+    summary: {
+      eventType: args.eventType || 'all',
+      count: Number(summary?.count || 0),
+      expenseTotal: Number(summary?.expenseTotal || 0),
+    },
+  };
 }
 
 async function getIntegration(userId: string, integrationId: string) {
@@ -668,6 +741,14 @@ async function diagnoseFailedExecution(userId: string, executionId: string) {
 
 export async function executeAgentReadOnlyTool(userId: string, toolCall: AgentToolCall) {
   switch (toolCall.name) {
+    case 'list_logged_events': {
+      const args = parseArguments(toolCall, ListEventsSchema);
+      return isToolError(args) ? args : listLoggedEvents(userId, args);
+    }
+    case 'summarize_logged_events': {
+      const args = parseArguments(toolCall, SummarizeEventsSchema);
+      return isToolError(args) ? args : summarizeLoggedEvents(userId, args);
+    }
     case 'list_integrations': {
       const args = parseArguments(toolCall, ListIntegrationsSchema);
       return isToolError(args) ? args : listIntegrations(userId, args);

@@ -1,10 +1,22 @@
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
-import { agentProposedActions, contacts, db, executions, forms, userIntegrations, users, workflows } from '@execute/db';
-import { getAgentActionExecutionDisposition, isAgentContactActionType, isAgentExecutionActionType, isAgentFormActionType, isAgentIntegrationActionType } from '@execute/llm';
+import { agentProposedActions, contacts, db, executions, forms, loggedEvents, userIntegrations, users, workflows } from '@execute/db';
+import {
+  getAgentActionExecutionDisposition,
+  isAgentContactActionType,
+  isAgentExecutionActionType,
+  isAgentFormActionType,
+  isAgentIntegrationActionType,
+  isAgentQuickActionType,
+  isAgentWorkflowActionType,
+  WorkflowSchema,
+} from '@execute/llm';
+import { createDefaultContext, WorkflowValidator } from '@execute/validation';
 import { z } from 'zod';
 import { ContactDefinitionSchema, isContactEmailConflict } from '@/lib/contact-definition';
 import { CreateFormInputSchema } from '@/lib/form-definition';
 import { executeWorkflow, hasActiveExecution } from '@/lib/workflow-execution';
+import { buildScheduleExpression } from '@/lib/schedule';
+import { Resend } from 'resend';
 
 const RunPayloadSchema = z.object({
   workflowId: z.string().uuid(),
@@ -49,7 +61,207 @@ const IntegrationDisconnectPayloadSchema = z.object({
   expectedUpdatedAt: z.string().datetime(),
 }).passthrough();
 
+const WorkflowSnapshotSchema = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().trim().min(1).max(255),
+  description: z.string().max(4_000).optional().nullable(),
+  status: z.enum(['draft', 'active', 'archived']),
+  triggerType: z.string().trim().min(1).max(50),
+  triggerConfig: z.record(z.string(), z.unknown()),
+  scheduleExpression: z.string().max(255).nullable(),
+  definition: z.object({
+    steps: WorkflowSchema.shape.steps,
+    triggerStepId: z.string().uuid(),
+  }).strict(),
+  updatedAt: z.string().datetime().optional(),
+}).passthrough();
+
+const WorkflowActionPayloadSchema = z.object({
+  operation: z.enum(['create', 'update']),
+  workflowId: z.string().uuid().optional(),
+  before: WorkflowSnapshotSchema.optional(),
+  after: WorkflowSnapshotSchema,
+}).passthrough();
+
+const ScheduleTriggerSchema = z.object({
+  frequency: z.enum(['daily', 'weekly', 'monthly']),
+  day: z.string().trim().min(1).max(20).optional(),
+  time: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
+  timezone: z.string().trim().min(1).max(100),
+}).passthrough();
+
+const EventLogPayloadSchema = z.object({
+  operation: z.literal('log'),
+  eventType: z.enum(['expense', 'client', 'task', 'note', 'other']),
+  title: z.string().trim().min(1).max(255),
+  data: z.record(z.string(), z.unknown()).default({}),
+}).passthrough();
+
+const EmailSendPayloadSchema = z.object({
+  operation: z.literal('send'),
+  recipient: z.string().trim().email().max(320),
+  subject: z.string().trim().min(1).max(255),
+  body: z.string().trim().min(1).max(10_000),
+}).passthrough();
+
 class AgentActionExecutionError extends Error {}
+
+function isValidTimeZone(value: string) {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value }).format();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function validateWorkflowForExecution(userId: string, snapshot: z.output<typeof WorkflowSnapshotSchema>) {
+  const workflow = WorkflowSchema.parse({
+    name: snapshot.name,
+    description: snapshot.description || undefined,
+    steps: snapshot.definition.steps,
+    triggerStepId: snapshot.definition.triggerStepId,
+  });
+  const triggerStep = workflow.steps.find((step) => step.id === workflow.triggerStepId);
+  if (!triggerStep || triggerStep.type !== snapshot.triggerType) {
+    throw new AgentActionExecutionError('The workflow trigger metadata does not match its definition.');
+  }
+  if (snapshot.status === 'archived') {
+    return { workflow, scheduleExpression: snapshot.scheduleExpression };
+  }
+
+  let scheduleExpression: string | null = null;
+  if (snapshot.triggerType === 'schedule') {
+    const schedule = ScheduleTriggerSchema.safeParse(snapshot.triggerConfig);
+    if (!schedule.success || !isValidTimeZone(schedule.data.timezone)) {
+      throw new AgentActionExecutionError('The scheduled workflow requires a valid time and IANA timezone.');
+    }
+    scheduleExpression = buildScheduleExpression(schedule.data);
+  }
+
+  const integrations = await db.select({
+    id: userIntegrations.id,
+    type: userIntegrations.type,
+    isActive: userIntegrations.isActive,
+  }).from(userIntegrations).where(eq(userIntegrations.userId, userId));
+  const activeIntegrations = integrations.filter((integration) => integration.isActive);
+  const context = createDefaultContext();
+  context.integrations = {
+    ...context.integrations,
+    ...Object.fromEntries(activeIntegrations.map((integration) => [integration.type, true])),
+  };
+  context.availableVariables = {
+    ...context.availableVariables,
+    workflow: { id: snapshot.id || 'proposed', name: workflow.name },
+    timestamp: new Date().toISOString(),
+  };
+  const validation = await new WorkflowValidator().validateWorkflow(workflow, context);
+  if (!validation.valid) {
+    throw new AgentActionExecutionError(`The workflow is no longer valid: ${validation.errors.slice(0, 3).join(' ')}`);
+  }
+
+  for (const step of workflow.steps) {
+    if (step.type === 'send_email' && !process.env.RESEND_API_KEY && !context.integrations.resend) {
+      throw new AgentActionExecutionError('Email delivery is not configured for this workspace.');
+    }
+    if (step.type === 'send_slack') {
+      const integrationId = typeof step.config.integrationId === 'string' ? step.config.integrationId : null;
+      const hasSlack = activeIntegrations.some((integration) => integration.type === 'slack'
+        && (!integrationId || integration.id === integrationId));
+      if (!hasSlack) throw new AgentActionExecutionError('The required Slack integration is not connected.');
+    }
+  }
+
+  return { workflow, scheduleExpression };
+}
+
+async function executeWorkflowDefinitionAction(
+  userId: string,
+  actionType: string,
+  payload: Record<string, unknown>,
+) {
+  const args = WorkflowActionPayloadSchema.safeParse(payload);
+  if (!args.success) throw new AgentActionExecutionError('The workflow proposal is invalid.');
+  const expectedOperation = actionType === 'workflow.create' ? 'create' : 'update';
+  if (args.data.operation !== expectedOperation) {
+    throw new AgentActionExecutionError('The workflow proposal operation does not match the approved action.');
+  }
+  const { workflow, scheduleExpression } = await validateWorkflowForExecution(userId, args.data.after);
+
+  if (actionType === 'workflow.create') {
+    if (args.data.after.status !== 'active') {
+      throw new AgentActionExecutionError('Approved agent-created workflows must be active.');
+    }
+    const webhookId = args.data.after.triggerType === 'webhook' ? crypto.randomUUID() : null;
+    const [created] = await db.insert(workflows).values({
+      userId,
+      name: workflow.name,
+      description: workflow.description || null,
+      definition: { steps: workflow.steps, triggerStepId: workflow.triggerStepId },
+      triggerType: args.data.after.triggerType,
+      triggerConfig: args.data.after.triggerConfig,
+      scheduleExpression,
+      status: 'active',
+      webhookId,
+      totalExecutions: 0,
+      successRate: 0,
+    }).returning({ id: workflows.id, name: workflows.name, status: workflows.status });
+    if (!created) throw new AgentActionExecutionError('The approved workflow could not be created.');
+    return {
+      kind: 'workflow_create',
+      workflowId: created.id,
+      name: created.name,
+      status: created.status,
+      scheduleExpression,
+      href: `/dashboard/workflows/${created.id}`,
+    };
+  }
+
+  const workflowId = args.data.workflowId || args.data.after.id;
+  const expectedUpdatedAt = args.data.before?.updatedAt;
+  if (!workflowId || !expectedUpdatedAt) {
+    throw new AgentActionExecutionError('The workflow update proposal is missing its edit version.');
+  }
+  const [current] = await db.select({
+    id: workflows.id,
+    triggerType: workflows.triggerType,
+    webhookId: workflows.webhookId,
+    updatedAt: workflows.updatedAt,
+  })
+    .from(workflows)
+    .where(and(eq(workflows.id, workflowId), eq(workflows.userId, userId)))
+    .limit(1);
+  if (!current) throw new AgentActionExecutionError('Workflow not found.');
+  if (current.updatedAt.toISOString() !== expectedUpdatedAt) {
+    throw new AgentActionExecutionError('This workflow changed after the proposal was prepared. Review it and try again.');
+  }
+  const [updated] = await db.update(workflows).set({
+    name: workflow.name,
+    description: workflow.description || null,
+    definition: { steps: workflow.steps, triggerStepId: workflow.triggerStepId },
+    triggerType: args.data.after.triggerType,
+    triggerConfig: args.data.after.triggerConfig,
+    scheduleExpression,
+    status: args.data.after.status,
+    webhookId: args.data.after.triggerType === 'webhook'
+      ? current.triggerType === 'webhook' && current.webhookId ? current.webhookId : crypto.randomUUID()
+      : null,
+    updatedAt: new Date(),
+  }).where(and(
+    eq(workflows.id, workflowId),
+    eq(workflows.userId, userId),
+    eq(workflows.updatedAt, current.updatedAt),
+  )).returning({ id: workflows.id, name: workflows.name, status: workflows.status });
+  if (!updated) throw new AgentActionExecutionError('The workflow changed while the approved update was being applied.');
+  return {
+    kind: 'workflow_update',
+    workflowId: updated.id,
+    name: updated.name,
+    status: updated.status,
+    scheduleExpression,
+    href: `/dashboard/workflows/${updated.id}`,
+  };
+}
 
 async function executeIntegrationDisconnect(userId: string, payload: Record<string, unknown>) {
   const args = IntegrationDisconnectPayloadSchema.safeParse(payload);
@@ -438,7 +650,62 @@ async function executeContactAction(
   }
 }
 
+async function executeQuickAction(userId: string, actionType: string, payload: Record<string, unknown>) {
+  if (actionType === 'event.log') {
+    const args = EventLogPayloadSchema.safeParse(payload);
+    if (!args.success || JSON.stringify(args.data.data).length > 8_000) {
+      throw new AgentActionExecutionError('The event proposal is invalid or too large.');
+    }
+    const [event] = await db.insert(loggedEvents).values({
+      userId,
+      eventType: args.data.eventType,
+      title: args.data.title,
+      data: args.data.data,
+    }).returning({ id: loggedEvents.id, eventType: loggedEvents.eventType, title: loggedEvents.title });
+    if (!event) throw new AgentActionExecutionError('The event could not be logged.');
+    return { kind: 'event_log', eventId: event.id, eventType: event.eventType, title: event.title };
+  }
+
+  const args = EmailSendPayloadSchema.safeParse(payload);
+  if (!args.success) throw new AgentActionExecutionError('The email proposal is invalid.');
+  if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) {
+    throw new AgentActionExecutionError('Email delivery is not configured.');
+  }
+  const response = await new Resend(process.env.RESEND_API_KEY).emails.send({
+    from: process.env.RESEND_FROM_EMAIL,
+    to: args.data.recipient,
+    subject: args.data.subject,
+    text: args.data.body,
+  });
+  if (response.error) throw new AgentActionExecutionError('The email provider rejected the message.');
+  const [event] = await db.insert(loggedEvents).values({
+    userId,
+    eventType: 'email',
+    title: `Email: ${args.data.subject}`,
+    data: {
+      recipient: args.data.recipient,
+      subject: args.data.subject,
+      status: 'sent',
+      providerMessageId: response.data?.id || null,
+      sentAt: new Date().toISOString(),
+    },
+  }).returning({ id: loggedEvents.id });
+  return {
+    kind: 'email_send',
+    eventId: event?.id || null,
+    recipient: args.data.recipient,
+    subject: args.data.subject,
+    status: 'sent',
+  };
+}
+
 async function runAction(userId: string, actionType: string, payload: Record<string, unknown>) {
+  if (isAgentQuickActionType(actionType)) {
+    return executeQuickAction(userId, actionType, payload);
+  }
+  if (isAgentWorkflowActionType(actionType)) {
+    return executeWorkflowDefinitionAction(userId, actionType, payload);
+  }
   if (isAgentIntegrationActionType(actionType)) {
     return executeIntegrationDisconnect(userId, payload);
   }
@@ -469,10 +736,12 @@ export async function executeApprovedAgentAction(userId: string, actionId: strin
     .limit(1);
   if (!currentAction) return { handled: false as const, action: null };
   if (
-    !isAgentExecutionActionType(currentAction.actionType)
+    !isAgentWorkflowActionType(currentAction.actionType)
+    && !isAgentExecutionActionType(currentAction.actionType)
     && !isAgentFormActionType(currentAction.actionType)
     && !isAgentContactActionType(currentAction.actionType)
     && !isAgentIntegrationActionType(currentAction.actionType)
+    && !isAgentQuickActionType(currentAction.actionType)
   ) {
     return { handled: false as const, action: currentAction };
   }

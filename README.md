@@ -203,6 +203,8 @@ The resume endpoint checks waiting executions. The failure-monitor endpoint crea
 
 Use `AGENT_RELEASE_MODE=internal` in production until general availability. Only users listed in `AGENT_INTERNAL_EMAILS` or `AGENT_INTERNAL_USER_IDS` can see agent navigation, open agent pages, call agent APIs, or receive failure-monitor scans. `AGENT_ENABLED=false` disables both features; `FAILURE_MONITOR_ENABLED=false` disables only monitoring. Set `AGENT_RELEASE_MODE=general` when the release is ready for all authenticated workspaces.
 
+During internal rollout, users without Agent access retain the legacy Quick Commands screen. Internal users are directed to the Agent. When release mode becomes `general`, the old Quick Commands page redirects to the Agent and its mutation endpoint returns `410 Gone`; historical command and event rows remain intact.
+
 ## Development
 
 ### Commands

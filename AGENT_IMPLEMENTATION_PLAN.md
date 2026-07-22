@@ -12,7 +12,8 @@ Build the agent through small, independently testable phases. The agent coordina
 - Provider failures do not create empty threads or unmatched user messages.
 - Automated tests cover missing configuration, provider fallback, empty responses, output limits, and total provider failure.
 - Phase 7 is complete: proposed actions are tenant-scoped, expire safely, handle repeated decisions idempotently, and render as confirmation cards in Agent conversations.
-- Phase 8 is in progress: the agent can generate, validate, and display workflow creation and update proposals without applying them.
+- Phase 8 workflow definition application is complete: approved creates are activated, approved updates use stale-state protection, and both are revalidated before persistence.
+- Agent-first commands are complete for logged-event queries, approved event logging, approved one-time email, scheduled reminders, and the GA Quick Commands transition.
 - Phase 9 is complete: confirmed execution proposals run through the existing executor, support cancellation and retry, and return linked execution receipts.
 - Phase 10 is complete: the agent can inspect forms and apply confirmed form creation, editing, status, and workflow-link changes.
 - Phase 11 is complete: the agent can search contacts and apply confirmed contact creation, editing, and status changes with case-insensitive email uniqueness.
@@ -68,14 +69,15 @@ Build the agent through small, independently testable phases. The agent coordina
 - Add expiry and idempotency handling. - Complete
 - Add confirmation cards to the Agent UI. - Complete
 
-## Phase 8: Workflow Creation and Editing - In Progress
+## Phase 8: Workflow Creation and Editing - Complete
 
 - Reuse the existing parser and validator. - Complete
 - Propose new supported workflow definitions. - Complete
 - Propose changes to existing tenant-owned workflows. - Complete
 - Display workflow proposals and changes in confirmation cards. - Complete
-- Create and update workflow definitions after confirmation.
-- Activate or archive workflows after confirmation.
+- Create and update workflow definitions after confirmation. - Complete
+- Activate new agent-created workflows after confirmation. - Complete
+- Activate or archive existing workflows after confirmation. - Complete
 
 ## Phase 9: Workflow Execution - Complete
 
@@ -125,6 +127,6 @@ Build the agent through small, independently testable phases. The agent coordina
 
 - The agent plans and coordinates; the existing executor performs workflow steps.
 - All mutating or externally visible actions require confirmation.
-- Quick Commands remains a separate lightweight feature.
+- Quick Commands remains available during the internal Agent rollout, then redirects to the Agent at general availability while historical records are preserved.
 - Failure monitoring is advisory and never retries automatically.
 - Unsupported premium actions remain unavailable.

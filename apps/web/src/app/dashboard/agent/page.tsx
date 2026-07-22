@@ -107,9 +107,9 @@ function formatMessageTime(value: string): string {
 }
 
 const suggestedPrompts = [
+  "Create a weekly reminder workflow for my Monday meeting",
+  "Log ₹5,000 as a marketing expense",
   "Show me failed executions that need attention",
-  "Create a lead capture form and connect it to a workflow",
-  "Find inactive contacts and summarize them",
 ];
 
 function getMessageText(message: AgentMessage): string {
@@ -143,6 +143,13 @@ function workflowProposalPreview(action: AgentProposedAction) {
   const steps = definition.steps.flatMap((value) => {
     const step = asRecord(value);
     if (!step) return [];
+    const config = asRecord(step.config);
+    const recipient = step.type === "send_email"
+      ? (typeof config?.to === "string" ? config.to : Array.isArray(config?.to) ? config.to.join(", ") : null)
+      : null;
+    const destination = step.type === "send_slack" && typeof config?.channel === "string"
+      ? config.channel
+      : recipient;
     return [{
       id: typeof step.id === "string"
         ? step.id
@@ -150,6 +157,7 @@ function workflowProposalPreview(action: AgentProposedAction) {
       name: typeof step.name === "string" ? step.name : "Unnamed step",
       type: typeof step.type === "string" ? step.type : "unknown",
       position: typeof step.position === "number" ? step.position : 0,
+      destination,
     }];
   }).sort((left, right) => left.position - right.position);
   const changedFields = Array.isArray(action.payload.changedFields)
@@ -159,6 +167,13 @@ function workflowProposalPreview(action: AgentProposedAction) {
   const warnings = Array.isArray(validation?.warnings)
     ? validation.warnings.filter((warning): warning is string => typeof warning === "string")
     : [];
+  const triggerConfig = asRecord(after.triggerConfig);
+  const integrations = [...new Set(steps.flatMap((step) => {
+    if (step.type === "send_email") return ["Email"];
+    if (step.type === "send_slack") return ["Slack"];
+    return [];
+  }))];
+  const result = asRecord(action.result);
 
   return {
     operation: action.actionType === "workflow.create" ? "create" : "update",
@@ -166,6 +181,10 @@ function workflowProposalPreview(action: AgentProposedAction) {
     previousName: typeof before?.name === "string" ? before.name : null,
     triggerType: typeof after.triggerType === "string" ? after.triggerType : "unknown",
     status: typeof after.status === "string" ? after.status : "draft",
+    scheduleExpression: typeof after.scheduleExpression === "string" ? after.scheduleExpression : null,
+    timezone: typeof triggerConfig?.timezone === "string" ? triggerConfig.timezone : null,
+    integrations,
+    resultHref: typeof result?.href === "string" ? result.href : null,
     steps,
     changedFields,
     warnings,
@@ -207,7 +226,9 @@ function WorkflowProposalPreview({ action }: { action: AgentProposedAction }) {
               <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-white/10 font-mono text-[9px] text-white/55">
                 {index + 1}
               </span>
-              <span className="max-w-32 truncate text-[11px] font-medium text-white/65">{step.name}</span>
+              <span className="max-w-40 truncate text-[11px] font-medium text-white/65">
+                {step.name}{step.destination ? ` → ${step.destination}` : ""}
+              </span>
             </div>
             {index < visibleSteps.length - 1 && (
               <ChevronRight className="mx-1 h-3 w-3 shrink-0 text-white/20" />
@@ -218,6 +239,20 @@ function WorkflowProposalPreview({ action }: { action: AgentProposedAction }) {
           <span className="ml-2 text-[11px] text-white/35">+{preview.steps.length - visibleSteps.length} more</span>
         )}
       </div>
+
+      {(preview.scheduleExpression || preview.timezone || preview.integrations.length > 0) && (
+        <dl className="mt-3 grid gap-2 text-xs text-white/50 sm:grid-cols-2">
+          {preview.scheduleExpression && <div><dt className="text-white/30">Schedule</dt><dd>{preview.scheduleExpression}</dd></div>}
+          {preview.timezone && <div><dt className="text-white/30">Timezone</dt><dd>{preview.timezone}</dd></div>}
+          {preview.integrations.length > 0 && <div><dt className="text-white/30">Integrations</dt><dd>{preview.integrations.join(", ")}</dd></div>}
+        </dl>
+      )}
+
+      {preview.operation === "create" && preview.status === "active" && (
+        <p className="mt-3 rounded-lg border border-amber-200/15 bg-amber-100/[0.05] px-3 py-2 text-xs leading-5 text-amber-50/70">
+          Approval creates this workflow as active and authorizes its future scheduled runs.
+        </p>
+      )}
 
       {preview.changedFields.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
@@ -232,6 +267,52 @@ function WorkflowProposalPreview({ action }: { action: AgentProposedAction }) {
       {preview.warnings.length > 0 && (
         <p className="mt-3 text-[11px] leading-4 text-amber-100/55">
           {preview.warnings.length} validation warning{preview.warnings.length === 1 ? "" : "s"}: {preview.warnings[0]}
+        </p>
+      )}
+
+      {(action.status === "completed" || action.status === "failed") && (
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-white/[0.07] bg-black/30 px-3 py-2.5 text-xs">
+          <span className={action.status === "failed" ? "text-rose-200/70" : "text-emerald-100/70"}>
+            {action.status === "failed" ? action.errorMessage || "Workflow action failed" : "Workflow saved and ready"}
+          </span>
+          {action.status === "completed" && preview.resultHref && (
+            <Link href={preview.resultHref} className="font-medium text-amber-50/65 hover:text-amber-50">View workflow</Link>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function QuickActionPreview({ action }: { action: AgentProposedAction }) {
+  if (action.actionType !== 'event.log' && action.actionType !== 'email.send') return null;
+  const isEmail = action.actionType === 'email.send';
+  const recipient = typeof action.payload.recipient === 'string' ? action.payload.recipient : null;
+  const subject = typeof action.payload.subject === 'string' ? action.payload.subject : null;
+  const body = typeof action.payload.body === 'string' ? action.payload.body : null;
+  const eventType = typeof action.payload.eventType === 'string' ? action.payload.eventType : null;
+  const title = typeof action.payload.title === 'string' ? action.payload.title : null;
+
+  return (
+    <div className="mt-4 overflow-hidden rounded-lg border border-white/[0.07] bg-black/25">
+      <dl className="divide-y divide-white/[0.06] px-3.5 text-xs">
+        {isEmail ? (
+          <>
+            <div className="grid grid-cols-[5rem_1fr] gap-3 py-2.5"><dt className="text-white/30">Recipient</dt><dd className="break-all text-white/70">{recipient}</dd></div>
+            <div className="grid grid-cols-[5rem_1fr] gap-3 py-2.5"><dt className="text-white/30">Subject</dt><dd className="text-white/70">{subject}</dd></div>
+            <div className="grid grid-cols-[5rem_1fr] gap-3 py-2.5"><dt className="text-white/30">Body</dt><dd className="max-h-60 overflow-y-auto whitespace-pre-wrap text-white/60">{body}</dd></div>
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-[5rem_1fr] gap-3 py-2.5"><dt className="text-white/30">Type</dt><dd className="text-white/70">{eventType}</dd></div>
+            <div className="grid grid-cols-[5rem_1fr] gap-3 py-2.5"><dt className="text-white/30">Title</dt><dd className="text-white/70">{title}</dd></div>
+            <div className="grid grid-cols-[5rem_1fr] gap-3 py-2.5"><dt className="text-white/30">Data</dt><dd className="break-words text-white/60">{formatActionValue(action.payload.data)}</dd></div>
+          </>
+        )}
+      </dl>
+      {(action.status === 'completed' || action.status === 'failed') && (
+        <p className={cn("border-t border-white/[0.07] px-3.5 py-2.5 text-[11px]", action.status === 'failed' ? 'text-rose-200/65' : 'text-emerald-100/65')}>
+          {action.status === 'failed' ? action.errorMessage || 'The approved action failed.' : isEmail ? 'Email sent.' : 'Event logged.'}
         </p>
       )}
     </div>
@@ -559,6 +640,7 @@ function AgentActionCard({
   const isFormProposal = ['form.create', 'form.update', 'form.activate', 'form.deactivate', 'form.link_workflow'].includes(action.actionType);
   const isContactProposal = ['contact.create', 'contact.update', 'contact.activate', 'contact.deactivate'].includes(action.actionType);
   const isIntegrationProposal = action.actionType === 'integration.disconnect';
+  const isQuickProposal = action.actionType === 'event.log' || action.actionType === 'email.send';
 
   return (
     <div className={cn("relative w-full max-w-2xl overflow-hidden rounded-2xl border shadow-[0_18px_55px_rgba(0,0,0,0.2)] backdrop-blur", status.tone)}>
@@ -587,8 +669,9 @@ function AgentActionCard({
         {isFormProposal && <FormProposalPreview action={action} />}
         {isContactProposal && <ContactProposalPreview action={action} />}
         {isIntegrationProposal && <IntegrationProposalPreview action={action} />}
+        {isQuickProposal && <QuickActionPreview action={action} />}
 
-        {!isWorkflowProposal && !isExecutionProposal && !isFormProposal && !isContactProposal && !isIntegrationProposal && details.length > 0 && (
+        {!isWorkflowProposal && !isExecutionProposal && !isFormProposal && !isContactProposal && !isIntegrationProposal && !isQuickProposal && details.length > 0 && (
           <dl className="mt-4 divide-y divide-white/[0.07] border-y border-white/[0.07]">
             {details.map(([key, value]) => (
               <div key={key} className="grid grid-cols-[minmax(0,0.38fr)_minmax(0,0.62fr)] gap-3 py-2 text-xs leading-5">

@@ -16,6 +16,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useWorkflows, useExecutions, useForms, formatTimeAgo, type Workflow, type Execution, type Form } from "@/lib/query/hooks";
+import { useQuery } from "@tanstack/react-query";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -23,6 +24,15 @@ export default function DashboardPage() {
   const { data: workflows = [], isLoading: workflowsLoading } = useWorkflows();
   const { data: executions = [], isLoading: executionsLoading } = useExecutions(5);
   const { data: forms = [], isLoading: formsLoading } = useForms();
+  const agentAccess = useQuery<{ agent: boolean }>({
+    queryKey: ["agent-feature-access"],
+    queryFn: async () => {
+      const response = await fetch('/api/agent/access');
+      if (!response.ok) return { agent: false };
+      return response.json();
+    },
+    staleTime: 60_000,
+  });
 
   // Show initial loading on first visit only
   const isLoading = workflowsLoading || executionsLoading;
@@ -172,8 +182,8 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Quick Commands CTA Card */}
-        <Link href="/dashboard/quick-commands" className="mb-12 block">
+        {/* Agent-first command CTA; Quick Commands remains available during internal rollout. */}
+        <Link href={agentAccess.data?.agent ? "/dashboard/agent" : "/dashboard/quick-commands"} className="mb-12 block">
             <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition-all duration-300 hover:bg-white/[0.04] sm:p-6 md:p-8">
               {/* Pink gradient orb at top left */}
               <div className="absolute -top-8 -left-8 w-40 h-40 bg-gradient-to-br from-pink-500/40 via-pink-400/20 to-transparent rounded-full blur-[40px] pointer-events-none"></div>
@@ -187,7 +197,9 @@ export default function DashboardPage() {
                     <Wand2 className="h-6 w-6 md:h-8 md:w-8 text-white/70" />
                   </div>
                   <div className="min-w-0">
-                    <h2 className="text-xl md:text-2xl font-bold text-white mb-1">Quick Commands</h2>
+                    <h2 className="text-xl md:text-2xl font-bold text-white mb-1">
+                      {agentAccess.data?.agent ? "Execute Agent" : "Quick Commands"}
+                    </h2>
                     <p className="text-white/60 text-sm md:text-base">
                       Tell Execute what happened or what you want done
                     </p>

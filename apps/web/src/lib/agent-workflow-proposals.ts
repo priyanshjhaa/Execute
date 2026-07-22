@@ -14,11 +14,17 @@ const AGENT_WORKFLOW_PROPOSAL_MAX_CHARS = 32_000;
 
 const CreateWorkflowProposalSchema = z.object({
   instruction: z.string().trim().min(10).max(4_000),
+  timezone: z.string().trim().min(1).max(100).optional(),
 }).strict();
 
 const UpdateWorkflowProposalSchema = z.object({
   workflowId: z.string().uuid(),
   changes: z.string().trim().min(5).max(4_000),
+}).strict();
+
+const WorkflowStatusProposalSchema = z.object({
+  workflowId: z.string().uuid(),
+  status: z.enum(['active', 'archived']),
 }).strict();
 
 export interface AgentWorkflowProposal {
@@ -40,6 +46,7 @@ interface WorkflowSnapshot {
     steps: Workflow['steps'];
     triggerStepId: string;
   };
+  updatedAt?: string;
 }
 
 export const AGENT_WORKFLOW_PROPOSAL_TOOLS: AgentToolDefinition[] = [
@@ -56,6 +63,11 @@ export const AGENT_WORKFLOW_PROPOSAL_TOOLS: AgentToolDefinition[] = [
             description: 'A complete natural-language description of the workflow, including its trigger and actions.',
             minLength: 10,
             maxLength: 4000,
+          },
+          timezone: {
+            type: 'string',
+            description: 'Required IANA timezone for a scheduled workflow, but only after the user explicitly provides it (for example Asia/Kolkata).',
+            maxLength: 100,
           },
         },
         required: ['instruction'],
@@ -80,6 +92,22 @@ export const AGENT_WORKFLOW_PROPOSAL_TOOLS: AgentToolDefinition[] = [
           },
         },
         required: ['workflowId', 'changes'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'propose_workflow_status',
+      description: 'Prepare a validated confirmation request to activate or archive an existing tenant-owned workflow.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workflowId: { type: 'string', format: 'uuid' },
+          status: { type: 'string', enum: ['active', 'archived'] },
+        },
+        required: ['workflowId', 'status'],
         additionalProperties: false,
       },
     },
@@ -139,7 +167,17 @@ function snapshotFromStoredWorkflow(workflow: typeof workflows.$inferSelect): Wo
       steps: workflow.definition.steps as Workflow['steps'],
       triggerStepId: workflow.definition.triggerStepId,
     },
+    updatedAt: workflow.updatedAt.toISOString(),
   };
+}
+
+function isValidTimeZone(value: string) {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value }).format();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function changedWorkflowFields(before: WorkflowSnapshot, after: WorkflowSnapshot): string[] {
@@ -212,6 +250,7 @@ function ensureProposalSize(proposal: AgentWorkflowProposal) {
 async function proposeWorkflowCreate(
   userId: string,
   instruction: string,
+  timezone?: string,
   signal?: AbortSignal,
 ) {
   const parser = createParser();
@@ -228,6 +267,30 @@ async function proposeWorkflowCreate(
     };
   }
 
+  const triggerStep = parsed.workflow.steps.find((step) => step.id === parsed.workflow?.triggerStepId);
+  if (triggerStep?.type === 'schedule') {
+    if (!timezone) {
+      return {
+        result: {
+          ok: false,
+          error: {
+            code: 'TIMEZONE_REQUIRED',
+            message: 'Ask the user which timezone the schedule should use before preparing this proposal.',
+          },
+        },
+      };
+    }
+    if (!isValidTimeZone(timezone)) {
+      return {
+        result: {
+          ok: false,
+          error: { code: 'INVALID_TIMEZONE', message: 'The provided timezone is not a valid IANA timezone.' },
+        },
+      };
+    }
+    triggerStep.config = { ...triggerStep.config, timezone };
+  }
+
   const validation = await validateParsedWorkflow(userId, parsed.workflow);
   if (!validation.valid) {
     return {
@@ -242,11 +305,11 @@ async function proposeWorkflowCreate(
     };
   }
 
-  const after = snapshotFromParsedWorkflow(parsed.workflow, 'draft');
+  const after = snapshotFromParsedWorkflow(parsed.workflow, 'active');
   const proposal: AgentWorkflowProposal = {
     actionType: 'workflow.create',
     title: `Create workflow: ${after.name}`,
-    description: `Create a draft workflow with ${after.definition.steps.length} step${after.definition.steps.length === 1 ? '' : 's'}.`,
+    description: `Create and activate a workflow with ${after.definition.steps.length} step${after.definition.steps.length === 1 ? '' : 's'}. Approval authorizes its future scheduled runs.`,
     payload: {
       version: 1,
       operation: 'create',
@@ -365,6 +428,57 @@ ${currentWorkflowJson}`;
     : { result: proposalResult(proposal, validation.warnings), proposal };
 }
 
+async function proposeWorkflowStatus(
+  userId: string,
+  workflowId: string,
+  status: 'active' | 'archived',
+) {
+  const [storedWorkflow] = await db.select().from(workflows)
+    .where(and(eq(workflows.id, workflowId), eq(workflows.userId, userId)))
+    .limit(1);
+  if (!storedWorkflow) {
+    return { result: { ok: false, error: { code: 'NOT_FOUND', message: 'Workflow not found.' } } };
+  }
+  if (storedWorkflow.status === status) {
+    return { result: { ok: false, error: { code: 'NO_CHANGES', message: `The workflow is already ${status}.` } } };
+  }
+  const before = snapshotFromStoredWorkflow(storedWorkflow);
+  const after: WorkflowSnapshot = { ...before, status };
+  if (status === 'active') {
+    const validation = await validateParsedWorkflow(userId, {
+      name: after.name,
+      description: after.description,
+      steps: after.definition.steps,
+      triggerStepId: after.definition.triggerStepId,
+    });
+    if (!validation.valid) {
+      return {
+        result: {
+          ok: false,
+          error: { code: 'WORKFLOW_VALIDATION_FAILED', message: 'The workflow must be fixed before activation.', details: validation.errors.slice(0, 10) },
+        },
+      };
+    }
+  }
+  const proposal: AgentWorkflowProposal = {
+    actionType: 'workflow.update',
+    title: `${status === 'active' ? 'Activate' : 'Archive'} workflow: ${before.name}`,
+    description: status === 'active'
+      ? 'Activate this workflow after approval. Event and scheduled triggers may begin running.'
+      : 'Archive this workflow after approval so it can no longer run.',
+    payload: {
+      version: 1,
+      operation: 'update',
+      workflowId,
+      before,
+      after,
+      changedFields: ['status'],
+      validation: { warnings: [] },
+    },
+  };
+  return { result: proposalResult(proposal, []), proposal };
+}
+
 export function createAgentWorkflowProposalCollector(input: {
   userId: string;
   signal?: AbortSignal;
@@ -375,7 +489,9 @@ export function createAgentWorkflowProposalCollector(input: {
   return {
     proposals,
     handles(toolName: string) {
-      return toolName === 'propose_workflow_create' || toolName === 'propose_workflow_update';
+      return toolName === 'propose_workflow_create'
+        || toolName === 'propose_workflow_update'
+        || toolName === 'propose_workflow_status';
     },
     async execute(toolCall: AgentToolCall) {
       const cacheKey = `${toolCall.name}:${toolCall.arguments}`;
@@ -385,9 +501,9 @@ export function createAgentWorkflowProposalCollector(input: {
       if (toolCall.name === 'propose_workflow_create') {
         const args = parseToolArguments(toolCall, CreateWorkflowProposalSchema);
         generated = args.success
-          ? await proposeWorkflowCreate(input.userId, args.data.instruction, input.signal)
+          ? await proposeWorkflowCreate(input.userId, args.data.instruction, args.data.timezone, input.signal)
           : { result: { ok: false, error: { code: 'INVALID_ARGUMENTS', message: args.error } } };
-      } else {
+      } else if (toolCall.name === 'propose_workflow_update') {
         const args = parseToolArguments(toolCall, UpdateWorkflowProposalSchema);
         generated = args.success
           ? await proposeWorkflowUpdate(
@@ -396,6 +512,11 @@ export function createAgentWorkflowProposalCollector(input: {
               args.data.changes,
               input.signal,
             )
+          : { result: { ok: false, error: { code: 'INVALID_ARGUMENTS', message: args.error } } };
+      } else {
+        const args = parseToolArguments(toolCall, WorkflowStatusProposalSchema);
+        generated = args.success
+          ? await proposeWorkflowStatus(input.userId, args.data.workflowId, args.data.status)
           : { result: { ok: false, error: { code: 'INVALID_ARGUMENTS', message: args.error } } };
       }
 
