@@ -39,6 +39,21 @@
 
 /* Gradient styles */
 @layer components {
+  /* Keep the scenic hero behind the document canvas so elastic top overscroll
+     never exposes the global black background. The landing shell remains
+     opaque, so this image is only revealed beyond the page's upper boundary. */
+  html:has(.landing-shell) {
+    background-color: #030303;
+    background-image: url('/execute-hero-scenic.jpg');
+    background-position: center top;
+    background-repeat: no-repeat;
+    background-size: cover;
+  }
+
+  body:has(.landing-shell) {
+    background-color: transparent;
+  }
+
   .btn-gradient {
     background: linear-gradient(135deg, #ec4899 0%, #ffffff 50%, #0ea5e9 100%);
     background-size: 200% 200%;
