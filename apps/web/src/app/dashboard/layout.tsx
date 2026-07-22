@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Terminal,
@@ -74,6 +74,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, signOut, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -99,11 +100,15 @@ export default function DashboardLayout({
     refetchInterval: 30_000,
   });
 
+  useEffect(() => {
+    if (!loading && !user) router.replace('/login');
+  }, [loading, router, user]);
+
   const handleSignOut = async () => {
     await signOut();
   };
 
-  if (loading) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-white/60">Loading...</div>

@@ -130,11 +130,6 @@ export default function LoginPage() {
                     disabled={loading}
                   />
                 </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <Link href="/forgot-password" className="text-sm text-white/40 hover:text-white transition-colors">
-                    Forgot password?
-                  </Link>
-                </div>
               </div>
 
               {/* Divider */}
@@ -212,7 +207,7 @@ export default function LoginPage() {
       {/* Footer */}
       <footer className="border-t border-white/10 py-12 px-6">
         <div className="container mx-auto text-center text-sm text-white/40">
-          <p>&copy; 2025 Execute. All rights reserved.</p>
+          <p>&copy; 2026 Execute. All rights reserved.</p>
         </div>
       </footer>
     </main>

@@ -208,17 +208,6 @@ export default function SignupPage() {
                 {loading ? 'Creating account...' : 'Create Account'} <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
 
-              {/* Terms */}
-              <p className="text-xs text-white/40 text-center">
-                By signing up, you agree to our{" "}
-                <Link href="/terms" className="text-white/60 hover:text-white transition-colors">
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link href="/privacy" className="text-white/60 hover:text-white transition-colors">
-                  Privacy Policy
-                </Link>
-              </p>
             </form>
 
             {/* Divider */}
@@ -269,7 +258,7 @@ export default function SignupPage() {
       {/* Footer */}
       <footer className="border-t border-white/10 py-12 px-6">
         <div className="container mx-auto text-center text-sm text-white/40">
-          <p>&copy; 2025 Execute. All rights reserved.</p>
+          <p>&copy; 2026 Execute. All rights reserved.</p>
         </div>
       </footer>
     </main>
