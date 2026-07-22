@@ -16,6 +16,10 @@ interface ModelConfig {
   client: OpenAI | Groq;
 }
 
+export interface WorkflowParserOptions {
+  signal?: AbortSignal;
+}
+
 /**
  * WorkflowParser using Groq (primary) with OpenRouter fallback
  * Groq provides very fast inference with free models
@@ -58,7 +62,10 @@ export class WorkflowParser {
    * Parse instruction with automatic model fallback
    * Supports both legacy (string) and new (structured) input formats
    */
-  async parseInstruction(input: ParseInstructionInput | StructuredInput): Promise<ParsedWorkflowResponse> {
+  async parseInstruction(
+    input: ParseInstructionInput | StructuredInput,
+    options: WorkflowParserOptions = {},
+  ): Promise<ParsedWorkflowResponse> {
     const errors: Array<{ provider: string; model: string; error: string }> = [];
 
     // Determine if input is structured or legacy
@@ -80,6 +87,9 @@ export class WorkflowParser {
     // Try each model in priority order
     for (const { provider, model, client } of this.models) {
       try {
+        if (options.signal?.aborted) {
+          throw new Error('Workflow parsing was cancelled');
+        }
         console.log(`Attempting to parse with ${provider}: ${model}`);
 
         let response;
@@ -93,7 +103,7 @@ export class WorkflowParser {
             temperature: 0.1,
             max_tokens: 2048,
             response_format: { type: 'json_object' },
-          });
+          }, { signal: options.signal });
         } else {
           response = await (client as OpenAI).chat.completions.create({
             model,
@@ -104,7 +114,7 @@ export class WorkflowParser {
             temperature: 0.1,
             max_tokens: 2048,
             response_format: { type: 'json_object' },
-          });
+          }, { signal: options.signal });
         }
 
         const content = response.choices[0]?.message?.content;
@@ -129,6 +139,7 @@ export class WorkflowParser {
         };
 
       } catch (error: any) {
+        if (options.signal?.aborted) throw error;
         console.error(`Failed to parse with ${provider}/${model}:`, error.message);
         errors.push({
           provider,

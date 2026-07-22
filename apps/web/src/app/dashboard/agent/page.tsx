@@ -2,7 +2,7 @@
 
 import { FormEvent, Fragment, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Bot, Check, Clock3, Loader2, MessageSquare, Plus, Send, ShieldCheck, Square, X } from "lucide-react";
+import { ArrowLeft, Bot, Check, ChevronRight, Clock3, GitCompareArrows, Loader2, MessageSquare, Plus, Send, ShieldCheck, Square, Workflow as WorkflowIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +63,7 @@ interface SendMessageResponse {
     user: AgentMessage;
     assistant: AgentMessage;
   };
+  actions: AgentProposedAction[];
 }
 
 type AgentStreamEvent =
@@ -103,6 +104,119 @@ function formatActionValue(value: unknown): string {
   const formatted = typeof value === "string" ? value : JSON.stringify(value);
   if (!formatted) return "—";
   return formatted.length > 180 ? `${formatted.slice(0, 177)}...` : formatted;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function workflowProposalPreview(action: AgentProposedAction) {
+  if (action.actionType !== "workflow.create" && action.actionType !== "workflow.update") {
+    return null;
+  }
+  const after = asRecord(action.payload.after);
+  const before = asRecord(action.payload.before);
+  const definition = asRecord(after?.definition);
+  if (!after || !definition || !Array.isArray(definition.steps)) return null;
+
+  const steps = definition.steps.flatMap((value) => {
+    const step = asRecord(value);
+    if (!step) return [];
+    return [{
+      id: typeof step.id === "string"
+        ? step.id
+        : `${typeof step.position === "number" ? step.position : 0}-${typeof step.name === "string" ? step.name : "step"}`,
+      name: typeof step.name === "string" ? step.name : "Unnamed step",
+      type: typeof step.type === "string" ? step.type : "unknown",
+      position: typeof step.position === "number" ? step.position : 0,
+    }];
+  }).sort((left, right) => left.position - right.position);
+  const changedFields = Array.isArray(action.payload.changedFields)
+    ? action.payload.changedFields.filter((field): field is string => typeof field === "string")
+    : [];
+  const validation = asRecord(action.payload.validation);
+  const warnings = Array.isArray(validation?.warnings)
+    ? validation.warnings.filter((warning): warning is string => typeof warning === "string")
+    : [];
+
+  return {
+    operation: action.actionType === "workflow.create" ? "create" : "update",
+    name: typeof after.name === "string" ? after.name : action.title,
+    previousName: typeof before?.name === "string" ? before.name : null,
+    triggerType: typeof after.triggerType === "string" ? after.triggerType : "unknown",
+    status: typeof after.status === "string" ? after.status : "draft",
+    steps,
+    changedFields,
+    warnings,
+  };
+}
+
+function WorkflowProposalPreview({ action }: { action: AgentProposedAction }) {
+  const preview = workflowProposalPreview(action);
+  if (!preview) return null;
+  const visibleSteps = preview.steps.slice(0, 8);
+
+  return (
+    <div className="mt-4 border-y border-white/[0.07] py-3.5">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+        <span className="flex items-center gap-1.5 font-medium text-white/70">
+          {preview.operation === "update"
+            ? <GitCompareArrows className="h-3.5 w-3.5 text-amber-100/70" />
+            : <WorkflowIcon className="h-3.5 w-3.5 text-amber-100/70" />}
+          {preview.name}
+        </span>
+        <span className="font-mono text-[10px] uppercase tracking-wider text-white/30">
+          {preview.triggerType.replaceAll("_", " ")} trigger
+        </span>
+        <span className="font-mono text-[10px] uppercase tracking-wider text-white/30">
+          {preview.status}
+        </span>
+      </div>
+
+      {preview.previousName && preview.previousName !== preview.name && (
+        <p className="mt-2 text-xs text-white/40">
+          Rename <span className="text-white/60">{preview.previousName}</span> to <span className="text-white/75">{preview.name}</span>
+        </p>
+      )}
+
+      <div className="mt-3 flex flex-wrap items-center gap-y-2">
+        {visibleSteps.map((step, index) => (
+          <Fragment key={step.id}>
+            <div className="flex min-w-0 items-center gap-2 rounded-lg border border-white/[0.07] bg-black/30 px-2.5 py-2">
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-white/10 font-mono text-[9px] text-white/55">
+                {index + 1}
+              </span>
+              <span className="max-w-32 truncate text-[11px] font-medium text-white/65">{step.name}</span>
+            </div>
+            {index < visibleSteps.length - 1 && (
+              <ChevronRight className="mx-1 h-3 w-3 shrink-0 text-white/20" />
+            )}
+          </Fragment>
+        ))}
+        {preview.steps.length > visibleSteps.length && (
+          <span className="ml-2 text-[11px] text-white/35">+{preview.steps.length - visibleSteps.length} more</span>
+        )}
+      </div>
+
+      {preview.changedFields.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {preview.changedFields.map((field) => (
+            <span key={field} className="rounded-full border border-sky-200/10 bg-sky-200/[0.04] px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-sky-100/55">
+              {field.replaceAll("_", " ")}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {preview.warnings.length > 0 && (
+        <p className="mt-3 text-[11px] leading-4 text-amber-100/55">
+          {preview.warnings.length} validation warning{preview.warnings.length === 1 ? "" : "s"}: {preview.warnings[0]}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function actionStatusCopy(action: AgentProposedAction) {
@@ -178,6 +292,7 @@ function AgentActionCard({
 }) {
   const status = actionStatusCopy(action);
   const details = Object.entries(action.payload).slice(0, 4);
+  const isWorkflowProposal = action.actionType === "workflow.create" || action.actionType === "workflow.update";
 
   return (
     <div className={cn("relative w-full max-w-xl overflow-hidden rounded-xl border", status.tone)}>
@@ -201,7 +316,9 @@ function AgentActionCard({
           <p className="mt-2 text-sm leading-5 text-white/55">{action.description}</p>
         )}
 
-        {details.length > 0 && (
+        {isWorkflowProposal && <WorkflowProposalPreview action={action} />}
+
+        {!isWorkflowProposal && details.length > 0 && (
           <dl className="mt-4 divide-y divide-white/[0.07] border-y border-white/[0.07]">
             {details.map(([key, value]) => (
               <div key={key} className="grid grid-cols-[minmax(0,0.38fr)_minmax(0,0.62fr)] gap-3 py-2 text-xs leading-5">
@@ -320,6 +437,7 @@ export default function AgentPage() {
             completedResponse = {
               thread: event.thread,
               messages: event.messages,
+              actions: event.actions || [],
             };
           } else if (event.type === "cancelled") {
             wasCancelled = true;
@@ -368,7 +486,7 @@ export default function AgentPage() {
             data.messages.user,
             data.messages.assistant,
           ],
-          actions: current?.actions || [],
+          actions: [...(current?.actions || []), ...(data.actions || [])],
         }),
       );
       setSelectedThreadId(threadId);

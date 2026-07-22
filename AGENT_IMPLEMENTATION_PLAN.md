@@ -12,7 +12,7 @@ Build the agent through small, independently testable phases. The agent coordina
 - Provider failures do not create empty threads or unmatched user messages.
 - Automated tests cover missing configuration, provider fallback, empty responses, output limits, and total provider failure.
 - Phase 7 is complete: proposed actions are tenant-scoped, expire safely, handle repeated decisions idempotently, and render as confirmation cards in Agent conversations.
-- Phase 8, workflow creation and editing through confirmed actions, is next.
+- Phase 8 is in progress: the agent can generate, validate, and display workflow creation and update proposals without applying them.
 
 ## Phase 1: Conversation Storage - Complete and Stabilized
 
@@ -61,10 +61,13 @@ Build the agent through small, independently testable phases. The agent coordina
 - Add expiry and idempotency handling. - Complete
 - Add confirmation cards to the Agent UI. - Complete
 
-## Phase 8: Workflow Creation and Editing
+## Phase 8: Workflow Creation and Editing - In Progress
 
-- Reuse the existing parser and validator.
-- Create and update supported workflow definitions.
+- Reuse the existing parser and validator. - Complete
+- Propose new supported workflow definitions. - Complete
+- Propose changes to existing tenant-owned workflows. - Complete
+- Display workflow proposals and changes in confirmation cards. - Complete
+- Create and update workflow definitions after confirmation.
 - Activate or archive workflows after confirmation.
 
 ## Phase 9: Workflow Execution
