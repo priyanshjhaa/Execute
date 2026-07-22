@@ -1,11 +1,28 @@
 import Groq from 'groq-sdk';
 import OpenAI from 'openai';
 
-export type AgentChatRole = 'system' | 'user' | 'assistant';
+export type AgentChatRole = 'system' | 'user' | 'assistant' | 'tool';
+
+export interface AgentToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+}
+
+export interface AgentToolDefinition {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+}
 
 export interface AgentChatMessage {
   role: AgentChatRole;
-  content: string;
+  content: string | null;
+  toolCalls?: AgentToolCall[];
+  toolCallId?: string;
 }
 
 export interface AgentModelUsage {
@@ -15,6 +32,7 @@ export interface AgentModelUsage {
 
 export interface AgentModelResponse {
   content: string;
+  toolCalls?: AgentToolCall[];
   provider: 'groq' | 'openrouter';
   model: string;
   usage: AgentModelUsage;
@@ -24,6 +42,7 @@ export interface AgentModelResponse {
 export interface AgentModelStreamOptions {
   signal?: AbortSignal;
   onDelta: (delta: string) => void | Promise<void>;
+  tools?: AgentToolDefinition[];
 }
 
 export interface AgentModelCompletionOptions {
@@ -61,6 +80,41 @@ function getMaxOutputTokens(override?: number): number {
   const configured = Number.parseInt(process.env.AGENT_MAX_OUTPUT_TOKENS || '500', 10);
   if (!Number.isFinite(configured)) return 500;
   return Math.min(Math.max(configured, 64), 1000);
+}
+
+function toProviderMessages(messages: AgentChatMessage[]) {
+  return messages.map((message) => {
+    if (message.role === 'assistant' && message.toolCalls?.length) {
+      return {
+        role: 'assistant' as const,
+        content: message.content,
+        tool_calls: message.toolCalls.map((toolCall) => ({
+          id: toolCall.id,
+          type: 'function' as const,
+          function: {
+            name: toolCall.name,
+            arguments: toolCall.arguments,
+          },
+        })),
+      };
+    }
+
+    if (message.role === 'tool') {
+      if (!message.toolCallId) {
+        throw new Error('Tool messages require a tool call ID');
+      }
+      return {
+        role: 'tool' as const,
+        content: message.content || '',
+        tool_call_id: message.toolCallId,
+      };
+    }
+
+    return {
+      role: message.role as 'system' | 'user' | 'assistant',
+      content: message.content || '',
+    };
+  });
 }
 
 export class AgentModelClient {
@@ -117,13 +171,13 @@ export class AgentModelClient {
         const response = config.provider === 'groq'
           ? await (config.client as Groq).chat.completions.create({
               model: config.model,
-              messages,
+              messages: toProviderMessages(messages),
               temperature: 0.2,
               max_tokens: getMaxOutputTokens(options.maxOutputTokens),
             }, { signal: options.signal })
           : await (config.client as OpenAI).chat.completions.create({
               model: config.model,
-              messages,
+              messages: toProviderMessages(messages),
               temperature: 0.2,
               max_tokens: getMaxOutputTokens(options.maxOutputTokens),
             }, { signal: options.signal });
@@ -177,6 +231,7 @@ export class AgentModelClient {
       let emittedDelta = false;
       let inputTokens = 0;
       let outputTokens = 0;
+      const toolCallParts = new Map<number, AgentToolCall>();
 
       try {
         if (options.signal?.aborted) {
@@ -186,18 +241,20 @@ export class AgentModelClient {
         const stream = config.provider === 'groq'
           ? await (config.client as Groq).chat.completions.create({
               model: config.model,
-              messages,
+              messages: toProviderMessages(messages),
               temperature: 0.2,
               max_tokens: getMaxOutputTokens(),
               stream: true,
+              tools: options.tools,
             }, { signal: options.signal })
           : await (config.client as OpenAI).chat.completions.create({
               model: config.model,
-              messages,
+              messages: toProviderMessages(messages),
               temperature: 0.2,
               max_tokens: getMaxOutputTokens(),
               stream: true,
               stream_options: { include_usage: true },
+              tools: options.tools,
             }, { signal: options.signal });
 
         for await (const chunk of stream) {
@@ -210,6 +267,21 @@ export class AgentModelClient {
             emittedDelta = true;
             content += delta;
             await options.onDelta(delta);
+          }
+
+          const toolCallDeltas = chunk.choices[0]?.delta?.tool_calls || [];
+          for (const toolCallDelta of toolCallDeltas) {
+            const current = toolCallParts.get(toolCallDelta.index) || {
+              id: '',
+              name: '',
+              arguments: '',
+            };
+            if (toolCallDelta.id) current.id += toolCallDelta.id;
+            if (toolCallDelta.function?.name) current.name += toolCallDelta.function.name;
+            if (toolCallDelta.function?.arguments) {
+              current.arguments += toolCallDelta.function.arguments;
+            }
+            toolCallParts.set(toolCallDelta.index, current);
           }
 
           const usage = 'usage' in chunk
@@ -226,12 +298,20 @@ export class AgentModelClient {
         }
 
         const completedContent = content.trim();
-        if (!completedContent) {
+        const toolCalls = [...toolCallParts.entries()]
+          .sort(([left], [right]) => left - right)
+          .map(([index, toolCall]) => ({
+            ...toolCall,
+            id: toolCall.id || `tool_call_${index}`,
+          }))
+          .filter((toolCall) => toolCall.name);
+        if (!completedContent && toolCalls.length === 0) {
           throw new Error('Model returned an empty response');
         }
 
         return {
           content: completedContent,
+          toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           provider: config.provider,
           model: config.model,
           usage: { inputTokens, outputTokens },

@@ -10,3 +10,4 @@ export * from './email-types.js';
 export * from './dynamic-email-generator.js';
 export * from './agent-model.js';
 export * from './agent-memory.js';
+export * from './agent-tool-loop.js';

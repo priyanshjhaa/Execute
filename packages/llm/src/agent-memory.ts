@@ -57,7 +57,7 @@ export function estimateAgentTokens(text: string): number {
 }
 
 export function estimateAgentMessageTokens(message: AgentChatMessage): number {
-  return MESSAGE_TOKEN_OVERHEAD + estimateAgentTokens(message.content);
+  return MESSAGE_TOKEN_OVERHEAD + estimateAgentTokens(message.content || '');
 }
 
 export function estimateAgentContextTokens(messages: AgentChatMessage[]): number {

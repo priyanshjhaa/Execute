@@ -187,6 +187,52 @@ test('streams provider deltas and returns the completed response metadata', asyn
   assert.deepEqual(result.usage, { inputTokens: 9, outputTokens: 2 });
 });
 
+test('collects streamed tool-call fragments without requiring visible content', async () => {
+  let request;
+  const tools = [{
+    type: 'function',
+    function: {
+      name: 'get_execution',
+      description: 'Get an execution',
+      parameters: { type: 'object' },
+    },
+  }];
+  const client = new AgentModelClient('', '');
+  client.models = [
+    modelConfig('groq', 'tool-model', async (input) => {
+      request = input;
+      return (async function* streamChunks() {
+        yield {
+          choices: [{ delta: { tool_calls: [{
+            index: 0,
+            id: 'call_123',
+            function: { name: 'get_', arguments: '{"execution' },
+          }] } }],
+        };
+        yield {
+          choices: [{ delta: { tool_calls: [{
+            index: 0,
+            function: { name: 'execution', arguments: 'Id":"00000000-0000-0000-0000-000000000001"}' },
+          }] } }],
+        };
+      }());
+    }),
+  ];
+
+  const result = await client.stream(
+    [{ role: 'user', content: 'Inspect it' }],
+    { tools, onDelta: () => assert.fail('tool calls must not emit text deltas') },
+  );
+
+  assert.deepEqual(request.tools, tools);
+  assert.equal(result.content, '');
+  assert.deepEqual(result.toolCalls, [{
+    id: 'call_123',
+    name: 'get_execution',
+    arguments: '{"executionId":"00000000-0000-0000-0000-000000000001"}',
+  }]);
+});
+
 test('falls back during streaming only before the first delta', async () => {
   const attempts = [];
   const deltas = [];
