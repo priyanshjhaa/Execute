@@ -6,10 +6,12 @@ import {
   executions,
   forms,
   steps,
+  userIntegrations,
   workflows,
 } from '@execute/db';
 import type { AgentToolCall, AgentToolDefinition } from '@execute/llm';
 import { z } from 'zod';
+import { INTEGRATION_OAUTH_GUIDES, sanitizeIntegration } from '@/lib/integration-metadata';
 
 const MAX_TOOL_ARGUMENT_CHARS = 10_000;
 
@@ -57,7 +59,65 @@ const GetContactSchema = z.object({
   contactId: z.string().uuid(),
 }).strict();
 
+const ListIntegrationsSchema = z.object({
+  type: z.enum(['slack', 'google-sheets', 'google-calendar', 'notion']).optional(),
+  isActive: z.boolean().optional(),
+  limit: z.number().int().min(1).max(25).default(10),
+}).strict();
+
+const GetIntegrationSchema = z.object({
+  integrationId: z.string().uuid(),
+}).strict();
+
+const GetIntegrationOAuthGuideSchema = z.object({
+  type: z.enum(['slack', 'google-sheets', 'google-calendar', 'notion']),
+}).strict();
+
 export const AGENT_READ_ONLY_TOOLS: AgentToolDefinition[] = [
+  {
+    type: 'function',
+    function: {
+      name: 'list_integrations',
+      description: 'List safe connection status for integrations in the current workspace. Credentials and raw configuration are never returned.',
+      parameters: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', enum: ['slack', 'google-sheets', 'google-calendar', 'notion'] },
+          isActive: { type: 'boolean' },
+          limit: { type: 'integer', minimum: 1, maximum: 25, default: 10 },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_integration',
+      description: 'Inspect safe status metadata for one integration owned by the current workspace. Secrets are never returned.',
+      parameters: {
+        type: 'object',
+        properties: { integrationId: { type: 'string', format: 'uuid' } },
+        required: ['integrationId'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_integration_oauth_guide',
+      description: 'Get safe, user-driven OAuth connection instructions and availability for a provider. This does not start OAuth or expose credentials.',
+      parameters: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', enum: ['slack', 'google-sheets', 'google-calendar', 'notion'] },
+        },
+        required: ['type'],
+        additionalProperties: false,
+      },
+    },
+  },
   {
     type: 'function',
     function: {
@@ -273,6 +333,44 @@ function classifyFailure(messages: string[]) {
   return {
     category: 'unknown',
     checks: ['Review the execution error and failed-step logs.', 'Retry once after validating the workflow configuration.'],
+  };
+}
+
+async function listIntegrations(userId: string, args: z.infer<typeof ListIntegrationsSchema>) {
+  const filters = [eq(userIntegrations.userId, userId)];
+  if (args.type) filters.push(eq(userIntegrations.type, args.type));
+  if (args.isActive !== undefined) filters.push(eq(userIntegrations.isActive, args.isActive));
+  const rows = await db.select().from(userIntegrations)
+    .where(and(...filters))
+    .orderBy(desc(userIntegrations.updatedAt))
+    .limit(args.limit);
+  return { ok: true, integrations: rows.map(sanitizeIntegration) };
+}
+
+async function getIntegration(userId: string, integrationId: string) {
+  const [integration] = await db.select().from(userIntegrations)
+    .where(and(
+      eq(userIntegrations.id, integrationId),
+      eq(userIntegrations.userId, userId),
+    ))
+    .limit(1);
+  return integration
+    ? { ok: true, integration: sanitizeIntegration(integration) }
+    : toolError('NOT_FOUND', 'Integration not found.');
+}
+
+async function getIntegrationOAuthGuide(userId: string, type: keyof typeof INTEGRATION_OAUTH_GUIDES) {
+  const [integration] = await db.select().from(userIntegrations)
+    .where(and(
+      eq(userIntegrations.userId, userId),
+      eq(userIntegrations.type, type),
+    ))
+    .orderBy(desc(userIntegrations.updatedAt))
+    .limit(1);
+  return {
+    ok: true,
+    guide: INTEGRATION_OAUTH_GUIDES[type],
+    connection: integration ? sanitizeIntegration(integration) : null,
   };
 }
 
@@ -570,6 +668,18 @@ async function diagnoseFailedExecution(userId: string, executionId: string) {
 
 export async function executeAgentReadOnlyTool(userId: string, toolCall: AgentToolCall) {
   switch (toolCall.name) {
+    case 'list_integrations': {
+      const args = parseArguments(toolCall, ListIntegrationsSchema);
+      return isToolError(args) ? args : listIntegrations(userId, args);
+    }
+    case 'get_integration': {
+      const args = parseArguments(toolCall, GetIntegrationSchema);
+      return isToolError(args) ? args : getIntegration(userId, args.integrationId);
+    }
+    case 'get_integration_oauth_guide': {
+      const args = parseArguments(toolCall, GetIntegrationOAuthGuideSchema);
+      return isToolError(args) ? args : getIntegrationOAuthGuide(userId, args.type);
+    }
     case 'search_contacts': {
       const args = parseArguments(toolCall, SearchContactsSchema);
       return isToolError(args) ? args : searchContacts(userId, args);

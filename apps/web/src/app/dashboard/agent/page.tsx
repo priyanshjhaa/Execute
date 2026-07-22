@@ -3,7 +3,7 @@
 import { FormEvent, Fragment, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { ArrowLeft, Bot, Building2, Check, ChevronRight, Clock3, Command, CornerDownLeft, FileText, GitCompareArrows, History, Link2, Loader2, Mail, MessageSquare, Plus, Search, Send, ShieldCheck, Sparkles, Square, UserRound, Workflow as WorkflowIcon, X, Zap } from "lucide-react";
+import { ArrowLeft, Bot, Building2, Check, ChevronRight, Clock3, Command, CornerDownLeft, FileText, GitCompareArrows, History, Link2, Loader2, Mail, MessageSquare, Plus, Search, Send, ShieldCheck, Sparkles, Square, Unplug, UserRound, Workflow as WorkflowIcon, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -440,6 +440,47 @@ function ExecutionProposalPreview({ action }: { action: AgentProposedAction }) {
   );
 }
 
+function IntegrationProposalPreview({ action }: { action: AgentProposedAction }) {
+  if (action.actionType !== 'integration.disconnect') return null;
+  const before = asRecord(action.payload.before);
+  const provider = typeof before?.name === 'string' ? before.name : 'Integration';
+  const providerType = typeof before?.type === 'string' ? before.type : 'provider';
+  const result = asRecord(action.result);
+  const href = typeof result?.href === 'string' ? result.href : '/dashboard/integrations';
+
+  return (
+    <div className="mt-4 overflow-hidden rounded-lg border border-white/[0.07] bg-black/25">
+      <div className="flex items-start gap-3.5 px-3.5 py-3.5">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-rose-100/10 bg-rose-100/[0.045] text-rose-50/60">
+          <Unplug className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold text-white/75">{provider}</p>
+              <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.14em] text-white/30">{providerType}</p>
+            </div>
+            <span className="rounded-full border border-rose-100/10 bg-rose-100/[0.035] px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-rose-50/55">
+              Disconnect
+            </span>
+          </div>
+          <p className="mt-3 text-[11px] leading-5 text-white/40">
+            Stored credentials will be removed. Secret values are never shown in this confirmation.
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center justify-between gap-3 border-t border-white/[0.07] px-3.5 py-2.5 text-[10px]">
+        <span className={action.status === 'failed' ? 'text-rose-200/60' : 'text-white/30'}>
+          {action.status === 'failed' ? action.errorMessage || 'The integration could not be disconnected.' : 'Explicit approval required'}
+        </span>
+        {action.status === 'completed' && (
+          <Link href={href} className="font-medium text-rose-50/55 hover:text-rose-50">View integrations</Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function actionStatusCopy(action: AgentProposedAction) {
   if (action.status === "pending") {
     return {
@@ -517,6 +558,7 @@ function AgentActionCard({
   const isExecutionProposal = ['workflow.run', 'execution.cancel', 'execution.retry'].includes(action.actionType);
   const isFormProposal = ['form.create', 'form.update', 'form.activate', 'form.deactivate', 'form.link_workflow'].includes(action.actionType);
   const isContactProposal = ['contact.create', 'contact.update', 'contact.activate', 'contact.deactivate'].includes(action.actionType);
+  const isIntegrationProposal = action.actionType === 'integration.disconnect';
 
   return (
     <div className={cn("relative w-full max-w-2xl overflow-hidden rounded-2xl border shadow-[0_18px_55px_rgba(0,0,0,0.2)] backdrop-blur", status.tone)}>
@@ -544,8 +586,9 @@ function AgentActionCard({
         {isExecutionProposal && <ExecutionProposalPreview action={action} />}
         {isFormProposal && <FormProposalPreview action={action} />}
         {isContactProposal && <ContactProposalPreview action={action} />}
+        {isIntegrationProposal && <IntegrationProposalPreview action={action} />}
 
-        {!isWorkflowProposal && !isExecutionProposal && !isFormProposal && !isContactProposal && details.length > 0 && (
+        {!isWorkflowProposal && !isExecutionProposal && !isFormProposal && !isContactProposal && !isIntegrationProposal && details.length > 0 && (
           <dl className="mt-4 divide-y divide-white/[0.07] border-y border-white/[0.07]">
             {details.map(([key, value]) => (
               <div key={key} className="grid grid-cols-[minmax(0,0.38fr)_minmax(0,0.62fr)] gap-3 py-2 text-xs leading-5">

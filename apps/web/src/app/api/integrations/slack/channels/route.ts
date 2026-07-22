@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db, userIntegrations, users } from '@execute/db';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,10 +23,14 @@ export async function GET(request: NextRequest) {
     // Get Slack integration for this user
     const [integration] = await db.select()
       .from(userIntegrations)
-      .where(eq(userIntegrations.userId, internalUser.id))
+      .where(and(
+        eq(userIntegrations.userId, internalUser.id),
+        eq(userIntegrations.type, 'slack'),
+        eq(userIntegrations.isActive, true),
+      ))
       .limit(1);
 
-    if (!integration || integration.type !== 'slack') {
+    if (!integration) {
       return NextResponse.json({ error: 'Slack integration not found' }, { status: 404 });
     }
 
@@ -66,10 +70,10 @@ export async function GET(request: NextRequest) {
       }));
 
     return NextResponse.json({ channels });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching Slack channels:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

@@ -1,6 +1,6 @@
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
-import { agentProposedActions, contacts, db, executions, forms, users, workflows } from '@execute/db';
-import { getAgentActionExecutionDisposition, isAgentContactActionType, isAgentExecutionActionType, isAgentFormActionType } from '@execute/llm';
+import { agentProposedActions, contacts, db, executions, forms, userIntegrations, users, workflows } from '@execute/db';
+import { getAgentActionExecutionDisposition, isAgentContactActionType, isAgentExecutionActionType, isAgentFormActionType, isAgentIntegrationActionType } from '@execute/llm';
 import { z } from 'zod';
 import { ContactDefinitionSchema, isContactEmailConflict } from '@/lib/contact-definition';
 import { CreateFormInputSchema } from '@/lib/form-definition';
@@ -44,7 +44,51 @@ const ContactActionPayloadSchema = z.object({
   }).passthrough(),
 }).passthrough();
 
+const IntegrationDisconnectPayloadSchema = z.object({
+  integrationId: z.string().uuid(),
+  expectedUpdatedAt: z.string().datetime(),
+}).passthrough();
+
 class AgentActionExecutionError extends Error {}
+
+async function executeIntegrationDisconnect(userId: string, payload: Record<string, unknown>) {
+  const args = IntegrationDisconnectPayloadSchema.safeParse(payload);
+  if (!args.success) throw new AgentActionExecutionError('The integration disconnect proposal is invalid.');
+
+  const [integration] = await db.select({
+    id: userIntegrations.id,
+    type: userIntegrations.type,
+    name: userIntegrations.name,
+    updatedAt: userIntegrations.updatedAt,
+  }).from(userIntegrations)
+    .where(and(
+      eq(userIntegrations.id, args.data.integrationId),
+      eq(userIntegrations.userId, userId),
+    ))
+    .limit(1);
+  if (!integration) throw new AgentActionExecutionError('Integration not found.');
+  if (integration.updatedAt.toISOString() !== args.data.expectedUpdatedAt) {
+    throw new AgentActionExecutionError('The integration changed after this proposal was prepared. Review its current status and try again.');
+  }
+
+  const [deleted] = await db.delete(userIntegrations)
+    .where(and(
+      eq(userIntegrations.id, integration.id),
+      eq(userIntegrations.userId, userId),
+      eq(userIntegrations.updatedAt, integration.updatedAt),
+    ))
+    .returning({ id: userIntegrations.id });
+  if (!deleted) throw new AgentActionExecutionError('The integration changed while the approved action was being applied.');
+
+  return {
+    kind: 'integration_disconnect',
+    integrationId: integration.id,
+    type: integration.type,
+    name: integration.name,
+    status: 'disconnected',
+    href: '/dashboard/integrations',
+  };
+}
 
 async function getInternalUser(userId: string) {
   const [user] = await db.select({
@@ -395,6 +439,9 @@ async function executeContactAction(
 }
 
 async function runAction(userId: string, actionType: string, payload: Record<string, unknown>) {
+  if (isAgentIntegrationActionType(actionType)) {
+    return executeIntegrationDisconnect(userId, payload);
+  }
   if (isAgentContactActionType(actionType)) {
     return executeContactAction(userId, actionType, payload);
   }
@@ -425,6 +472,7 @@ export async function executeApprovedAgentAction(userId: string, actionId: strin
     !isAgentExecutionActionType(currentAction.actionType)
     && !isAgentFormActionType(currentAction.actionType)
     && !isAgentContactActionType(currentAction.actionType)
+    && !isAgentIntegrationActionType(currentAction.actionType)
   ) {
     return { handled: false as const, action: currentAction };
   }

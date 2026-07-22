@@ -20,9 +20,9 @@ interface Integration {
   type: string;
   name: string;
   isActive: boolean;
-  config: {
-    team_name?: string;
-    default_channel_name?: string;
+  display: {
+    workspaceName: string | null;
+    defaultChannelName: string | null;
   };
   createdAt: string;
 }
@@ -86,7 +86,7 @@ export default function IntegrationsPage() {
   }, []);
 
   // Build available integrations list
-  const slackIntegration = integrations.find((i) => i.type === "slack");
+  const slackIntegration = integrations.find((i) => i.type === "slack" && i.isActive);
 
   const availableIntegrations: AvailableIntegration[] = [
     {
@@ -226,10 +226,10 @@ export default function IntegrationsPage() {
                       </h3>
                       {integration.connected && integration.integration && (
                         <p className="text-sm text-white/40">
-                          {integration.integration.config.team_name}
-                          {integration.integration.config.default_channel_name && (
+                          {integration.integration.display.workspaceName}
+                          {integration.integration.display.defaultChannelName && (
                             <span className="ml-2 text-white/30">
-                              • {integration.integration.config.default_channel_name}
+                              • {integration.integration.display.defaultChannelName}
                             </span>
                           )}
                         </p>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db, userIntegrations, users } from '@execute/db';
 import { eq, and } from 'drizzle-orm';
+import { sanitizeIntegration } from '@/lib/integration-metadata';
 
 function isValidUUID(str: string): boolean {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -55,11 +56,11 @@ export async function PATCH(
       .where(and(eq(userIntegrations.id, id), eq(userIntegrations.userId, internalUser.id)))
       .returning();
 
-    return NextResponse.json({ integration: updated });
-  } catch (error: any) {
+    return NextResponse.json({ integration: sanitizeIntegration(updated) });
+  } catch (error) {
     console.error('Error updating integration:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -98,10 +99,10 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true, message: 'Integration deleted successfully' });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error deleting integration:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

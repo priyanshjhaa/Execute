@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db, userIntegrations, users } from '@execute/db';
 import { eq, desc } from 'drizzle-orm';
+import { sanitizeIntegration } from '@/lib/integration-metadata';
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,11 +24,13 @@ export async function GET(request: NextRequest) {
       .where(eq(userIntegrations.userId, internalUser.id))
       .orderBy(desc(userIntegrations.createdAt));
 
-    return NextResponse.json({ integrations: userIntegrationsList });
-  } catch (error: any) {
+    return NextResponse.json({
+      integrations: userIntegrationsList.map(sanitizeIntegration),
+    });
+  } catch (error) {
     console.error('Error fetching integrations:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -69,11 +72,11 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    return NextResponse.json({ integration: newIntegration }, { status: 201 });
-  } catch (error: any) {
+    return NextResponse.json({ integration: sanitizeIntegration(newIntegration) }, { status: 201 });
+  } catch (error) {
     console.error('Error creating integration:', error);
     return NextResponse.json(
-      { error: 'Internal server error', details: error.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
