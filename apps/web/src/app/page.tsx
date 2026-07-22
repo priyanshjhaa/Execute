@@ -72,7 +72,7 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="min-h-[92vh] sm:min-h-screen pt-24 sm:pt-32 pb-14 sm:pb-20 px-4 sm:px-6 relative z-10 overflow-hidden">
+      <section className="landing-hero min-h-[92vh] sm:min-h-screen pt-24 sm:pt-32 pb-14 sm:pb-20 px-4 sm:px-6 relative z-10">
         <div className="landing-hero-bg" aria-hidden="true">
           <img
             src="/execute-hero-scenic.jpg"

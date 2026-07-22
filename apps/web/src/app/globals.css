@@ -48,10 +48,12 @@
     background-position: center top;
     background-repeat: no-repeat;
     background-size: cover;
+    overscroll-behavior-y: none;
   }
 
   body:has(.landing-shell) {
     background-color: transparent;
+    overscroll-behavior-y: none;
   }
 
   .btn-gradient {
@@ -141,9 +143,11 @@
 
   .landing-hero-bg {
     position: absolute;
-    inset: 0;
+    inset: 0 0 -38vh;
+    z-index: -1;
     overflow: hidden;
     background: #030303;
+    pointer-events: none;
   }
 
   .landing-hero-bg::before {
@@ -201,6 +205,10 @@
   }
 
   @media (max-width: 640px) {
+    .landing-hero-bg {
+      bottom: -48vh;
+    }
+
     .landing-hero-bg::before {
       background:
         radial-gradient(circle at 62% 58%, rgba(14, 165, 233, 0.12), transparent 32%),
