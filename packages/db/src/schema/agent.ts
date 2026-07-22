@@ -4,6 +4,14 @@ import { users } from './users';
 
 export type AgentMessageRole = 'user' | 'assistant' | 'system' | 'tool';
 export type AgentRunStatus = 'running' | 'completed' | 'cancelled' | 'failed';
+export type AgentProposedActionStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'expired'
+  | 'executing'
+  | 'completed'
+  | 'failed';
 
 export type AgentMessageContentBlock = {
   type: 'text';
@@ -64,9 +72,39 @@ export const agentRuns = pgTable('agent_runs', {
   statusCheck: check('agent_runs_status_check', sql`${table.status} IN ('running', 'completed', 'cancelled', 'failed')`),
 }));
 
+export const agentProposedActions = pgTable('agent_proposed_actions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  threadId: uuid('thread_id').references(() => agentThreads.id, { onDelete: 'cascade' }).notNull(),
+  runId: uuid('run_id').references(() => agentRuns.id, { onDelete: 'set null' }),
+  assistantMessageId: uuid('assistant_message_id').references(() => agentMessages.id, { onDelete: 'set null' }),
+  actionType: varchar('action_type', { length: 100 }).notNull(),
+  title: varchar('title', { length: 255 }).notNull(),
+  description: text('description'),
+  payload: jsonb('payload').$type<Record<string, unknown>>().notNull(),
+  status: varchar('status', { length: 20 }).$type<AgentProposedActionStatus>().notNull().default('pending'),
+  expiresAt: timestamp('expires_at'),
+  decidedAt: timestamp('decided_at'),
+  approvedAt: timestamp('approved_at'),
+  rejectedAt: timestamp('rejected_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('agent_proposed_actions_user_id_idx').on(table.userId),
+  threadIdIdx: index('agent_proposed_actions_thread_id_idx').on(table.threadId),
+  userStatusIdx: index('agent_proposed_actions_user_status_idx').on(table.userId, table.status),
+  threadCreatedAtIdx: index('agent_proposed_actions_thread_created_at_idx').on(table.threadId, table.createdAt),
+  statusCheck: check(
+    'agent_proposed_actions_status_check',
+    sql`${table.status} IN ('pending', 'approved', 'rejected', 'expired', 'executing', 'completed', 'failed')`,
+  ),
+}));
+
 export type AgentThread = typeof agentThreads.$inferSelect;
 export type NewAgentThread = typeof agentThreads.$inferInsert;
 export type AgentMessage = typeof agentMessages.$inferSelect;
 export type NewAgentMessage = typeof agentMessages.$inferInsert;
 export type AgentRun = typeof agentRuns.$inferSelect;
 export type NewAgentRun = typeof agentRuns.$inferInsert;
+export type AgentProposedAction = typeof agentProposedActions.$inferSelect;
+export type NewAgentProposedAction = typeof agentProposedActions.$inferInsert;

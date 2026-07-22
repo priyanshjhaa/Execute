@@ -14,6 +14,7 @@ if (!process.env.DATABASE_URL) {
 const migrationNames = [
   '0017_create_agent_runs.sql',
   '0018_add_agent_summary_metadata.sql',
+  '0019_create_agent_proposed_actions.sql',
 ];
 
 async function main() {

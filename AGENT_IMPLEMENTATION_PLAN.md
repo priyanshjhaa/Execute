@@ -11,7 +11,7 @@ Build the agent through small, independently testable phases. The agent coordina
 - Successful turns persist the user and assistant messages atomically.
 - Provider failures do not create empty threads or unmatched user messages.
 - Automated tests cover missing configuration, provider fallback, empty responses, output limits, and total provider failure.
-- Phase 7, confirmation infrastructure, is next.
+- Phase 7 is in progress: proposed actions are persisted and users can approve or reject pending actions.
 
 ## Phase 1: Conversation Storage - Complete and Stabilized
 
@@ -53,10 +53,11 @@ Build the agent through small, independently testable phases. The agent coordina
 - Add execution diagnosis.
 - Bound model and tool calls per turn.
 
-## Phase 7: Confirmation Infrastructure
+## Phase 7: Confirmation Infrastructure - In Progress
 
-- Persist proposed agent actions.
-- Add approval, rejection, expiry, and idempotency handling.
+- Persist proposed agent actions. - Complete
+- Add approval and rejection handling. - Complete
+- Add expiry and idempotency handling.
 - Add confirmation cards to the Agent UI.
 
 ## Phase 8: Workflow Creation and Editing
