@@ -15,6 +15,7 @@ Build the agent through small, independently testable phases. The agent coordina
 - Phase 8 is in progress: the agent can generate, validate, and display workflow creation and update proposals without applying them.
 - Phase 9 is complete: confirmed execution proposals run through the existing executor, support cancellation and retry, and return linked execution receipts.
 - Phase 10 is complete: the agent can inspect forms and apply confirmed form creation, editing, status, and workflow-link changes.
+- Phase 11 is complete: the agent can search contacts and apply confirmed contact creation, editing, and status changes with case-insensitive email uniqueness.
 
 ## Phase 1: Conversation Storage - Complete and Stabilized
 
@@ -84,11 +85,11 @@ Build the agent through small, independently testable phases. The agent coordina
 - Activate or deactivate forms. - Complete
 - Link forms to workflows. - Complete
 
-## Phase 11: Contacts
+## Phase 11: Contacts - Complete
 
-- Search and inspect contacts.
-- Create, edit, activate, or deactivate contacts.
-- Prevent duplicate contact emails.
+- Search and inspect contacts. - Complete
+- Create, edit, activate, or deactivate contacts. - Complete
+- Prevent duplicate contact emails. - Complete
 
 ## Phase 12: Integrations
 

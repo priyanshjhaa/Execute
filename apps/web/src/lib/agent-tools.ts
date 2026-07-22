@@ -1,5 +1,6 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, or } from 'drizzle-orm';
 import {
+  contacts,
   db,
   executionLogs,
   executions,
@@ -46,7 +47,47 @@ const GetFormSchema = z.object({
   formId: z.string().uuid(),
 }).strict();
 
+const SearchContactsSchema = z.object({
+  query: z.string().trim().min(1).max(200),
+  isActive: z.boolean().optional(),
+  limit: z.number().int().min(1).max(25).default(10),
+}).strict();
+
+const GetContactSchema = z.object({
+  contactId: z.string().uuid(),
+}).strict();
+
 export const AGENT_READ_ONLY_TOOLS: AgentToolDefinition[] = [
+  {
+    type: 'function',
+    function: {
+      name: 'search_contacts',
+      description: 'Search owned contacts by name, email, company, department, or job title. This tool is read-only.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', minLength: 1, maxLength: 200 },
+          isActive: { type: 'boolean' },
+          limit: { type: 'integer', minimum: 1, maximum: 25, default: 10 },
+        },
+        required: ['query'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_contact',
+      description: 'Get one contact from the current user workspace. This tool is read-only.',
+      parameters: {
+        type: 'object',
+        properties: { contactId: { type: 'string', format: 'uuid' } },
+        required: ['contactId'],
+        additionalProperties: false,
+      },
+    },
+  },
   {
     type: 'function',
     function: {
@@ -291,6 +332,49 @@ async function listForms(userId: string, args: z.infer<typeof ListFormsSchema>) 
   };
 }
 
+async function searchContacts(userId: string, args: z.infer<typeof SearchContactsSchema>) {
+  const pattern = `%${args.query}%`;
+  const filters = [
+    eq(contacts.userId, userId),
+    or(
+      ilike(contacts.name, pattern),
+      ilike(contacts.email, pattern),
+      ilike(contacts.company, pattern),
+      ilike(contacts.department, pattern),
+      ilike(contacts.jobTitle, pattern),
+    )!,
+  ];
+  if (args.isActive !== undefined) filters.push(eq(contacts.isActive, args.isActive));
+
+  const rows = await db.select({
+    id: contacts.id,
+    name: contacts.name,
+    email: contacts.email,
+    phone: contacts.phone,
+    department: contacts.department,
+    jobTitle: contacts.jobTitle,
+    company: contacts.company,
+    tags: contacts.tags,
+    isActive: contacts.isActive,
+    createdAt: contacts.createdAt,
+    updatedAt: contacts.updatedAt,
+  }).from(contacts)
+    .where(and(...filters))
+    .orderBy(desc(contacts.updatedAt))
+    .limit(args.limit);
+
+  return { ok: true, contacts: rows };
+}
+
+async function getContact(userId: string, contactId: string) {
+  const [contact] = await db.select().from(contacts)
+    .where(and(eq(contacts.id, contactId), eq(contacts.userId, userId)))
+    .limit(1);
+  return contact
+    ? { ok: true, contact }
+    : toolError('NOT_FOUND', 'Contact not found.');
+}
+
 async function getForm(userId: string, formId: string) {
   const [form] = await db.select({
     id: forms.id,
@@ -486,6 +570,14 @@ async function diagnoseFailedExecution(userId: string, executionId: string) {
 
 export async function executeAgentReadOnlyTool(userId: string, toolCall: AgentToolCall) {
   switch (toolCall.name) {
+    case 'search_contacts': {
+      const args = parseArguments(toolCall, SearchContactsSchema);
+      return isToolError(args) ? args : searchContacts(userId, args);
+    }
+    case 'get_contact': {
+      const args = parseArguments(toolCall, GetContactSchema);
+      return isToolError(args) ? args : getContact(userId, args.contactId);
+    }
     case 'list_forms': {
       const args = parseArguments(toolCall, ListFormsSchema);
       return isToolError(args) ? args : listForms(userId, args);

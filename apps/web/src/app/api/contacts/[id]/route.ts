@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db, contacts, users } from '@execute/db';
 import { eq, and } from 'drizzle-orm';
+import {
+  contactValidationMessage,
+  isContactEmailConflict,
+  UpdateContactInputSchema,
+} from '@/lib/contact-definition';
 
 // Validate UUID format
 function isValidUUID(str: string): boolean {
@@ -127,16 +132,23 @@ export async function PATCH(
     }
 
     // 4. Parse request body
-    const body = await request.json();
-    const { name, email, phone, department, jobTitle, company, tags, isActive, notes, avatarUrl } = body;
+    const body = await request.json().catch(() => null);
+    const parsed = UpdateContactInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: contactValidationMessage(parsed.error) },
+        { status: 400 },
+      );
+    }
+    const { name, email, phone, department, jobTitle, company, tags, isActive, notes, avatarUrl } = parsed.data;
 
     // 5. If email is being changed, check for duplicates
-    if (email && email.toLowerCase() !== existing.email) {
+    if (email && email !== existing.email) {
       const [duplicate] = await db.select()
         .from(contacts)
         .where(and(
           eq(contacts.userId, internalUser.id),
-          eq(contacts.email, email.toLowerCase())
+          eq(contacts.email, email)
         ))
         .limit(1);
 
@@ -152,7 +164,7 @@ export async function PATCH(
     const [updatedContact] = await db.update(contacts)
       .set({
         ...(name !== undefined && { name }),
-        ...(email !== undefined && { email: email.toLowerCase() }),
+        ...(email !== undefined && { email }),
         ...(phone !== undefined && { phone: phone || null }),
         ...(department !== undefined && { department: department || null }),
         ...(jobTitle !== undefined && { jobTitle: jobTitle || null }),
@@ -174,6 +186,12 @@ export async function PATCH(
     });
 
   } catch (error: any) {
+    if (isContactEmailConflict(error)) {
+      return NextResponse.json(
+        { error: 'A contact with this email already exists' },
+        { status: 409 },
+      );
+    }
     console.error('Error updating contact:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },

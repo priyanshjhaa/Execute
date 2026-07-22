@@ -3,7 +3,7 @@
 import { FormEvent, Fragment, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { ArrowLeft, Bot, Check, ChevronRight, Clock3, FileText, GitCompareArrows, Link2, Loader2, MessageSquare, Plus, Send, ShieldCheck, Square, Workflow as WorkflowIcon, X } from "lucide-react";
+import { ArrowLeft, Bot, Building2, Check, ChevronRight, Clock3, FileText, GitCompareArrows, Link2, Loader2, Mail, MessageSquare, Plus, Send, ShieldCheck, Square, UserRound, Workflow as WorkflowIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -298,6 +298,78 @@ function FormProposalPreview({ action }: { action: AgentProposedAction }) {
   );
 }
 
+function ContactProposalPreview({ action }: { action: AgentProposedAction }) {
+  if (!['contact.create', 'contact.update', 'contact.activate', 'contact.deactivate'].includes(action.actionType)) {
+    return null;
+  }
+  const after = asRecord(action.payload.after);
+  if (!after) return null;
+  const name = typeof after.name === 'string' ? after.name : 'Contact';
+  const email = typeof after.email === 'string' ? after.email : 'No email';
+  const company = typeof after.company === 'string' ? after.company : null;
+  const jobTitle = typeof after.jobTitle === 'string' ? after.jobTitle : null;
+  const tags = Array.isArray(after.tags)
+    ? after.tags.filter((tag): tag is string => typeof tag === 'string').slice(0, 4)
+    : [];
+  const isActive = after.isActive === true;
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || '?';
+  const result = asRecord(action.result);
+  const href = typeof result?.href === 'string' ? result.href : null;
+
+  return (
+    <div className="mt-4 overflow-hidden rounded-lg border border-white/[0.07] bg-black/25">
+      <div className="flex items-start gap-3.5 px-3.5 py-3.5">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-cyan-100/10 bg-cyan-100/[0.055] font-mono text-[11px] font-semibold tracking-wider text-cyan-50/65">
+          {initials}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold text-white/75">{name}</p>
+              <p className="mt-1 flex items-center gap-1.5 truncate text-[11px] text-white/40">
+                <Mail className="h-3 w-3 shrink-0" />
+                <span className="truncate">{email}</span>
+              </p>
+            </div>
+            <span className={cn(
+              "rounded-full border px-2 py-1 font-mono text-[9px] uppercase tracking-wider",
+              isActive
+                ? "border-cyan-100/10 bg-cyan-100/[0.04] text-cyan-50/55"
+                : "border-white/10 bg-white/[0.025] text-white/35",
+            )}>
+              {isActive ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+
+          {(company || jobTitle) && (
+            <p className="mt-2 flex items-center gap-1.5 text-[10px] text-white/30">
+              <Building2 className="h-3 w-3" />
+              {[jobTitle, company].filter(Boolean).join(' · ')}
+            </p>
+          )}
+          {tags.length > 0 && (
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {tags.map((tag) => <span key={tag} className="rounded-full border border-white/[0.07] px-2 py-0.5 text-[9px] text-white/35">{tag}</span>)}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 border-t border-white/[0.07] px-3.5 py-2.5 text-[10px]">
+        <span className={action.status === 'failed' ? 'text-rose-200/60' : 'text-white/30'}>
+          {action.status === 'failed' ? action.errorMessage || 'The approved contact action failed.' : 'One email address per workspace contact'}
+        </span>
+        {action.status === 'completed' && href && (
+          <Link href={href} className="flex items-center gap-1.5 font-medium text-cyan-50/55 hover:text-cyan-50">
+            <UserRound className="h-3 w-3" />
+            Edit contact
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ExecutionProposalPreview({ action }: { action: AgentProposedAction }) {
   if (!['workflow.run', 'execution.cancel', 'execution.retry'].includes(action.actionType)) {
     return null;
@@ -431,6 +503,7 @@ function AgentActionCard({
   const isWorkflowProposal = action.actionType === "workflow.create" || action.actionType === "workflow.update";
   const isExecutionProposal = ['workflow.run', 'execution.cancel', 'execution.retry'].includes(action.actionType);
   const isFormProposal = ['form.create', 'form.update', 'form.activate', 'form.deactivate', 'form.link_workflow'].includes(action.actionType);
+  const isContactProposal = ['contact.create', 'contact.update', 'contact.activate', 'contact.deactivate'].includes(action.actionType);
 
   return (
     <div className={cn("relative w-full max-w-xl overflow-hidden rounded-xl border", status.tone)}>
@@ -457,8 +530,9 @@ function AgentActionCard({
         {isWorkflowProposal && <WorkflowProposalPreview action={action} />}
         {isExecutionProposal && <ExecutionProposalPreview action={action} />}
         {isFormProposal && <FormProposalPreview action={action} />}
+        {isContactProposal && <ContactProposalPreview action={action} />}
 
-        {!isWorkflowProposal && !isExecutionProposal && !isFormProposal && details.length > 0 && (
+        {!isWorkflowProposal && !isExecutionProposal && !isFormProposal && !isContactProposal && details.length > 0 && (
           <dl className="mt-4 divide-y divide-white/[0.07] border-y border-white/[0.07]">
             {details.map(([key, value]) => (
               <div key={key} className="grid grid-cols-[minmax(0,0.38fr)_minmax(0,0.62fr)] gap-3 py-2 text-xs leading-5">

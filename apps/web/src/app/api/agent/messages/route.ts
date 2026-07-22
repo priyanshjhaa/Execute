@@ -24,6 +24,10 @@ import {
   AGENT_FORM_PROPOSAL_TOOLS,
   createAgentFormProposalCollector,
 } from '@/lib/agent-form-proposals';
+import {
+  AGENT_CONTACT_PROPOSAL_TOOLS,
+  createAgentContactProposalCollector,
+} from '@/lib/agent-contact-proposals';
 import { createClient } from '@/lib/supabase/server';
 
 const AgentMessageRequestSchema = z.object({
@@ -35,13 +39,15 @@ const AgentMessageRequestSchema = z.object({
 
 const AGENT_SYSTEM_PROMPT = `You are Execute Agent, the assistant for a workflow automation product.
 Respond clearly and concisely. You can explain workflows, forms, schedules, executions, contacts, and integrations.
-You have read-only tools for inspecting forms, workflows, executions, execution logs, and diagnosing failed executions in the current workspace.
+You have read-only tools for searching and inspecting contacts, forms, workflows, executions, execution logs, and diagnosing failed executions in the current workspace.
 You can also prepare validated proposals to create or update workflows. A proposal requires explicit user approval and does not modify workflow data.
 You can prepare confirmation requests to run workflows, cancel active executions, or retry failed executions. These actions execute only after explicit approval.
 You can prepare validated proposals to create or edit forms, activate or deactivate forms, and link or unlink forms and workflows. These actions execute only after explicit approval.
+You can prepare validated proposals to create or edit contacts and activate or deactivate them. Contact email addresses must be unique within the workspace, ignoring letter case.
 Use those tools whenever the user asks about current workspace data. Never invent workspace facts that you have not received from a tool result.
 When the user asks to create or change a workflow and has provided enough detail, use the appropriate proposal tool. Explain any missing information instead of guessing required configuration.
 When the user asks to create a form, require a name and at least one clearly described field. Use form inspection tools before editing, changing status, or linking a form when its ID is not already known.
+When the user asks to edit or change the status of a contact, search or inspect contacts first when the contact ID is not already known. Never guess which contact the user means when search results are ambiguous.
 Never claim that a proposed workflow was created or updated. Say that it is ready for review and approval.
 Never claim that an execution action happened before approval. The proposal tool only prepares the confirmation request.
 No model tool can directly modify workspace data or trigger external effects.
@@ -52,6 +58,7 @@ const AGENT_TOOLS = [
   ...AGENT_WORKFLOW_PROPOSAL_TOOLS,
   ...AGENT_EXECUTION_PROPOSAL_TOOLS,
   ...AGENT_FORM_PROPOSAL_TOOLS,
+  ...AGENT_CONTACT_PROPOSAL_TOOLS,
 ];
 
 function buildThreadTitle(message: string): string {
@@ -177,6 +184,7 @@ export async function POST(request: NextRequest) {
           });
           const executionProposalCollector = createAgentExecutionProposalCollector(internalUser.id);
           const formProposalCollector = createAgentFormProposalCollector(internalUser.id);
+          const contactProposalCollector = createAgentContactProposalCollector(internalUser.id);
 
           const modelResponse = await runAgentToolLoop({
             messages: modelContext,
@@ -193,6 +201,9 @@ export async function POST(request: NextRequest) {
               }
               if (formProposalCollector.handles(toolCall.name)) {
                 return formProposalCollector.execute(toolCall);
+              }
+              if (contactProposalCollector.handles(toolCall.name)) {
+                return contactProposalCollector.execute(toolCall);
               }
               return executeAgentReadOnlyTool(internalUser.id, toolCall);
             },
@@ -255,6 +266,7 @@ export async function POST(request: NextRequest) {
               ...workflowProposalCollector.proposals,
               ...executionProposalCollector.proposals,
               ...formProposalCollector.proposals,
+              ...contactProposalCollector.proposals,
             ];
             const proposedActions = collectedProposals.length > 0
               ? await tx.insert(agentProposedActions)

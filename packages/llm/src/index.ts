@@ -14,3 +14,4 @@ export * from './agent-tool-loop.js';
 export * from './agent-action-state.js';
 export * from './agent-execution-action.js';
 export * from './agent-form-action.js';
+export * from './agent-contact-action.js';

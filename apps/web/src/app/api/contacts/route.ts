@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { db, contacts, users } from '@execute/db';
-import { eq, desc, like, or, and, sql } from 'drizzle-orm';
+import { eq, desc, ilike, or, and } from 'drizzle-orm';
+import {
+  ContactDefinitionSchema,
+  contactValidationMessage,
+  isContactEmailConflict,
+} from '@/lib/contact-definition';
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,8 +48,8 @@ export async function GET(request: NextRequest) {
     if (search) {
       conditions.push(
         or(
-          like(contacts.name, `%${search}%`),
-          like(contacts.email, `%${search}%`)
+          ilike(contacts.name, `%${search}%`),
+          ilike(contacts.email, `%${search}%`)
         )!
       );
     }
@@ -105,23 +110,22 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Parse request body
-    const body = await request.json();
-    const { name, email, phone, department, jobTitle, company, tags, notes, avatarUrl } = body;
-
-    // 4. Validate required fields
-    if (!name || !email) {
+    const body = await request.json().catch(() => null);
+    const parsed = ContactDefinitionSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Name and email are required' },
-        { status: 400 }
+        { error: contactValidationMessage(parsed.error) },
+        { status: 400 },
       );
     }
+    const { name, email, phone, department, jobTitle, company, tags, notes, avatarUrl, isActive } = parsed.data;
 
     // 5. Check for duplicate email
     const [existing] = await db.select()
       .from(contacts)
       .where(and(
         eq(contacts.userId, internalUser.id),
-        eq(contacts.email, email.toLowerCase())
+        eq(contacts.email, email)
       ))
       .limit(1);
 
@@ -137,7 +141,7 @@ export async function POST(request: NextRequest) {
       .values({
         userId: internalUser.id,
         name,
-        email: email.toLowerCase(),
+        email,
         phone: phone || null,
         department: department || null,
         jobTitle: jobTitle || null,
@@ -145,7 +149,7 @@ export async function POST(request: NextRequest) {
         tags: tags || [],
         notes: notes || null,
         avatarUrl: avatarUrl || null,
-        isActive: true,
+        isActive,
       })
       .returning();
 
@@ -154,6 +158,12 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
 
   } catch (error: any) {
+    if (isContactEmailConflict(error)) {
+      return NextResponse.json(
+        { error: 'A contact with this email already exists' },
+        { status: 409 },
+      );
+    }
     console.error('Error creating contact:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },

@@ -1,7 +1,8 @@
-import { and, eq, inArray } from 'drizzle-orm';
-import { agentProposedActions, db, executions, forms, users, workflows } from '@execute/db';
-import { getAgentActionExecutionDisposition, isAgentExecutionActionType, isAgentFormActionType } from '@execute/llm';
+import { and, eq, inArray, ne, sql } from 'drizzle-orm';
+import { agentProposedActions, contacts, db, executions, forms, users, workflows } from '@execute/db';
+import { getAgentActionExecutionDisposition, isAgentContactActionType, isAgentExecutionActionType, isAgentFormActionType } from '@execute/llm';
 import { z } from 'zod';
+import { ContactDefinitionSchema, isContactEmailConflict } from '@/lib/contact-definition';
 import { CreateFormInputSchema } from '@/lib/form-definition';
 import { executeWorkflow, hasActiveExecution } from '@/lib/workflow-execution';
 
@@ -23,6 +24,23 @@ const FormActionPayloadSchema = z.object({
     fields: z.array(z.unknown()),
     isActive: z.boolean(),
     workflowId: z.string().uuid().nullable(),
+  }).passthrough(),
+}).passthrough();
+
+const ContactActionPayloadSchema = z.object({
+  contactId: z.string().uuid().optional(),
+  expectedUpdatedAt: z.string().datetime().optional(),
+  after: z.object({
+    name: z.string(),
+    email: z.string(),
+    phone: z.string().nullable(),
+    department: z.string().nullable(),
+    jobTitle: z.string().nullable(),
+    company: z.string().nullable(),
+    tags: z.array(z.string()),
+    notes: z.string().nullable(),
+    avatarUrl: z.string().nullable(),
+    isActive: z.boolean(),
   }).passthrough(),
 }).passthrough();
 
@@ -251,7 +269,135 @@ async function executeFormAction(
   };
 }
 
+async function assertUniqueContactEmail(userId: string, email: string, excludeId?: string) {
+  const filters = [
+    eq(contacts.userId, userId),
+    sql`lower(${contacts.email}) = ${email}`,
+  ];
+  if (excludeId) filters.push(ne(contacts.id, excludeId));
+  const [duplicate] = await db.select({ id: contacts.id }).from(contacts)
+    .where(and(...filters))
+    .limit(1);
+  if (duplicate) throw new AgentActionExecutionError('A contact with this email already exists.');
+}
+
+async function executeContactAction(
+  userId: string,
+  actionType: string,
+  payload: Record<string, unknown>,
+) {
+  const args = ContactActionPayloadSchema.safeParse(payload);
+  if (!args.success) throw new AgentActionExecutionError('The contact proposal is invalid.');
+  const validatedAfter = ContactDefinitionSchema.safeParse({
+    name: args.data.after.name,
+    email: args.data.after.email,
+    phone: args.data.after.phone,
+    department: args.data.after.department,
+    jobTitle: args.data.after.jobTitle,
+    company: args.data.after.company,
+    tags: args.data.after.tags,
+    notes: args.data.after.notes,
+    avatarUrl: args.data.after.avatarUrl,
+    isActive: args.data.after.isActive,
+  });
+  if (!validatedAfter.success) throw new AgentActionExecutionError('The proposed contact is invalid.');
+  const after = validatedAfter.data;
+
+  if (actionType === 'contact.create') {
+    await assertUniqueContactEmail(userId, after.email);
+    try {
+      const [created] = await db.insert(contacts).values({
+        userId,
+        name: after.name,
+        email: after.email,
+        phone: after.phone || null,
+        department: after.department || null,
+        jobTitle: after.jobTitle || null,
+        company: after.company || null,
+        tags: after.tags,
+        notes: after.notes || null,
+        avatarUrl: after.avatarUrl || null,
+        isActive: after.isActive,
+      }).returning({ id: contacts.id, email: contacts.email, isActive: contacts.isActive });
+      if (!created) throw new AgentActionExecutionError('The contact could not be created.');
+      return {
+        kind: 'contact_create',
+        contactId: created.id,
+        email: created.email,
+        isActive: created.isActive,
+        href: `/dashboard/contacts/${created.id}/edit`,
+      };
+    } catch (error) {
+      if (isContactEmailConflict(error)) {
+        throw new AgentActionExecutionError('A contact with this email already exists.');
+      }
+      throw error;
+    }
+  }
+
+  if (!args.data.contactId || !args.data.expectedUpdatedAt) {
+    throw new AgentActionExecutionError('The contact proposal is missing its edit version.');
+  }
+  const [current] = await db.select({ id: contacts.id, updatedAt: contacts.updatedAt })
+    .from(contacts)
+    .where(and(eq(contacts.id, args.data.contactId), eq(contacts.userId, userId)))
+    .limit(1);
+  if (!current) throw new AgentActionExecutionError('Contact not found.');
+  if (current.updatedAt.toISOString() !== args.data.expectedUpdatedAt) {
+    throw new AgentActionExecutionError('This contact changed after the proposal was created. Review it and propose the change again.');
+  }
+
+  let updates: Partial<typeof contacts.$inferInsert>;
+  if (actionType === 'contact.update') {
+    await assertUniqueContactEmail(userId, after.email, current.id);
+    updates = {
+      name: after.name,
+      email: after.email,
+      phone: after.phone || null,
+      department: after.department || null,
+      jobTitle: after.jobTitle || null,
+      company: after.company || null,
+      tags: after.tags,
+      notes: after.notes || null,
+      avatarUrl: after.avatarUrl || null,
+    };
+  } else if (actionType === 'contact.activate' || actionType === 'contact.deactivate') {
+    const expectedState = actionType === 'contact.activate';
+    if (after.isActive !== expectedState) throw new AgentActionExecutionError('The proposed contact status is invalid.');
+    updates = { isActive: expectedState };
+  } else {
+    throw new AgentActionExecutionError('This contact action is not supported.');
+  }
+
+  try {
+    const [updated] = await db.update(contacts)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(
+        eq(contacts.id, current.id),
+        eq(contacts.userId, userId),
+        eq(contacts.updatedAt, current.updatedAt),
+      ))
+      .returning({ id: contacts.id, email: contacts.email, isActive: contacts.isActive });
+    if (!updated) throw new AgentActionExecutionError('The contact changed while the approved action was being applied.');
+    return {
+      kind: actionType.replace('.', '_'),
+      contactId: updated.id,
+      email: updated.email,
+      isActive: updated.isActive,
+      href: `/dashboard/contacts/${updated.id}/edit`,
+    };
+  } catch (error) {
+    if (isContactEmailConflict(error)) {
+      throw new AgentActionExecutionError('A contact with this email already exists.');
+    }
+    throw error;
+  }
+}
+
 async function runAction(userId: string, actionType: string, payload: Record<string, unknown>) {
+  if (isAgentContactActionType(actionType)) {
+    return executeContactAction(userId, actionType, payload);
+  }
   if (isAgentFormActionType(actionType)) {
     return executeFormAction(userId, actionType, payload);
   }
@@ -275,7 +421,11 @@ export async function executeApprovedAgentAction(userId: string, actionId: strin
     ))
     .limit(1);
   if (!currentAction) return { handled: false as const, action: null };
-  if (!isAgentExecutionActionType(currentAction.actionType) && !isAgentFormActionType(currentAction.actionType)) {
+  if (
+    !isAgentExecutionActionType(currentAction.actionType)
+    && !isAgentFormActionType(currentAction.actionType)
+    && !isAgentContactActionType(currentAction.actionType)
+  ) {
     return { handled: false as const, action: currentAction };
   }
   if (getAgentActionExecutionDisposition(currentAction.status) !== 'claim') {

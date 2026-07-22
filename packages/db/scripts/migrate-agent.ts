@@ -17,6 +17,7 @@ const migrationNames = [
   '0019_create_agent_proposed_actions.sql',
   '0020_enforce_agent_action_expiry.sql',
   '0021_add_agent_action_results.sql',
+  '0022_enforce_contact_email_uniqueness.sql',
 ];
 
 async function main() {

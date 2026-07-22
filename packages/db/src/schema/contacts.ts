@@ -1,4 +1,5 @@
-import { pgTable, uuid, varchar, text, timestamp, boolean, jsonb, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { pgTable, uuid, varchar, text, timestamp, boolean, jsonb, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { users } from './users';
 
 export const contacts = pgTable('contacts', {
@@ -22,7 +23,7 @@ export const contacts = pgTable('contacts', {
   tags: jsonb('tags').$type<string[]>(),
 
   // Status
-  isActive: boolean('is_active').default(true),
+  isActive: boolean('is_active').notNull().default(true),
 
   // Metadata
   notes: text('notes'),
@@ -34,8 +35,8 @@ export const contacts = pgTable('contacts', {
   userIdIdx: index('contacts_user_id_idx').on(table.userId),
   emailIdx: index('contacts_email_idx').on(table.email),
   departmentIdx: index('contacts_department_idx').on(table.department),
-  // Composite index for user + email uniqueness
-  userEmailIdx: index('contacts_user_email_idx').on(table.userId, table.email),
+  userEmailUniqueIdx: uniqueIndex('contacts_user_email_unique_idx')
+    .on(table.userId, sql`lower(${table.email})`),
 }));
 
 export type Contact = typeof contacts.$inferSelect;
