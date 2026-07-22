@@ -16,13 +16,19 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/providers/auth-provider";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
-const navItems = [
+const navItems: Array<{
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  feature?: "agent" | "monitor";
+}> = [
   {
     name: "Dashboard",
     href: "/dashboard",
@@ -42,11 +48,13 @@ const navItems = [
     name: "Agent",
     href: "/dashboard/agent",
     icon: Bot,
+    feature: "agent",
   },
   {
     name: "Needs Attention",
     href: "/dashboard/attention",
     icon: AlertTriangle,
+    feature: "monitor",
   },
   {
     name: "Contacts",
@@ -69,6 +77,16 @@ export default function DashboardLayout({
   const { user, signOut, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const featureAccess = useQuery<{ agent: boolean; monitor: boolean }>({
+    queryKey: ["agent-feature-access"],
+    queryFn: async () => {
+      const response = await fetch('/api/agent/access');
+      if (!response.ok) return { agent: false, monitor: false };
+      return response.json();
+    },
+    enabled: Boolean(user),
+    staleTime: 60_000,
+  });
   const attentionCount = useQuery<number>({
     queryKey: ["failure-findings", "count"],
     queryFn: async () => {
@@ -77,7 +95,7 @@ export default function DashboardLayout({
       const data = await response.json();
       return typeof data.count === 'number' ? data.count : 0;
     },
-    enabled: Boolean(user),
+    enabled: Boolean(user && featureAccess.data?.monitor),
     refetchInterval: 30_000,
   });
 
@@ -165,7 +183,7 @@ export default function DashboardLayout({
 
         {/* Navigation */}
         <nav className="space-y-1 p-4">
-          {navItems.map((item) => {
+          {navItems.filter((item) => !item.feature || featureAccess.data?.[item.feature]).map((item) => {
             const isActive = pathname === item.href || (
               item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`)
             );

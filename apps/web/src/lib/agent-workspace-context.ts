@@ -8,7 +8,10 @@ import {
   userIntegrations,
   workflows,
 } from '@execute/db';
-import { resolveWorkspaceContextCacheTtlSeconds } from '@execute/llm';
+import {
+  resolveWorkspaceContextCacheTtlSeconds,
+  serializeUntrustedWorkspaceContext,
+} from '@execute/llm';
 
 function timestamp(value: Date | null) {
   return value?.toISOString() || null;
@@ -50,14 +53,20 @@ export async function getCompactWorkspaceContext(userId: string) {
   ]);
   const activeForms = formStates.find((row) => row.isActive)?.value || 0;
   const connectedTypes = [...new Set(integrationStates.filter((item) => item.isActive).map((item) => item.type))];
-  const content = [
-    'Compact workspace overview (cached; use tools for current details):',
-    `- Workflows: ${workflowStats[0]?.value || 0} total${recentWorkflows.length ? `; recent: ${recentWorkflows.map((workflow) => `${workflow.name} [${workflow.status}/${workflow.triggerType}]`).join(', ')}` : ''}`,
-    `- Forms: ${formStats[0]?.value || 0} total; ${activeForms} active`,
-    `- Contacts: ${contactStats[0]?.value || 0} total`,
-    `- Connected integration types: ${connectedTypes.length ? connectedTypes.join(', ') : 'none'}`,
-    `- Open failure findings: ${attentionStats[0]?.value || 0}`,
-  ].join('\n').slice(0, 2_400);
+  const content = serializeUntrustedWorkspaceContext({
+    generatedAt: now.toISOString(),
+    workflows: {
+      total: workflowStats[0]?.value || 0,
+      recent: recentWorkflows,
+    },
+    forms: {
+      total: formStats[0]?.value || 0,
+      active: activeForms,
+    },
+    contacts: { total: contactStats[0]?.value || 0 },
+    connectedIntegrationTypes: connectedTypes,
+    openFailureFindings: attentionStats[0]?.value || 0,
+  });
   const expiresAt = new Date(now.getTime() + resolveWorkspaceContextCacheTtlSeconds() * 1000);
   const metadata = { ...versionData, generatedAt: now.toISOString() };
   await db.insert(agentWorkspaceContextCache).values({

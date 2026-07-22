@@ -163,6 +163,12 @@ AGENT_MAX_CONTEXT_TOKENS=12000
 AGENT_DAILY_TOKEN_LIMIT=100000
 AGENT_DAILY_REQUEST_LIMIT=200
 AGENT_WORKSPACE_CACHE_TTL_SECONDS=300
+# disabled, internal, or general. Production defaults to internal.
+AGENT_RELEASE_MODE=internal
+AGENT_ENABLED=true
+FAILURE_MONITOR_ENABLED=true
+AGENT_INTERNAL_EMAILS=owner@example.com
+# AGENT_INTERNAL_USER_IDS=comma-separated-internal-user-ids
 # Optional; complex requests only. Requires OPENROUTER_API_KEY.
 # AGENT_REASONING_MODEL=your-openrouter-reasoning-model
 
@@ -192,6 +198,10 @@ Required:
 - Use your deployed app URL as the base domain
 
 The resume endpoint checks waiting executions. The failure-monitor endpoint creates one deduplicated finding per newly observed failed execution and never applies repairs automatically.
+
+### Agent release controls
+
+Use `AGENT_RELEASE_MODE=internal` in production until general availability. Only users listed in `AGENT_INTERNAL_EMAILS` or `AGENT_INTERNAL_USER_IDS` can see agent navigation, open agent pages, call agent APIs, or receive failure-monitor scans. `AGENT_ENABLED=false` disables both features; `FAILURE_MONITOR_ENABLED=false` disables only monitoring. Set `AGENT_RELEASE_MODE=general` when the release is ready for all authenticated workspaces.
 
 ## Development
 

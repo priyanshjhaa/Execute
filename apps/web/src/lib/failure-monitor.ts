@@ -9,7 +9,16 @@ function scanLimit() {
   return Number.isFinite(configured) ? Math.min(Math.max(configured, 1), 500) : DEFAULT_SCAN_LIMIT;
 }
 
-export async function scanNewFailureFindings() {
+export async function scanNewFailureFindings(allowedUserIds: string[] | null = null) {
+  if (allowedUserIds?.length === 0) {
+    return { scanned: 0, created: 0, deduplicated: 0, categories: {} };
+  }
+  const candidateFilters = [
+    eq(executions.status, 'failed'),
+    isNull(failureFindings.id),
+  ];
+  if (allowedUserIds) candidateFilters.push(inArray(executions.userId, allowedUserIds));
+
   const candidates = await db.select({
     id: executions.id,
     userId: executions.userId,
@@ -23,10 +32,7 @@ export async function scanNewFailureFindings() {
       eq(executions.userId, workflows.userId),
     ))
     .leftJoin(failureFindings, eq(failureFindings.executionId, executions.id))
-    .where(and(
-      eq(executions.status, 'failed'),
-      isNull(failureFindings.id),
-    ))
+    .where(and(...candidateFilters))
     .orderBy(desc(executions.completedAt), desc(executions.createdAt))
     .limit(scanLimit());
 

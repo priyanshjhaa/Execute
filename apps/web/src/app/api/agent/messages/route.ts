@@ -35,6 +35,7 @@ import {
 } from '@/lib/agent-integration-proposals';
 import { createClient } from '@/lib/supabase/server';
 import { AgentDailyUsageLimitError, recordAgentModelCall, reserveAgentDailyRequest } from '@/lib/agent-usage';
+import { canAccessAgentFeature } from '@/lib/agent-feature-access';
 
 const AgentMessageRequestSchema = z.object({
   runId: z.string().uuid(),
@@ -103,6 +104,9 @@ export async function POST(request: NextRequest) {
 
     if (!internalUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    if (!canAccessAgentFeature(internalUser, 'agent')) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
     const requestBody = await request.json().catch(() => null);

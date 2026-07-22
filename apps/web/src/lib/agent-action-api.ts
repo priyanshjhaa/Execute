@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { decideAgentProposedAction } from '@/lib/agent-actions';
 import { executeApprovedAgentAction } from '@/lib/agent-action-executor';
 import { createClient } from '@/lib/supabase/server';
+import { canAccessAgentFeature } from '@/lib/agent-feature-access';
 
 interface AgentActionRouteContext {
   params: Promise<{ id: string }>;
@@ -30,12 +31,15 @@ export async function handleAgentActionDecision(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const [internalUser] = await db.select({ id: users.id })
+    const [internalUser] = await db.select({ id: users.id, email: users.email })
       .from(users)
       .where(eq(users.supabaseId, user.id))
       .limit(1);
     if (!internalUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    if (!canAccessAgentFeature(internalUser, 'agent')) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
     const result = await decideAgentProposedAction({

@@ -19,6 +19,7 @@ Build the agent through small, independently testable phases. The agent coordina
 - Phase 12 is complete: integration status and OAuth guidance are tenant-scoped, public responses exclude secrets, and disconnection requires explicit approval.
 - Phase 13 is complete: the scheduler creates deduplicated, classified failure findings with non-executing repair guidance and a tenant-scoped Needs Attention inbox.
 - Phase 14 is complete: model calls have detailed usage telemetry, compact workspace context is cached, daily/tool-output budgets are enforced, and reasoning escalation is complexity-gated.
+- Phase 15 is complete: feature-gated internal release controls cover pages, APIs, and monitoring; cached context is isolated as untrusted data; and security regression tests cover tenant isolation, prompt injection, approvals, and provider outages.
 
 ## Phase 1: Conversation Storage - Complete and Stabilized
 
@@ -114,11 +115,11 @@ Build the agent through small, independently testable phases. The agent coordina
 - Truncate tool output and enforce daily limits. - Complete
 - Escalate to a reasoning model only when necessary. - Complete
 
-## Phase 15: Security and Release
+## Phase 15: Security and Release - Complete
 
-- Test tenant isolation, prompt injection, approvals, and provider outages.
-- Add agent and monitor feature flags.
-- Release internally before general availability.
+- Test tenant isolation, prompt injection, approvals, and provider outages. - Complete
+- Add agent and monitor feature flags. - Complete
+- Release internally before general availability. - Complete
 
 ## Core Rules
 

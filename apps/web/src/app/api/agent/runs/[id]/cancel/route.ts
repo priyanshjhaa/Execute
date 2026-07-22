@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { agentRuns, db, users } from '@execute/db';
 import { abortAgentRun } from '@/lib/agent-run-registry';
 import { createClient } from '@/lib/supabase/server';
+import { canAccessAgentFeature } from '@/lib/agent-feature-access';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -23,12 +24,15 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const [internalUser] = await db.select({ id: users.id })
+    const [internalUser] = await db.select({ id: users.id, email: users.email })
       .from(users)
       .where(eq(users.supabaseId, user.id))
       .limit(1);
     if (!internalUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    if (!canAccessAgentFeature(internalUser, 'agent')) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
     const [run] = await db.select({ id: agentRuns.id, status: agentRuns.status })

@@ -4,14 +4,18 @@ import { agentModelCalls, db, users } from '@execute/db';
 import { resolveAgentDailyRequestLimit, resolveAgentDailyTokenLimit } from '@execute/llm';
 import { getAgentDailyUsage } from '@/lib/agent-usage';
 import { createClient } from '@/lib/supabase/server';
+import { canAccessAgentFeature } from '@/lib/agent-feature-access';
 
 export async function GET() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const [internalUser] = await db.select({ id: users.id }).from(users)
+  const [internalUser] = await db.select({ id: users.id, email: users.email }).from(users)
     .where(eq(users.supabaseId, user.id)).limit(1);
   if (!internalUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  if (!canAccessAgentFeature(internalUser, 'agent')) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
 
   const now = new Date();
   const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));

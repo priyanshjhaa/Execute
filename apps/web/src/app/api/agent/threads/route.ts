@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { desc, eq } from 'drizzle-orm';
 import { agentThreads, db, users } from '@execute/db';
 import { createClient } from '@/lib/supabase/server';
+import { canAccessAgentFeature } from '@/lib/agent-feature-access';
 
 export async function GET() {
   try {
@@ -12,13 +13,16 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const [internalUser] = await db.select({ id: users.id })
+    const [internalUser] = await db.select({ id: users.id, email: users.email })
       .from(users)
       .where(eq(users.supabaseId, user.id))
       .limit(1);
 
     if (!internalUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    if (!canAccessAgentFeature(internalUser, 'agent')) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
     const threads = await db.select({

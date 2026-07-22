@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "pnpm --filter @execute/db build && pnpm --filter @execute/execution build && pnpm --filter @execute/llm build && pnpm --filter @execute/validation build && next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:security": "node --test test/*.test.mjs"
   },
   "packageManager": "pnpm@10.28.1",
   "dependencies": {
