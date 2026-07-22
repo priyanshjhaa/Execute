@@ -90,7 +90,7 @@ export default function WorkflowsPage() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-bold text-white mb-2">Workflows</h1>
-              <p className="text-white/50">Manage all your automation workflows</p>
+              <p className="text-white/50">Review active automations, schedules, and agent-created workflows</p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               {agentAccess.data?.agent && (
@@ -130,7 +130,11 @@ export default function WorkflowsPage() {
               <Clock className="h-10 w-10 text-white/20" />
             </div>
             <h3 className="text-xl font-semibold text-white mb-2">No workflows yet</h3>
-            <p className="text-white/40 mb-6">Create your first workflow to get started</p>
+            <p className="text-white/40 mb-6">
+              {agentAccess.data?.agent
+                ? "Describe the outcome to the Agent, then approve the validated plan."
+                : "Build and validate your first workflow."}
+            </p>
             <Link href={agentAccess.data?.agent ? "/dashboard/agent?prompt=Create%20my%20first%20workflow" : "/dashboard/workflows/new"}>
               <Button className="bg-white/10 hover:bg-white/15 text-white border-white/20">
                 {agentAccess.data?.agent ? <Bot className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}

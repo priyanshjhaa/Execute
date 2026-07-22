@@ -126,7 +126,7 @@ export default function FormsPage() {
             <div>
               <h1 className="text-3xl font-bold text-white">Forms</h1>
               <p className="text-white/50 mt-1">
-                Create hosted forms to collect data and trigger workflows
+                Collect structured input and route each submission into a workflow
               </p>
             </div>
 
@@ -153,7 +153,7 @@ export default function FormsPage() {
             <FileText className="h-16 w-16 text-white/20 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-white mb-2">No forms yet</h3>
             <p className="text-white/50 mb-6">
-              Get started by creating your first hosted form.
+              Create a hosted form, then link it to the workflow that should respond.
             </p>
             <Button
               className="btn-gradient text-black rounded-full"

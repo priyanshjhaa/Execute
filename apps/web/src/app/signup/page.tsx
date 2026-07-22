@@ -84,10 +84,10 @@ export default function SignupPage() {
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
-              Create Your Account
+              Give Execute an outcome
             </h1>
             <p className="text-lg text-white/50">
-              Start automating your workflows in minutes
+              Create an account to plan, approve, and run work with Execute Agent
             </p>
           </div>
 

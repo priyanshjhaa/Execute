@@ -162,7 +162,7 @@ export default function IntegrationsPage() {
             <div>
               <h1 className="text-3xl font-bold text-white">Integrations</h1>
               <p className="text-white/50 mt-1">
-                Connect apps to extend Execute's capabilities
+                Connect the services approved workflows can use at execution time
               </p>
             </div>
           </div>

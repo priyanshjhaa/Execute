@@ -144,7 +144,7 @@ export default function SettingsPage() {
         <div className="container mx-auto px-8 py-8">
           <h1 className="text-3xl font-bold text-white mb-2">Settings</h1>
           <p className="text-white/50">
-            Manage your account and preferences
+            Manage your account, notifications, security, and data preferences
           </p>
         </div>
       </div>

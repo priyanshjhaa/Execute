@@ -183,7 +183,7 @@ export default function QuickCommandsPage() {
                 <h1 className="text-3xl font-bold text-white">Quick Commands</h1>
               </div>
               <p className="text-white/50 ml-9">
-                Tell Execute what happened or what you want done
+                Lightweight commands remain available while Execute Agent rolls out
               </p>
             </div>
             <Button
@@ -267,7 +267,7 @@ export default function QuickCommandsPage() {
             <p className="text-white/40">
               {searchQuery
                 ? 'Try a different search term or filter'
-                : 'Use the input above to log your first command'}
+                : 'Use the input above to log a supported command'}
             </p>
           </div>
         ) : (

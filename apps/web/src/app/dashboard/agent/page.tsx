@@ -952,9 +952,9 @@ export default function AgentPage() {
           <div className="min-w-0">
             <div className="flex items-center gap-2.5">
               <h1 className="truncate text-lg font-semibold tracking-[-0.02em] text-white sm:text-xl">Execute Agent</h1>
-              <span className="hidden rounded-full border border-white/[0.08] bg-white/[0.035] px-2 py-0.5 font-mono text-[8px] uppercase tracking-[0.18em] text-white/35 sm:inline">command layer</span>
+              <span className="hidden rounded-full border border-white/[0.08] bg-white/[0.035] px-2 py-0.5 font-mono text-[8px] uppercase tracking-[0.18em] text-white/35 sm:inline">control plane</span>
             </div>
-            <p className="mt-0.5 truncate text-xs text-white/35">Inspect, plan, and act across your workspace</p>
+            <p className="mt-0.5 truncate text-xs text-white/35">Inspect context, prepare changes, and hand approved work to the engine</p>
           </div>
         </div>
         <div className="hidden items-center gap-5 text-[10px] text-white/30 sm:flex">
@@ -1076,9 +1076,9 @@ export default function AgentPage() {
                   <div className="w-full">
                     <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.2em] text-cyan-100/45"><span className="h-px w-8 bg-cyan-100/30" />Workspace command</div>
                     <h2 className="mt-4 max-w-2xl text-3xl font-semibold leading-[1.08] tracking-[-0.035em] text-white sm:text-[2.15rem] lg:text-[2.35rem]">
-                      Name the outcome.<br /><span className="text-white/35">I&apos;ll map the work.</span>
+                      Name the outcome.<br /><span className="text-white/35">I&apos;ll clarify and map the work.</span>
                     </h2>
-                    <p className="mt-3 max-w-xl text-sm leading-5 text-white/40">Inspect live workspace data, diagnose execution failures, or prepare changes for your approval—all from one conversation.</p>
+                    <p className="mt-3 max-w-xl text-sm leading-5 text-white/40">Ask a question for an immediate, tenant-scoped answer, or turn an outcome into a validated proposal you control.</p>
                     <div className="mt-5 grid max-w-3xl gap-2.5 sm:grid-cols-3">
                       {suggestedPrompts.map((prompt, index) => (
                         <button
@@ -1178,7 +1178,7 @@ export default function AgentPage() {
                     )}
                   </div>
                 </div>
-                <p className="mt-2 text-center font-mono text-[8px] uppercase tracking-[0.16em] text-white/15">Scoped to your workspace · proposed changes always require confirmation</p>
+                <p className="mt-2 text-center font-mono text-[8px] uppercase tracking-[0.16em] text-white/15">Read-only answers are immediate · writes and external effects require confirmation</p>
               </form>
             </div>
           </section>

@@ -174,11 +174,11 @@ export default function NewWorkflowPage() {
             </Button>
           </Link>
           <h1 className="text-3xl font-bold text-white mb-2">
-            Create New Workflow
+            Advanced workflow builder
           </h1>
           <p className="text-white/50">
-            Describe what you want to automate, and we'll convert it into
-            executable steps.
+            Define and validate a workflow directly. For guided creation and
+            clarification, use Execute Agent.
           </p>
         </div>
       </div>

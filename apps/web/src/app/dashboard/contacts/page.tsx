@@ -110,7 +110,7 @@ export default function ContactsPage() {
             <div>
               <h1 className="text-3xl font-bold text-white">Contacts</h1>
               <p className="text-white/50 mt-1">
-                Manage your team members and external contacts
+                Keep approved workflow recipients accurate and ready to use
               </p>
             </div>
 
@@ -167,7 +167,7 @@ export default function ContactsPage() {
             <p className="text-white/50 mb-6">
               {search || departmentFilter
                 ? "No contacts match your search criteria."
-                : "Get started by adding your first contact."}
+                : "Add a contact the Agent can safely reference in proposals."}
             </p>
             {!search && !departmentFilter && (
               <Button

@@ -64,7 +64,7 @@ export default function Home() {
             </Link>
             <Link href="/signup">
               <Button className="bg-white text-black hover:bg-white/90 font-medium rounded-full px-4 sm:px-5">
-                Get Started
+                Try Execute Agent
               </Button>
             </Link>
           </div>
@@ -85,21 +85,21 @@ export default function Home() {
           <div className="max-w-3xl">
             <div className="hero-reveal inline-flex max-w-full items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/85 text-xs sm:text-sm font-medium mb-5 sm:mb-8">
               <Sparkles className="h-4 w-4" />
-              <span className="truncate">Forms, schedules, quick commands, live runs</span>
+              <span className="truncate">Agent-planned. Human-approved. Reliably executed.</span>
             </div>
 
             <h1 className="hero-reveal text-[3rem] sm:text-5xl md:text-6xl lg:text-7xl font-semibold text-white mb-5 sm:mb-6 tracking-normal leading-[1.02] sm:leading-[1.12] [animation-delay:90ms]">
-              Describe the work.
+              Ask for the outcome.
               <br />
-              <span className="orb-gradient-text">Execute runs it.</span>
+              <span className="orb-gradient-text">Approve the plan. Execute runs it.</span>
             </h1>
 
             <p className="hero-reveal text-base sm:text-lg md:text-xl text-white/62 mb-5 sm:mb-8 max-w-2xl leading-relaxed [animation-delay:180ms]">
-              Turn plain English, form submissions, and schedules into workflows that email, post to Slack, call APIs, wait, and branch with logic.
+              Tell Execute Agent what you want done. It inspects your workspace, asks for missing details, and prepares a complete workflow or action for your review.
             </p>
 
             <p className="hero-reveal text-sm sm:text-base text-white/68 mb-7 sm:mb-10 max-w-xl [animation-delay:260ms]">
-              Every run is visible, testable, and logged from trigger to final step.
+              Nothing changes until you approve it. Then Execute&apos;s deterministic engine carries out the work and records every step.
             </p>
 
             <div className="hero-reveal flex flex-col sm:flex-row gap-3 sm:gap-4 justify-start items-stretch sm:items-start [animation-delay:340ms]">
@@ -109,36 +109,36 @@ export default function Home() {
                   className="text-sm sm:text-base btn-gradient text-black px-6 sm:px-10 py-6 sm:py-7 w-full sm:w-auto rounded-full transition-all duration-300 hover:scale-[1.02] hover:opacity-95"
                   style={{ animationDuration: "20s" }}
                 >
-                  Start building workflows <ArrowRight className="ml-2 h-5 w-5" />
+                  Start with Execute Agent <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
               <Link href="#how-it-works" className="w-full sm:w-auto">
                 <Button size="lg" variant="outline" className="text-sm sm:text-base border-white/20 text-white hover:bg-white/5 hover:text-white px-6 sm:px-8 py-6 w-full sm:w-auto rounded-full">
-                  View demo
+                  See how it works
                 </Button>
               </Link>
             </div>
 
             <p className="hero-reveal mt-5 sm:mt-8 text-sm md:text-base text-white/50 leading-6 [animation-delay:420ms]">
-              Trigger from forms • Run quick commands • Send emails and Slack updates • Call APIs on schedule
+              Create workflows • Schedule reminders • Send approved emails • Diagnose failed runs
             </p>
 
             <div className="hero-reveal mt-8 sm:mt-16 grid grid-cols-1 min-[420px]:grid-cols-2 sm:flex sm:flex-row sm:flex-wrap gap-3 sm:gap-8 text-sm text-white/46 [animation-delay:500ms]">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-white/60" />
-                <span>No coding required</span>
+                <span>Workspace-aware planning</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-white/60" />
-                <span>Quick commands</span>
+                <span>Approval before every change</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-white/60" />
-                <span>Form-triggered workflows</span>
+                <span>Tenant-scoped context</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-white/60" />
-                <span>Email, Slack, API calls, delays, and logic</span>
+                <span>Traceable execution</span>
               </div>
             </div>
           </div>
@@ -149,10 +149,10 @@ export default function Home() {
       <section id="how-it-works" className="landing-section reveal-on-scroll py-20 sm:py-32 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
           <div className="mb-12 sm:mb-20">
-            <div className="text-xs uppercase tracking-[0.22em] text-white/35 mb-4">From intent to run history</div>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">Workflows start where your work starts.</h2>
+            <div className="text-xs uppercase tracking-[0.22em] text-white/35 mb-4">Ask. Review. Run.</div>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">A conversation becomes controlled, executable work.</h2>
             <p className="text-lg sm:text-xl text-white/50">
-              Describe a workflow once, trigger it from forms or events, or kick it off from quick commands and schedules. Execute runs it and logs what happened.
+              The agent handles ambiguity and planning. You keep control of every change. The execution engine handles the run.
             </p>
           </div>
 
@@ -163,9 +163,9 @@ export default function Home() {
                 <Terminal className="h-7 w-7 text-white" />
               </div>
               <div className="text-sm font-medium text-white/50 mb-2">STEP 1</div>
-              <h3 className="text-2xl font-bold text-white">Describe What You Want</h3>
+              <h3 className="text-2xl font-bold text-white">Ask for an outcome</h3>
               <p className="text-white/40 leading-relaxed">
-                Tell Execute what needs to happen in plain English, from one-off automations to recurring workflows.
+                Describe the result in plain English. The agent checks your workflows, forms, contacts, integrations, and recent execution history before it responds.
               </p>
             </div>
 
@@ -175,9 +175,9 @@ export default function Home() {
                 <Sparkles className="h-7 w-7 text-white" />
               </div>
               <div className="text-sm font-medium text-white/50 mb-2">STEP 2</div>
-              <h3 className="text-2xl font-bold text-white">Choose How It Starts</h3>
+              <h3 className="text-2xl font-bold text-white">Review the proposal</h3>
               <p className="text-white/40 leading-relaxed">
-                Launch it from a quick command, run it on a schedule, or trigger it from a hosted form or incoming event.
+                The agent clarifies missing recipients, timing, timezone, or configuration and presents the exact change for approval.
               </p>
             </div>
 
@@ -187,9 +187,9 @@ export default function Home() {
                 <Zap className="h-7 w-7 text-white" />
               </div>
               <div className="text-sm font-medium text-white/50 mb-2">STEP 3</div>
-              <h3 className="text-2xl font-bold text-white">Watch Execution Live</h3>
+              <h3 className="text-2xl font-bold text-white">Let Execute run it</h3>
               <p className="text-white/40 leading-relaxed">
-                Execute runs each step, logs the results, and shows you exactly what happened when a workflow succeeds, waits, or fails.
+                Approved work passes to the deterministic engine. Every step, wait, result, and failure stays visible in execution history.
               </p>
             </div>
           </div>
@@ -200,10 +200,10 @@ export default function Home() {
       <section className="landing-section reveal-on-scroll py-20 sm:py-32 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
           <div className="mb-12 sm:mb-20">
-            <div className="text-xs uppercase tracking-[0.22em] text-white/35 mb-4">Runnable capabilities</div>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">A practical automation surface, not another task board.</h2>
+            <div className="text-xs uppercase tracking-[0.22em] text-white/35 mb-4">One agent, grounded in your workspace</div>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">Plan broadly. Act carefully. Execute predictably.</h2>
             <p className="text-lg sm:text-xl text-white/50">
-              Triggers come in from commands, forms, events, and schedules. Actions go out through email, Slack, APIs, delays, and branches.
+              Execute Agent coordinates the work you already manage—without bypassing validation, approvals, tenant boundaries, or your execution engine.
             </p>
           </div>
 
@@ -217,9 +217,9 @@ export default function Home() {
               </div>
               <div className="relative z-10">
                 <Mail className="h-8 w-8 text-white mb-6" />
-                <h3 className="text-xl font-semibold text-white mb-3">Send Emails</h3>
+                <h3 className="text-xl font-semibold text-white mb-3">Agent-built workflows</h3>
                 <p className="text-white/40 leading-relaxed">
-                  Send structured workflow emails for reminders, updates, outreach, and follow-ups without writing templates by hand.
+                  Ask for a recurring reminder, an onboarding sequence, or an API workflow. The agent produces a validated definition ready for review.
                 </p>
               </div>
             </div>
@@ -233,9 +233,9 @@ export default function Home() {
               </div>
               <div className="relative z-10">
                 <MessageSquare className="h-8 w-8 text-white mb-6" />
-                <h3 className="text-xl font-semibold text-white mb-3">Slack Messages</h3>
+                <h3 className="text-xl font-semibold text-white mb-3">Approval before action</h3>
                 <p className="text-white/40 leading-relaxed">
-                  Notify channels from live workflows with connected Slack integrations or direct webhook-based delivery.
+                  Creating records, changing workflows, sending email, disconnecting integrations, and starting runs all require explicit confirmation.
                 </p>
               </div>
             </div>
@@ -249,9 +249,9 @@ export default function Home() {
               </div>
               <div className="relative z-10">
                 <Users className="h-8 w-8 text-white mb-6" />
-                <h3 className="text-xl font-semibold text-white mb-3">Forms As Triggers</h3>
+                <h3 className="text-xl font-semibold text-white mb-3">Workspace-aware answers</h3>
                 <p className="text-white/40 leading-relaxed">
-                  Create hosted forms to collect submissions and trigger workflows automatically when someone fills them out.
+                  Inspect workflows, forms, contacts, integrations, executions, and logs through read-only tools scoped to the current workspace.
                 </p>
               </div>
             </div>
@@ -265,9 +265,9 @@ export default function Home() {
               </div>
               <div className="relative z-10">
                 <GitBranch className="h-8 w-8 text-white mb-6" />
-                <h3 className="text-xl font-semibold text-white mb-3">Conditional Logic</h3>
+                <h3 className="text-xl font-semibold text-white mb-3">Deterministic execution</h3>
                 <p className="text-white/40 leading-relaxed">
-                  Branch workflows based on trigger data and step results so the right path runs automatically.
+                  The model proposes; server validation and the existing engine perform. Runs can wait, branch, call APIs, send messages, and report results.
                 </p>
               </div>
             </div>
@@ -281,9 +281,9 @@ export default function Home() {
               </div>
               <div className="relative z-10">
                 <Clock className="h-8 w-8 text-white mb-6" />
-                <h3 className="text-xl font-semibold text-white mb-3">Quick Commands & Timing</h3>
+                <h3 className="text-xl font-semibold text-white mb-3">Scheduled autonomy</h3>
                 <p className="text-white/40 leading-relaxed">
-                  Tell Execute what happened or what you want done, then run it now, on schedule, or after a delay between steps.
+                  Approve an active schedule once, then let the engine run it in the confirmed timezone with every recurrence recorded.
                 </p>
               </div>
             </div>
@@ -297,9 +297,9 @@ export default function Home() {
               </div>
               <div className="relative z-10">
                 <Globe className="h-8 w-8 text-white mb-6" />
-                <h3 className="text-xl font-semibold text-white mb-3">HTTP Requests & Logs</h3>
+                <h3 className="text-xl font-semibold text-white mb-3">Failures that explain themselves</h3>
                 <p className="text-white/40 leading-relaxed">
-                  Connect to external APIs with custom requests and track each workflow run through execution history and step logs.
+                  Failed runs are classified, summarized, and placed in Needs Attention with evidence and a repair path that still requires approval.
                 </p>
               </div>
             </div>
@@ -313,15 +313,15 @@ export default function Home() {
           <div className="mb-12 sm:mb-16 text-center">
             <div className="inline-flex max-w-full items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/80 text-xs sm:text-sm font-medium mb-6">
               <Lock className="h-4 w-4" />
-              <span className="truncate">Workflow action plans</span>
+              <span className="truncate">A safe operating model for agentic work</span>
             </div>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
-              Start with the actions that run today.
+              Start with an agent you can supervise.
               <br />
-              <span className="text-white/70">Keep the next layer in sight.</span>
+              <span className="text-white/70">Expand the action surface over time.</span>
             </h2>
             <p className="text-base sm:text-lg text-white/50 max-w-3xl mx-auto">
-              Basic includes the workflow actions and triggers Execute can reliably run today. Premium includes all of Basic plus the higher-level actions already defined in the product vision.
+              The core experience combines workspace inspection, validated proposals, explicit approvals, and traceable execution. Premium will extend the actions and integrations the same agent can coordinate.
             </p>
           </div>
 
@@ -333,16 +333,16 @@ export default function Home() {
               <div className="relative z-10">
                 <div className="text-xs uppercase tracking-[0.2em] text-white/40 mb-3">Available today</div>
                 <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2">Basic</h3>
-                <p className="text-sm sm:text-base text-white/50 mb-6 sm:mb-8">For teams starting with live, executable workflow actions</p>
+                <p className="text-sm sm:text-base text-white/50 mb-6 sm:mb-8">For teams adopting supervised, agent-driven automation</p>
 
                 <div className="space-y-4 mb-10">
                   {[
-                    "Send emails",
-                    "Trigger HTTP requests",
-                    "Add delays and schedules",
-                    "Branch with conditional logic",
-                    "Track workflow execution",
-                    "Add contacts to lists",
+                    "Create and revise workflows with the Agent",
+                    "Approve every write and external effect",
+                    "Run schedules, forms, webhooks, and APIs",
+                    "Manage contacts, forms, and integrations",
+                    "Inspect execution history and logs",
+                    "Diagnose failures in Needs Attention",
                   ].map((feature) => (
                     <div key={feature} className="flex items-center gap-3 text-white/80">
                       <CheckCircle2 className="h-5 w-5 text-white/75 flex-shrink-0" />
@@ -351,9 +351,9 @@ export default function Home() {
                   ))}
 
                   {[
-                    "Post Slack messages",
                     "Send SMS",
-                    "Create tasks",
+                    "Coordinate additional providers",
+                    "Use expanded workspace limits",
                   ].map((feature) => (
                     <div key={feature} className="flex items-center gap-3 text-white/35">
                       <X className="h-5 w-5 text-white/25 flex-shrink-0" />
@@ -364,7 +364,7 @@ export default function Home() {
 
                 <Link href="/signup" className="block">
                   <Button className="w-full bg-white text-black hover:bg-white/90 rounded-full py-6 text-sm sm:text-base font-medium">
-                    Start with Basic
+                    Start with Execute Agent
                   </Button>
                 </Link>
               </div>
@@ -382,7 +382,7 @@ export default function Home() {
               <div className="relative z-10">
                 <div className="text-xs uppercase tracking-[0.2em] text-white/50 mb-3">Expanded plan</div>
                 <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2">Premium</h3>
-                <p className="text-sm sm:text-base text-white/50">Everything in Basic, plus advanced workflow actions as they unlock</p>
+                <p className="text-sm sm:text-base text-white/50">Everything in Basic, plus a broader catalog of approved actions and integrations</p>
                 <div className="mt-5 mb-6 sm:mb-8">
                   <div className="text-3xl sm:text-4xl font-bold text-white">₹499<span className="text-lg sm:text-xl text-white/75 font-medium">/month</span></div>
                   <div className="text-sm text-white/40 mt-1">~$5.69/month</div>
@@ -390,15 +390,14 @@ export default function Home() {
 
                 <div className="space-y-4 mb-10">
                   {[
-                    "Send emails",
-                    "Post Slack messages",
-                    "Trigger HTTP requests",
-                    "Add delays and schedules",
-                    "Branch with conditional logic",
-                    "Track workflow execution",
-                    "Add contacts to lists",
+                    "Everything in the supervised Agent workspace",
+                    "Higher daily usage and context limits",
+                    "More integration providers",
+                    "Advanced workflow actions",
+                    "Expanded monitoring and diagnostics",
+                    "Team-oriented controls",
                     "Send SMS",
-                    "Create tasks",
+                    "Create tasks across connected tools",
                   ].map((feature) => (
                     <div key={feature} className="flex items-center gap-3 text-white/85">
                       <CheckCircle2 className="h-5 w-5 text-white/80 flex-shrink-0" />
@@ -420,15 +419,15 @@ export default function Home() {
           <div className="mt-8 flex flex-col sm:flex-row sm:flex-wrap justify-center gap-3 text-sm text-white/45">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2">
               <Mail className="h-4 w-4" />
-              Basic runs live workflow actions today
+              The Agent plans; the engine executes
             </span>
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2">
               <MessageSquare className="h-4 w-4" />
-              Premium adds Slack, SMS, and task automation
+              Every mutation remains approval-gated
             </span>
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2">
               <Users className="h-4 w-4" />
-              List automation is included in Basic
+              Workspace data stays tenant-scoped
             </span>
           </div>
         </div>
@@ -438,47 +437,47 @@ export default function Home() {
       <section className="landing-section reveal-on-scroll py-20 sm:py-32 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-6xl">
           <div className="mb-12 sm:mb-20">
-            <div className="text-xs uppercase tracking-[0.22em] text-white/35 mb-4">Use cases</div>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">Plain requests become tracked runs.</h2>
+            <div className="text-xs uppercase tracking-[0.22em] text-white/35 mb-4">What a conversation can become</div>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">From request to proposal to receipt.</h2>
             <p className="text-lg sm:text-xl text-white/50">
-              Real workflows you can launch from instructions, forms, quick commands, and schedules
+              The Agent gathers what is missing, shows what will change, and stays with the work through execution.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
             <div className="landing-card p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
               <code className="text-xs sm:text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10 break-words leading-6">
-                &quot;When someone submits my onboarding form, send a welcome email and notify the team in Slack&quot;
+                &quot;Create an onboarding form and connect it to a workflow that welcomes each new customer&quot;
               </code>
               <p className="text-white/40">
-                Hosted form submissions that kick off real workflows automatically
+                The Agent proposes the form, linked workflow, fields, and actions as reviewable changes.
               </p>
             </div>
 
             <div className="landing-card p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
               <code className="text-xs sm:text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10 break-words leading-6">
-                &quot;We signed Acme Corp&quot;
+                &quot;Every Monday at 5 PM, remind me about the weekly meeting&quot;
               </code>
               <p className="text-white/40">
-                Quick commands that turn business updates into tracked workflow runs
+                The Agent asks for timezone and delivery details before proposing an active recurring workflow.
               </p>
             </div>
 
             <div className="landing-card p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
               <code className="text-xs sm:text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10 break-words leading-6">
-                &quot;Call our internal API, wait 5 minutes, then alert Slack if the response fails&quot;
+                &quot;Why did yesterday&apos;s customer sync fail, and what should I fix?&quot;
               </code>
               <p className="text-white/40">
-                API-based automation with delays, retries, and branching logic
+                Read-only tools inspect the failed execution and logs, then propose a repair without applying it.
               </p>
             </div>
 
             <div className="landing-card p-6 sm:p-8 rounded-xl border border-white/10 bg-white/[0.02]">
               <code className="text-xs sm:text-sm bg-white/5 px-4 py-3 rounded-lg block mb-6 text-white/80 border border-white/10 break-words leading-6">
-                &quot;Every Monday at 9 AM, send a project reminder email and log the run for review&quot;
+                &quot;Log ₹5,000 as a marketing expense and show my total this month&quot;
               </code>
               <p className="text-white/40">
-                Scheduled workflows with visible execution history
+                Writing the expense requires approval; reading the tenant-scoped event summary does not.
               </p>
             </div>
           </div>
@@ -489,15 +488,15 @@ export default function Home() {
       <section className="landing-section reveal-on-scroll py-20 sm:py-32 px-4 sm:px-6 relative z-10">
         <div className="container mx-auto max-w-4xl text-center">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-6 tracking-tight">
-            Put one workflow on the rails.
+            Give the Agent one outcome.
           </h2>
           <p className="text-lg sm:text-xl text-white/50 mb-8 sm:mb-10 max-w-2xl mx-auto">
-            Build workflows that run from schedules, quick commands, and form submissions without chasing every task manually.
+            Review the plan, approve the exact action, and let Execute turn it into work you can inspect from first trigger to final result.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/signup" className="w-full sm:w-auto">
               <Button size="lg" className="text-sm sm:text-base btn-gradient text-black px-6 sm:px-8 py-6 w-full sm:w-auto rounded-full">
-                Start building workflows <ArrowRight className="ml-2 h-5 w-5" />
+                Start with Execute Agent <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
             <Link href="#how-it-works" className="w-full sm:w-auto">

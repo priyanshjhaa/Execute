@@ -4,8 +4,8 @@ import { AuthProvider } from "@/components/providers/auth-provider";
 import { QueryProvider } from "@/lib/query/provider";
 
 export const metadata: Metadata = {
-  title: "Execute - Turn English into Actions",
-  description: "A system where a user writes a business instruction in plain English → Execute converts it into structured steps → runs those steps → and shows exactly what happened.",
+  title: "Execute — Ask. Approve. Run.",
+  description: "A workspace-aware agent that turns business outcomes into validated proposals, waits for your approval, and runs them through a reliable execution engine.",
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },

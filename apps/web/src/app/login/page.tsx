@@ -74,10 +74,10 @@ export default function LoginPage() {
           {/* Header */}
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
-              Welcome Back
+              Welcome back
             </h1>
             <p className="text-lg text-white/50">
-              Sign in to continue automating your workflows
+              Sign in to review plans, approve actions, and track every run
             </p>
           </div>
 

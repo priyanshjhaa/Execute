@@ -98,7 +98,9 @@ export default function DashboardPage() {
             <div>
               <h1 className="text-3xl font-bold text-white mb-2">Dashboard</h1>
               <p className="text-white/50">
-                Monitor and manage your workflows
+                {agentAccess.data?.agent
+                  ? "Review agent-planned work, active workflows, and execution health"
+                  : "Review active workflows, forms, and execution health"}
               </p>
             </div>
             <Link href="/dashboard/workflows/new">
@@ -107,7 +109,7 @@ export default function DashboardPage() {
                 className="btn-gradient w-full rounded-full px-6 py-5 text-base text-black sm:w-auto"
               >
                 <Plus className="mr-2 h-5 w-5" />
-                Create Workflow
+                {agentAccess.data?.agent ? "Advanced Builder" : "Create Workflow"}
               </Button>
             </Link>
           </div>
@@ -201,7 +203,9 @@ export default function DashboardPage() {
                       {agentAccess.data?.agent ? "Execute Agent" : "Quick Commands"}
                     </h2>
                     <p className="text-white/60 text-sm md:text-base">
-                      Tell Execute what happened or what you want done
+                      {agentAccess.data?.agent
+                        ? "Ask for an outcome. Review the plan before anything changes."
+                        : "Log work and trigger supported actions in plain language."}
                     </p>
                   </div>
                 </div>
@@ -212,15 +216,21 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all">
                   <span className="text-xl font-light text-white/60">$</span>
-                  <span className="text-white/80 text-sm font-medium">Spent ₹5,000 on ads</span>
+                  <span className="text-white/80 text-sm font-medium">
+                    {agentAccess.data?.agent ? "Create a weekly reminder" : "Spent ₹5,000 on ads"}
+                  </span>
                 </div>
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all">
                   <span className="text-xl font-light text-white/60">B</span>
-                  <span className="text-white/80 text-sm font-medium">We signed Acme Corp</span>
+                  <span className="text-white/80 text-sm font-medium">
+                    {agentAccess.data?.agent ? "Diagnose a failed workflow" : "We signed Acme Corp"}
+                  </span>
                 </div>
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all">
                   <span className="text-xl font-light text-white/60">@</span>
-                  <span className="text-white/80 text-sm font-medium">Send meeting reminder</span>
+                  <span className="text-white/80 text-sm font-medium">
+                    {agentAccess.data?.agent ? "Log and summarize expenses" : "Send meeting reminder"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -247,7 +257,11 @@ export default function DashboardPage() {
                 <Clock className="h-8 w-8 text-white/20" />
               </div>
               <h3 className="text-lg font-semibold text-white mb-2">No workflows yet</h3>
-              <p className="text-white/40 text-sm mb-4">Create your first workflow to get started</p>
+              <p className="text-white/40 text-sm mb-4">
+                {agentAccess.data?.agent
+                  ? "Ask the Agent above to plan one, or use the advanced builder."
+                  : "Build and validate your first workflow."}
+              </p>
               <Link href="/dashboard/workflows/new">
                 <Button className="bg-white/10 hover:bg-white/15 text-white border-white/20 text-sm">
                   <Plus className="mr-2 h-4 w-4" />

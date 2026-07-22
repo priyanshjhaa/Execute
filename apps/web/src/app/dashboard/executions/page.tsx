@@ -76,7 +76,7 @@ export default function ExecutionsPage() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-bold text-white mb-2">Executions</h1>
-              <p className="text-white/50">View all workflow execution history</p>
+              <p className="text-white/50">Inspect every engine run, result, and failure</p>
             </div>
             <Button
               variant="outline"
@@ -127,7 +127,7 @@ export default function ExecutionsPage() {
           <div className="bg-white/[0.02] border border-white/10 rounded-xl p-12 text-center">
             <Clock className="h-12 w-12 text-white/20 mx-auto mb-4" />
             <p className="text-white/40">
-              {filter === "all" ? "No executions yet" : `No ${filter} executions`}
+              {filter === "all" ? "No engine runs yet" : `No ${filter} executions`}
             </p>
           </div>
         ) : (
