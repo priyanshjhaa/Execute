@@ -3,7 +3,7 @@
 import { FormEvent, Fragment, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { ArrowLeft, Bot, Building2, Check, ChevronRight, Clock3, FileText, GitCompareArrows, Link2, Loader2, Mail, MessageSquare, Plus, Send, ShieldCheck, Square, UserRound, Workflow as WorkflowIcon, X } from "lucide-react";
+import { ArrowLeft, Bot, Building2, Check, ChevronRight, Clock3, Command, CornerDownLeft, FileText, GitCompareArrows, History, Link2, Loader2, Mail, MessageSquare, Plus, Search, Send, ShieldCheck, Sparkles, Square, UserRound, Workflow as WorkflowIcon, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -98,6 +98,19 @@ function formatThreadTime(value: string): string {
   if (diffDays < 7) return `${diffDays}d`;
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
+
+function formatMessageTime(value: string): string {
+  return new Date(value).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+const suggestedPrompts = [
+  "Show me failed executions that need attention",
+  "Create a lead capture form and connect it to a workflow",
+  "Find inactive contacts and summarize them",
+];
 
 function getMessageText(message: AgentMessage): string {
   return message.content
@@ -506,8 +519,8 @@ function AgentActionCard({
   const isContactProposal = ['contact.create', 'contact.update', 'contact.activate', 'contact.deactivate'].includes(action.actionType);
 
   return (
-    <div className={cn("relative w-full max-w-xl overflow-hidden rounded-xl border", status.tone)}>
-      <div className={cn("absolute inset-y-0 left-0 w-1", status.rail)} />
+    <div className={cn("relative w-full max-w-2xl overflow-hidden rounded-2xl border shadow-[0_18px_55px_rgba(0,0,0,0.2)] backdrop-blur", status.tone)}>
+      <div className={cn("absolute inset-y-3 left-0 w-0.5 rounded-full", status.rail)} />
       <div className="px-4 py-4 pl-5 sm:px-5 sm:pl-6">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -517,7 +530,7 @@ function AgentActionCard({
             </div>
             <h3 className="mt-2 text-sm font-semibold leading-5 text-white">{action.title}</h3>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-white/55">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/[0.07] bg-black/20 px-2.5 py-1 text-[10px] font-medium text-white/55">
             {status.icon}
             <span>{status.label}</span>
           </div>
@@ -551,7 +564,7 @@ function AgentActionCard({
                 type="button"
                 disabled={deciding}
                 onClick={() => onDecision("reject")}
-                className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-white/55 transition-colors hover:border-white/20 hover:bg-white/5 hover:text-white disabled:pointer-events-none disabled:opacity-50"
+                className="rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-white/55 transition-colors hover:border-white/20 hover:bg-white/5 hover:text-white disabled:pointer-events-none disabled:opacity-50"
               >
                 Reject
               </button>
@@ -559,7 +572,7 @@ function AgentActionCard({
                 type="button"
                 disabled={deciding}
                 onClick={() => onDecision("approve")}
-                className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-black transition-colors hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-100/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:pointer-events-none disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-lg bg-amber-100 px-3.5 py-2 text-xs font-semibold text-black transition-colors hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-100/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:pointer-events-none disabled:opacity-50"
               >
                 {deciding ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
                 Approve
@@ -582,6 +595,7 @@ export default function AgentPage() {
   const queryClient = useQueryClient();
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [threadSearch, setThreadSearch] = useState("");
   const [mobileConversationOpen, setMobileConversationOpen] = useState(false);
   const [pendingUserText, setPendingUserText] = useState("");
   const [streamingText, setStreamingText] = useState("");
@@ -740,6 +754,9 @@ export default function AgentPage() {
   });
 
   const threads = threadsQuery.data || [];
+  const filteredThreads = threadSearch.trim()
+    ? threads.filter((thread) => thread.title.toLowerCase().includes(threadSearch.trim().toLowerCase()))
+    : threads;
   const messages = selectedThreadId ? (messagesQuery.data?.messages || []) : [];
   const actions = selectedThreadId ? (messagesQuery.data?.actions || []) : [];
   const messageIds = new Set(messages.map((message) => message.id));
@@ -788,256 +805,249 @@ export default function AgentPage() {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] min-h-[540px] flex-col bg-black">
-      <header className="border-b border-white/10 px-4 py-5 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-3">
-          <Bot className="h-6 w-6 text-white/60" />
-          <div>
-            <h1 className="text-2xl font-bold text-white sm:text-3xl">Agent</h1>
-            <p className="mt-1 text-sm text-white/45">Ask questions and plan work with Execute</p>
+    <div className="relative isolate flex h-[calc(100dvh-4rem)] min-h-[580px] flex-col overflow-hidden bg-[#05070a]">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute -left-40 top-10 h-96 w-96 rounded-full bg-cyan-400/[0.055] blur-[110px]" />
+        <div className="absolute -right-32 bottom-0 h-[28rem] w-[28rem] rounded-full bg-violet-500/[0.055] blur-[130px]" />
+        <div className="absolute inset-0 opacity-[0.022] [background-image:linear-gradient(rgba(255,255,255,.35)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.35)_1px,transparent_1px)] [background-size:40px_40px]" />
+      </div>
+
+      <header className="flex h-[5.25rem] shrink-0 items-center justify-between border-b border-white/[0.075] px-4 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-200/15 bg-cyan-100/[0.055] shadow-[0_0_28px_rgba(103,232,249,0.08)]">
+            <Sparkles className="h-[18px] w-[18px] text-cyan-100/75" />
+            <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#05070a] bg-emerald-300" />
           </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5">
+              <h1 className="truncate text-lg font-semibold tracking-[-0.02em] text-white sm:text-xl">Execute Agent</h1>
+              <span className="hidden rounded-full border border-white/[0.08] bg-white/[0.035] px-2 py-0.5 font-mono text-[8px] uppercase tracking-[0.18em] text-white/35 sm:inline">command layer</span>
+            </div>
+            <p className="mt-0.5 truncate text-xs text-white/35">Inspect, plan, and act across your workspace</p>
+          </div>
+        </div>
+        <div className="hidden items-center gap-5 text-[10px] text-white/30 sm:flex">
+          <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-amber-100/50" />Writes require approval</span>
+          <span className="flex items-center gap-1.5"><Zap className="h-3.5 w-3.5 text-cyan-100/50" />Streaming live</span>
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 p-3 sm:p-4 lg:p-6">
-        <div className="mx-auto flex h-full max-w-7xl overflow-hidden rounded-xl border border-white/10 bg-white/[0.015]">
+      <div className="min-h-0 flex-1 p-2.5 sm:p-4 lg:p-5">
+        <div className="mx-auto flex h-full max-w-[1500px] overflow-hidden rounded-2xl border border-white/[0.09] bg-[#070a0f]/90 shadow-[0_30px_100px_rgba(0,0,0,0.45)] backdrop-blur-xl">
           <aside className={cn(
-            "w-full shrink-0 border-white/10 bg-black md:block md:w-72 md:border-r lg:w-80",
+            "w-full shrink-0 border-white/[0.075] bg-[#080c12]/95 md:block md:w-[19rem] md:border-r lg:w-[21rem]",
             mobileConversationOpen ? "hidden" : "block",
           )}>
-            <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
-              <h2 className="text-sm font-semibold text-white">Conversations</h2>
-              <Button
+            <div className="border-b border-white/[0.07] p-3.5">
+              <button
                 type="button"
-                variant="ghost"
-                size="icon"
                 onClick={startConversation}
-                className="h-9 w-9 text-white/60 hover:bg-white/5 hover:text-white"
-                aria-label="New conversation"
-                title="New conversation"
+                className="flex w-full items-center justify-between rounded-xl border border-cyan-100/15 bg-cyan-100/[0.065] px-3.5 py-3 text-left text-sm font-medium text-cyan-50/90 transition-all hover:border-cyan-100/25 hover:bg-cyan-100/[0.09] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100/30"
               >
-                <Plus className="h-4 w-4" />
-              </Button>
+                <span className="flex items-center gap-2.5"><Plus className="h-4 w-4" />New conversation</span>
+                <Command className="h-3.5 w-3.5 text-cyan-50/35" />
+              </button>
+              <div className="relative mt-3">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/25" />
+                <input
+                  value={threadSearch}
+                  onChange={(event) => setThreadSearch(event.target.value)}
+                  placeholder="Search conversations"
+                  className="h-9 w-full rounded-lg border border-white/[0.07] bg-black/20 pl-9 pr-3 text-xs text-white/70 outline-none transition-colors placeholder:text-white/25 focus:border-white/15"
+                />
+              </div>
             </div>
 
-            <div className="h-[calc(100%-4rem)] overflow-y-auto p-2">
-              {threadsQuery.isLoading ? (
-                <div className="flex h-32 items-center justify-center">
-                  <Loader2 className="h-5 w-5 animate-spin text-white/30" />
-                </div>
-              ) : threadsQuery.isError ? (
-                <div className="px-3 py-8 text-center">
-                  <p className="text-sm text-red-300/80">{threadsQuery.error.message}</p>
-                  <button
-                    type="button"
-                    onClick={() => threadsQuery.refetch()}
-                    className="mt-3 text-xs font-medium text-white/60 hover:text-white"
-                  >
-                    Try again
-                  </button>
-                </div>
-              ) : threads.length === 0 ? (
-                <div className="px-5 py-12 text-center">
-                  <MessageSquare className="mx-auto h-6 w-6 text-white/20" />
-                  <p className="mt-3 text-sm text-white/45">No conversations yet</p>
-                  <button
-                    type="button"
-                    onClick={startConversation}
-                    className="mt-2 text-xs font-medium text-white/70 hover:text-white"
-                  >
-                    Start a conversation
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {threads.map((thread) => (
-                    <button
-                      key={thread.id}
-                      type="button"
-                      onClick={() => selectThread(thread.id)}
-                      className={cn(
-                        "flex w-full items-start justify-between gap-3 rounded-lg px-3 py-3 text-left transition-colors",
-                        selectedThreadId === thread.id
-                          ? "bg-white/10 text-white"
-                          : "text-white/60 hover:bg-white/5 hover:text-white",
-                      )}
-                    >
-                      <span className="line-clamp-2 min-w-0 text-sm leading-5">{thread.title}</span>
-                      <span className="shrink-0 pt-0.5 text-[11px] text-white/30">
-                        {formatThreadTime(thread.lastMessageAt)}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className="flex h-[calc(100%-7.75rem)] flex-col">
+              <div className="flex items-center justify-between px-4 pb-2 pt-4">
+                <span className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.18em] text-white/30"><History className="h-3 w-3" />Recent</span>
+                <span className="font-mono text-[9px] text-white/20">{threads.length}</span>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-3">
+                {threadsQuery.isLoading ? (
+                  <div className="flex h-32 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-white/30" /></div>
+                ) : threadsQuery.isError ? (
+                  <div className="px-4 py-8 text-center">
+                    <p className="text-xs leading-5 text-rose-200/70">{threadsQuery.error.message}</p>
+                    <button type="button" onClick={() => threadsQuery.refetch()} className="mt-3 text-xs font-medium text-white/60 hover:text-white">Try again</button>
+                  </div>
+                ) : threads.length === 0 ? (
+                  <div className="mx-2 mt-2 rounded-xl border border-dashed border-white/[0.08] px-5 py-10 text-center">
+                    <MessageSquare className="mx-auto h-5 w-5 text-white/20" />
+                    <p className="mt-3 text-xs text-white/40">Your conversations will collect here.</p>
+                  </div>
+                ) : filteredThreads.length === 0 ? (
+                  <p className="px-4 py-8 text-center text-xs text-white/35">No matching conversations</p>
+                ) : (
+                  <div className="space-y-1">
+                    {filteredThreads.map((thread) => {
+                      const selected = selectedThreadId === thread.id;
+                      return (
+                        <button
+                          key={thread.id}
+                          type="button"
+                          onClick={() => selectThread(thread.id)}
+                          className={cn(
+                            "group relative flex w-full items-start gap-3 overflow-hidden rounded-xl px-3 py-3 text-left transition-all",
+                            selected ? "bg-white/[0.075] text-white" : "text-white/55 hover:bg-white/[0.035] hover:text-white/80",
+                          )}
+                        >
+                          {selected && <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-cyan-200/80" />}
+                          <span className={cn("mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border", selected ? "border-cyan-100/15 bg-cyan-100/[0.055] text-cyan-50/60" : "border-white/[0.06] bg-white/[0.025] text-white/25")}>
+                            <MessageSquare className="h-3.5 w-3.5" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="line-clamp-2 text-xs font-medium leading-5">{thread.title}</span>
+                            <span className="mt-1 block font-mono text-[9px] uppercase tracking-wider text-white/20">{formatThreadTime(thread.lastMessageAt)}</span>
+                          </span>
+                          <ChevronRight className={cn("mt-1 h-3.5 w-3.5 shrink-0 transition-all", selected ? "translate-x-0 text-white/35" : "-translate-x-1 text-transparent group-hover:translate-x-0 group-hover:text-white/25")} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </aside>
 
           <section className={cn(
-            "min-w-0 flex-1 flex-col bg-black",
+            "relative min-w-0 flex-1 flex-col bg-[#070a0f]/70",
             mobileConversationOpen ? "flex" : "hidden md:flex",
           )}>
-            <div className="flex h-16 shrink-0 items-center gap-3 border-b border-white/10 px-4 sm:px-5">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setMobileConversationOpen(false)}
-                className="h-9 w-9 text-white/60 hover:bg-white/5 hover:text-white md:hidden"
-                aria-label="Back to conversations"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-white">
-                  {selectedThread?.title || "New conversation"}
-                </p>
-                <p className="text-xs text-white/35">Execute Agent</p>
+            <div className="flex h-[4.5rem] shrink-0 items-center justify-between gap-3 border-b border-white/[0.075] bg-[#080b10]/85 px-4 backdrop-blur sm:px-5">
+              <div className="flex min-w-0 items-center gap-3">
+                <Button type="button" variant="ghost" size="icon" onClick={() => setMobileConversationOpen(false)} className="h-9 w-9 text-white/50 hover:bg-white/5 hover:text-white md:hidden" aria-label="Back to conversations">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-white/85">{selectedThread?.title || "Untitled workspace task"}</p>
+                  <p className="mt-1 flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.16em] text-white/25">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-300/80" />Agent ready · tenant scoped
+                  </p>
+                </div>
               </div>
+              <button type="button" onClick={startConversation} className="hidden items-center gap-2 rounded-lg border border-white/[0.08] px-3 py-2 text-[11px] font-medium text-white/45 transition-colors hover:border-white/15 hover:bg-white/[0.035] hover:text-white sm:flex">
+                <Plus className="h-3.5 w-3.5" />New task
+              </button>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto">
               {messagesQuery.isLoading && selectedThreadId ? (
-                <div className="flex h-full items-center justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-white/30" />
-                </div>
+                <div className="flex h-full items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-cyan-100/35" /></div>
               ) : messagesQuery.isError ? (
                 <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-                  <p className="text-sm text-red-300/80">{messagesQuery.error.message}</p>
-                  <button
-                    type="button"
-                    onClick={() => messagesQuery.refetch()}
-                    className="mt-3 text-xs font-medium text-white/60 hover:text-white"
-                  >
-                    Try again
-                  </button>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-rose-200/10 bg-rose-200/[0.04]"><X className="h-4 w-4 text-rose-200/60" /></div>
+                  <p className="mt-4 text-sm text-rose-200/70">{messagesQuery.error.message}</p>
+                  <button type="button" onClick={() => messagesQuery.refetch()} className="mt-3 text-xs font-medium text-white/60 hover:text-white">Reload conversation</button>
                 </div>
               ) : messages.length === 0 && actions.length === 0 && !sendMessage.isPending ? (
-                <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5">
-                    <Bot className="h-5 w-5 text-white/55" />
+                <div className="mx-auto flex min-h-full max-w-4xl items-start px-5 py-5 sm:px-10 lg:px-14 lg:py-6">
+                  <div className="w-full">
+                    <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.2em] text-cyan-100/45"><span className="h-px w-8 bg-cyan-100/30" />Workspace command</div>
+                    <h2 className="mt-4 max-w-2xl text-3xl font-semibold leading-[1.08] tracking-[-0.035em] text-white sm:text-[2.15rem] lg:text-[2.35rem]">
+                      Name the outcome.<br /><span className="text-white/35">I&apos;ll map the work.</span>
+                    </h2>
+                    <p className="mt-3 max-w-xl text-sm leading-5 text-white/40">Inspect live workspace data, diagnose execution failures, or prepare changes for your approval—all from one conversation.</p>
+                    <div className="mt-5 grid max-w-3xl gap-2.5 sm:grid-cols-3">
+                      {suggestedPrompts.map((prompt, index) => (
+                        <button
+                          key={prompt}
+                          type="button"
+                          onClick={() => setDraft(prompt)}
+                          className="group min-h-[5.25rem] rounded-xl border border-white/[0.08] bg-white/[0.025] p-3 text-left transition-all hover:-translate-y-0.5 hover:border-cyan-100/15 hover:bg-cyan-100/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100/25 motion-reduce:transform-none"
+                        >
+                          <span className="flex items-center justify-between font-mono text-[9px] uppercase tracking-wider text-white/20"><span>0{index + 1}</span><CornerDownLeft className="h-3 w-3 transition-colors group-hover:text-cyan-100/45" /></span>
+                          <span className="mt-3 block text-xs font-medium leading-5 text-white/55 transition-colors group-hover:text-white/80">{prompt}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <h2 className="mt-4 text-lg font-semibold text-white">What are you working on?</h2>
-                  <p className="mt-2 max-w-md text-sm leading-6 text-white/40">
-                    Ask about workflows, schedules, forms, executions, contacts, or integrations.
-                  </p>
                 </div>
               ) : (
-                <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
+                <div className="mx-auto max-w-4xl space-y-7 px-4 py-7 sm:px-7 sm:py-9 lg:px-10">
                   {messages.map((message) => {
                     const isUser = message.role === "user";
-                    const messageActions = actions.filter(
-                      (action) => action.assistantMessageId === message.id,
-                    );
+                    const messageActions = actions.filter((action) => action.assistantMessageId === message.id);
                     return (
                       <Fragment key={message.id}>
-                        <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
-                          <div className={cn(
-                            "max-w-[88%] whitespace-pre-wrap text-sm leading-6 sm:max-w-[78%]",
-                            isUser
-                              ? "rounded-2xl rounded-br-md bg-white/10 px-4 py-2.5 text-white"
-                              : "text-white/75",
-                          )}>
-                            {getMessageText(message)}
+                        {isUser ? (
+                          <div className="flex flex-col items-end">
+                            <div className="mb-1.5 flex items-center gap-2 px-1 font-mono text-[9px] uppercase tracking-[0.14em] text-white/20"><span>You</span><span>{formatMessageTime(message.createdAt)}</span></div>
+                            <div className="max-w-[90%] whitespace-pre-wrap rounded-2xl rounded-tr-sm border border-cyan-100/10 bg-cyan-100/[0.07] px-4 py-3 text-sm leading-6 text-white/85 shadow-[0_12px_35px_rgba(0,0,0,0.16)] sm:max-w-[76%]">{getMessageText(message)}</div>
                           </div>
-                        </div>
-                        {messageActions.map((action) => (
-                          <AgentActionCard
-                            key={action.id}
-                            action={action}
-                            deciding={decideAction.isPending && decideAction.variables?.action.id === action.id}
-                            decisionError={
-                              decideAction.isError && decideAction.variables?.action.id === action.id
-                                ? decideAction.error.message
-                                : undefined
-                            }
-                            onDecision={(decision) => decideAction.mutate({ action, decision })}
-                          />
-                        ))}
+                        ) : (
+                          <div className="flex items-start gap-3">
+                            <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-violet-200/10 bg-violet-200/[0.05] text-violet-100/60"><Sparkles className="h-3.5 w-3.5" /></div>
+                            <div className="min-w-0 max-w-[calc(100%-2.75rem)] flex-1">
+                              <div className="mb-1.5 flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.14em] text-white/20"><span className="text-violet-100/40">Execute Agent</span><span>{formatMessageTime(message.createdAt)}</span></div>
+                              <div className="max-w-3xl whitespace-pre-wrap text-sm leading-6 text-white/70">{getMessageText(message)}</div>
+                            </div>
+                          </div>
+                        )}
+                        {messageActions.length > 0 && (
+                          <div className="space-y-3 pl-0 sm:pl-11">
+                            {messageActions.map((action) => (
+                              <AgentActionCard key={action.id} action={action} deciding={decideAction.isPending && decideAction.variables?.action.id === action.id} decisionError={decideAction.isError && decideAction.variables?.action.id === action.id ? decideAction.error.message : undefined} onDecision={(decision) => decideAction.mutate({ action, decision })} />
+                            ))}
+                          </div>
+                        )}
                       </Fragment>
                     );
                   })}
                   {detachedActions.map((action) => (
-                    <AgentActionCard
-                      key={action.id}
-                      action={action}
-                      deciding={decideAction.isPending && decideAction.variables?.action.id === action.id}
-                      decisionError={
-                        decideAction.isError && decideAction.variables?.action.id === action.id
-                          ? decideAction.error.message
-                          : undefined
-                      }
-                      onDecision={(decision) => decideAction.mutate({ action, decision })}
-                    />
+                    <div key={action.id} className="pl-0 sm:pl-11"><AgentActionCard action={action} deciding={decideAction.isPending && decideAction.variables?.action.id === action.id} decisionError={decideAction.isError && decideAction.variables?.action.id === action.id ? decideAction.error.message : undefined} onDecision={(decision) => decideAction.mutate({ action, decision })} /></div>
                   ))}
                   {sendMessage.isPending && pendingUserText && (
-                    <div className="flex justify-end">
-                      <div className="max-w-[88%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-white/10 px-4 py-2.5 text-sm leading-6 text-white sm:max-w-[78%]">
-                        {pendingUserText}
-                      </div>
+                    <div className="flex flex-col items-end">
+                      <div className="mb-1.5 px-1 font-mono text-[9px] uppercase tracking-[0.14em] text-white/20">You · now</div>
+                      <div className="max-w-[90%] whitespace-pre-wrap rounded-2xl rounded-tr-sm border border-cyan-100/10 bg-cyan-100/[0.07] px-4 py-3 text-sm leading-6 text-white/85 sm:max-w-[76%]">{pendingUserText}</div>
                     </div>
                   )}
                   {sendMessage.isPending && (
-                    streamingText ? (
-                      <div className="flex justify-start">
-                        <div className="max-w-[88%] whitespace-pre-wrap text-sm leading-6 text-white/75 sm:max-w-[78%]">
-                          {streamingText}
-                          <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-white/50 align-middle" />
-                        </div>
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-violet-200/10 bg-violet-200/[0.05] text-violet-100/60"><Sparkles className="h-3.5 w-3.5" /></div>
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-violet-100/40">Execute Agent · live</div>
+                        {streamingText ? (
+                          <div className="max-w-3xl whitespace-pre-wrap text-sm leading-6 text-white/70">{streamingText}<span className="ml-1 inline-block h-4 w-0.5 animate-pulse bg-cyan-100/60 align-middle" /></div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-sm text-white/35"><span className="flex gap-1"><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-100/50" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-100/35 [animation-delay:150ms]" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-100/20 [animation-delay:300ms]" /></span><span>Reading workspace context</span></div>
+                        )}
                       </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-sm text-white/40">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Thinking...</span>
-                      </div>
-                    )
+                    </div>
                   )}
                   <div ref={messagesEndRef} />
                 </div>
               )}
             </div>
 
-            <div className="shrink-0 border-t border-white/10 p-3 sm:p-4">
-              <form onSubmit={submitMessage} className="mx-auto max-w-3xl">
-                {sendMessage.isError && (
-                  <p className="mb-2 px-1 text-xs text-red-300/80">{sendMessage.error.message}</p>
-                )}
-                <div className="flex items-end gap-2 rounded-xl border border-white/10 bg-white/[0.04] p-2 focus-within:border-white/25">
+            <div className="shrink-0 bg-gradient-to-t from-[#070a0f] via-[#070a0f] to-transparent px-3 pb-3 pt-2 sm:px-5 sm:pb-4">
+              <form onSubmit={submitMessage} className="mx-auto max-w-4xl">
+                {sendMessage.isError && <div className="mb-2 rounded-lg border border-rose-200/10 bg-rose-200/[0.04] px-3 py-2 text-xs text-rose-200/70">{sendMessage.error.message}</div>}
+                <div className="rounded-2xl border border-white/[0.1] bg-[#0c1118]/95 p-2 shadow-[0_18px_55px_rgba(0,0,0,0.38)] transition-colors focus-within:border-cyan-100/20 focus-within:shadow-[0_18px_60px_rgba(0,0,0,0.42),0_0_0_1px_rgba(103,232,249,0.04)]">
                   <textarea
                     value={draft}
                     onChange={(event) => setDraft(event.target.value)}
                     onKeyDown={handleComposerKeyDown}
-                    placeholder="Message Execute Agent..."
-                    rows={1}
+                    placeholder="Describe an outcome or ask about your workspace…"
+                    rows={2}
                     maxLength={4000}
                     disabled={sendMessage.isPending}
-                    className="max-h-36 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm leading-6 text-white outline-none placeholder:text-white/30 disabled:opacity-60"
+                    className="max-h-36 min-h-[3.25rem] w-full resize-none bg-transparent px-2.5 py-2 text-sm leading-6 text-white/85 outline-none placeholder:text-white/25 disabled:opacity-60"
                   />
-                  {sendMessage.isPending ? (
-                    <Button
-                      type="button"
-                      size="icon"
-                      onClick={stopResponse}
-                      className="h-10 w-10 shrink-0"
-                      aria-label="Stop generating"
-                    >
-                      <Square className="h-3.5 w-3.5 fill-current" />
-                    </Button>
-                  ) : (
-                    <Button
-                      type="submit"
-                      size="icon"
-                      disabled={!draft.trim()}
-                      className="h-10 w-10 shrink-0"
-                      aria-label="Send message"
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  )}
+                  <div className="flex items-center justify-between gap-3 border-t border-white/[0.06] px-1.5 pt-2">
+                    <div className="flex min-w-0 items-center gap-3 font-mono text-[9px] uppercase tracking-wider text-white/20">
+                      <span className="hidden items-center gap-1.5 sm:flex"><CornerDownLeft className="h-3 w-3" />Enter to send</span>
+                      <span>{draft.length.toLocaleString()} / 4,000</span>
+                    </div>
+                    {sendMessage.isPending ? (
+                      <button type="button" onClick={stopResponse} className="flex h-9 items-center gap-2 rounded-lg border border-rose-200/15 bg-rose-200/[0.055] px-3 text-xs font-medium text-rose-100/75 transition-colors hover:bg-rose-200/[0.09]" aria-label="Stop generating"><Square className="h-3 w-3 fill-current" />Stop</button>
+                    ) : (
+                      <button type="submit" disabled={!draft.trim()} className="flex h-9 items-center gap-2 rounded-lg bg-cyan-50 px-3.5 text-xs font-semibold text-[#061014] transition-all hover:bg-white disabled:pointer-events-none disabled:opacity-25" aria-label="Send message">Send <Send className="h-3.5 w-3.5" /></button>
+                    )}
+                  </div>
                 </div>
-                <p className="mt-2 text-center text-[11px] text-white/25">
-                  Enter to send, Shift + Enter for a new line
-                </p>
+                <p className="mt-2 text-center font-mono text-[8px] uppercase tracking-[0.16em] text-white/15">Scoped to your workspace · proposed changes always require confirmation</p>
               </form>
             </div>
           </section>
