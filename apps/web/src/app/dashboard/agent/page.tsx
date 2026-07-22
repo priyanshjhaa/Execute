@@ -642,6 +642,11 @@ export default function AgentPage() {
   const [mobileConversationOpen, setMobileConversationOpen] = useState(false);
   const [pendingUserText, setPendingUserText] = useState("");
   const [streamingText, setStreamingText] = useState("");
+
+  useEffect(() => {
+    const suggestedPrompt = new URLSearchParams(window.location.search).get('prompt');
+    if (suggestedPrompt && suggestedPrompt.length <= 4_000) setDraft(suggestedPrompt);
+  }, []);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activeRequestRef = useRef<AbortController | null>(null);

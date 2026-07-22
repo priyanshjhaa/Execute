@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import {
+  AlertTriangle,
   Terminal,
   LayoutDashboard,
   GitBranch,
@@ -19,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/providers/auth-provider";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 
 const navItems = [
   {
@@ -42,6 +44,11 @@ const navItems = [
     icon: Bot,
   },
   {
+    name: "Needs Attention",
+    href: "/dashboard/attention",
+    icon: AlertTriangle,
+  },
+  {
     name: "Contacts",
     href: "/dashboard/contacts",
     icon: Users,
@@ -62,6 +69,17 @@ export default function DashboardLayout({
   const { user, signOut, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const attentionCount = useQuery<number>({
+    queryKey: ["failure-findings", "count"],
+    queryFn: async () => {
+      const response = await fetch('/api/agent/failure-findings?status=open&count=true');
+      if (!response.ok) return 0;
+      const data = await response.json();
+      return typeof data.count === 'number' ? data.count : 0;
+    },
+    enabled: Boolean(user),
+    refetchInterval: 30_000,
+  });
 
   const handleSignOut = async () => {
     await signOut();
@@ -163,8 +181,18 @@ export default function DashboardLayout({
                   )}
                   title={sidebarCollapsed ? item.name : undefined}
                 >
-                  <item.icon className="h-5 w-5" />
-                  {!sidebarCollapsed && item.name}
+                  <div className="relative shrink-0">
+                    <item.icon className="h-5 w-5" />
+                    {item.href === '/dashboard/attention' && (attentionCount.data || 0) > 0 && sidebarCollapsed && (
+                      <span className="absolute -right-1.5 -top-1.5 h-2 w-2 rounded-full bg-rose-400 ring-2 ring-black" />
+                    )}
+                  </div>
+                  {!sidebarCollapsed && <span className="min-w-0 flex-1">{item.name}</span>}
+                  {!sidebarCollapsed && item.href === '/dashboard/attention' && (attentionCount.data || 0) > 0 && (
+                    <span className="min-w-5 rounded-full border border-rose-300/20 bg-rose-300/10 px-1.5 py-0.5 text-center font-mono text-[10px] text-rose-100/80">
+                      {Math.min(attentionCount.data || 0, 99)}{(attentionCount.data || 0) > 99 ? '+' : ''}
+                    </span>
+                  )}
                 </div>
               </Link>
             );

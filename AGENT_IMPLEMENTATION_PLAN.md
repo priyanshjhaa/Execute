@@ -17,6 +17,7 @@ Build the agent through small, independently testable phases. The agent coordina
 - Phase 10 is complete: the agent can inspect forms and apply confirmed form creation, editing, status, and workflow-link changes.
 - Phase 11 is complete: the agent can search contacts and apply confirmed contact creation, editing, and status changes with case-insensitive email uniqueness.
 - Phase 12 is complete: integration status and OAuth guidance are tenant-scoped, public responses exclude secrets, and disconnection requires explicit approval.
+- Phase 13 is complete: the scheduler creates deduplicated, classified failure findings with non-executing repair guidance and a tenant-scoped Needs Attention inbox.
 
 ## Phase 1: Conversation Storage - Complete and Stabilized
 
@@ -98,12 +99,12 @@ Build the agent through small, independently testable phases. The agent coordina
 - Guide users through existing OAuth screens. - Complete
 - Support confirmed disconnection without exposing secrets. - Complete
 
-## Phase 13: Failure Monitor
+## Phase 13: Failure Monitor - Complete
 
-- Scan newly failed executions through the scheduler.
-- Deduplicate and classify findings.
-- Propose repairs without executing them.
-- Add a Needs Attention inbox and sidebar badge.
+- Scan newly failed executions through the scheduler. - Complete
+- Deduplicate and classify findings. - Complete
+- Propose repairs without executing them. - Complete
+- Add a Needs Attention inbox and sidebar badge. - Complete
 
 ## Phase 14: Cost Controls
 

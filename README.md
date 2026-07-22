@@ -175,11 +175,18 @@ Using `cron-job.org`, create a job that runs every 10 minutes and calls:
 https://your-domain.com/api/executions/resume?secret=YOUR_RESUME_SECRET
 ```
 
+To scan newly failed executions into the tenant-scoped Needs Attention inbox, schedule this endpoint on the same interval:
+
+```text
+https://your-domain.com/api/agent/failure-monitor/scan?secret=YOUR_SCHEDULER_SECRET
+```
+
 Required:
 - Set `RESUME_SECRET` in your production environment
+- Set `SCHEDULER_SECRET` in your production environment
 - Use your deployed app URL as the base domain
 
-This scheduler only checks waiting executions and resumes the ones whose `resumeAt` time has passed.
+The resume endpoint checks waiting executions. The failure-monitor endpoint creates one deduplicated finding per newly observed failed execution and never applies repairs automatically.
 
 ## Development
 
