@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, forms, formSubmissions, workflows } from '@execute/db';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 /**
  * Generate a unique ID
@@ -116,7 +116,10 @@ export async function POST(
       // Fetch the workflow to get its webhookId
       const [workflow] = await db.select()
         .from(workflows)
-        .where(eq(workflows.id, form.workflowId))
+        .where(and(
+          eq(workflows.id, form.workflowId),
+          eq(workflows.userId, form.userId),
+        ))
         .limit(1);
 
       if (workflow?.webhookId) {

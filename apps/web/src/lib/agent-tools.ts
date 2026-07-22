@@ -3,6 +3,7 @@ import {
   db,
   executionLogs,
   executions,
+  forms,
   steps,
   workflows,
 } from '@execute/db';
@@ -36,7 +37,44 @@ const GetExecutionLogsSchema = z.object({
   limit: z.number().int().min(1).max(100).default(50),
 }).strict();
 
+const ListFormsSchema = z.object({
+  isActive: z.boolean().optional(),
+  limit: z.number().int().min(1).max(25).default(10),
+}).strict();
+
+const GetFormSchema = z.object({
+  formId: z.string().uuid(),
+}).strict();
+
 export const AGENT_READ_ONLY_TOOLS: AgentToolDefinition[] = [
+  {
+    type: 'function',
+    function: {
+      name: 'list_forms',
+      description: 'List forms in the current user workspace, optionally filtered by active state. This tool is read-only.',
+      parameters: {
+        type: 'object',
+        properties: {
+          isActive: { type: 'boolean' },
+          limit: { type: 'integer', minimum: 1, maximum: 25, default: 10 },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_form',
+      description: 'Get one form, its fields, status, and linked workflow from the current user workspace. This tool is read-only.',
+      parameters: {
+        type: 'object',
+        properties: { formId: { type: 'string', format: 'uuid' } },
+        required: ['formId'],
+        additionalProperties: false,
+      },
+    },
+  },
   {
     type: 'function',
     function: {
@@ -220,6 +258,64 @@ async function listWorkflows(userId: string, args: z.infer<typeof ListWorkflowsS
   return { ok: true, workflows: rows };
 }
 
+async function listForms(userId: string, args: z.infer<typeof ListFormsSchema>) {
+  const filters = [eq(forms.userId, userId)];
+  if (args.isActive !== undefined) filters.push(eq(forms.isActive, args.isActive));
+
+  const rows = await db.select({
+    id: forms.id,
+    name: forms.name,
+    description: forms.description,
+    publicSlug: forms.publicSlug,
+    isActive: forms.isActive,
+    workflowId: forms.workflowId,
+    workflowName: workflows.name,
+    fields: forms.fields,
+    createdAt: forms.createdAt,
+    updatedAt: forms.updatedAt,
+  }).from(forms)
+    .leftJoin(workflows, and(
+      eq(forms.workflowId, workflows.id),
+      eq(workflows.userId, userId),
+    ))
+    .where(and(...filters))
+    .orderBy(desc(forms.updatedAt))
+    .limit(args.limit);
+
+  return {
+    ok: true,
+    forms: rows.map(({ fields, ...form }) => ({
+      ...form,
+      fieldCount: fields?.length || 0,
+    })),
+  };
+}
+
+async function getForm(userId: string, formId: string) {
+  const [form] = await db.select({
+    id: forms.id,
+    name: forms.name,
+    description: forms.description,
+    fields: forms.fields,
+    publicSlug: forms.publicSlug,
+    isActive: forms.isActive,
+    workflowId: forms.workflowId,
+    workflowName: workflows.name,
+    createdAt: forms.createdAt,
+    updatedAt: forms.updatedAt,
+  }).from(forms)
+    .leftJoin(workflows, and(
+      eq(forms.workflowId, workflows.id),
+      eq(workflows.userId, userId),
+    ))
+    .where(and(eq(forms.id, formId), eq(forms.userId, userId)))
+    .limit(1);
+
+  return form
+    ? { ok: true, form }
+    : toolError('NOT_FOUND', 'Form not found.');
+}
+
 async function getWorkflow(userId: string, workflowId: string) {
   const [workflow] = await db.select().from(workflows)
     .where(and(eq(workflows.id, workflowId), eq(workflows.userId, userId)))
@@ -390,6 +486,14 @@ async function diagnoseFailedExecution(userId: string, executionId: string) {
 
 export async function executeAgentReadOnlyTool(userId: string, toolCall: AgentToolCall) {
   switch (toolCall.name) {
+    case 'list_forms': {
+      const args = parseArguments(toolCall, ListFormsSchema);
+      return isToolError(args) ? args : listForms(userId, args);
+    }
+    case 'get_form': {
+      const args = parseArguments(toolCall, GetFormSchema);
+      return isToolError(args) ? args : getForm(userId, args.formId);
+    }
     case 'list_workflows': {
       const args = parseArguments(toolCall, ListWorkflowsSchema);
       return isToolError(args) ? args : listWorkflows(userId, args);

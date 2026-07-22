@@ -1,7 +1,8 @@
 import { and, eq, inArray } from 'drizzle-orm';
-import { agentProposedActions, db, executions, users, workflows } from '@execute/db';
-import { getAgentActionExecutionDisposition, isAgentExecutionActionType } from '@execute/llm';
+import { agentProposedActions, db, executions, forms, users, workflows } from '@execute/db';
+import { getAgentActionExecutionDisposition, isAgentExecutionActionType, isAgentFormActionType } from '@execute/llm';
 import { z } from 'zod';
+import { CreateFormInputSchema } from '@/lib/form-definition';
 import { executeWorkflow, hasActiveExecution } from '@/lib/workflow-execution';
 
 const RunPayloadSchema = z.object({
@@ -11,6 +12,18 @@ const RunPayloadSchema = z.object({
 
 const ExecutionPayloadSchema = z.object({
   executionId: z.string().uuid(),
+}).passthrough();
+
+const FormActionPayloadSchema = z.object({
+  formId: z.string().uuid().optional(),
+  expectedUpdatedAt: z.string().datetime().optional(),
+  after: z.object({
+    name: z.string(),
+    description: z.string().nullable(),
+    fields: z.array(z.unknown()),
+    isActive: z.boolean(),
+    workflowId: z.string().uuid().nullable(),
+  }).passthrough(),
 }).passthrough();
 
 class AgentActionExecutionError extends Error {}
@@ -137,7 +150,111 @@ async function executeRetry(userId: string, payload: Record<string, unknown>) {
   };
 }
 
+function generateFormSlug(length = 16) {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  return Array.from({ length }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+}
+
+async function assertOwnedWorkflow(userId: string, workflowId: string | null) {
+  if (!workflowId) return;
+  const [workflow] = await db.select({ id: workflows.id }).from(workflows)
+    .where(and(eq(workflows.id, workflowId), eq(workflows.userId, userId)))
+    .limit(1);
+  if (!workflow) throw new AgentActionExecutionError('Linked workflow not found.');
+}
+
+async function executeFormAction(
+  userId: string,
+  actionType: string,
+  payload: Record<string, unknown>,
+) {
+  const args = FormActionPayloadSchema.safeParse(payload);
+  if (!args.success) throw new AgentActionExecutionError('The form proposal is invalid.');
+  const validatedAfter = CreateFormInputSchema.safeParse({
+    name: args.data.after.name,
+    description: args.data.after.description,
+    fields: args.data.after.fields,
+    isActive: args.data.after.isActive,
+    workflowId: args.data.after.workflowId,
+  });
+  if (!validatedAfter.success) throw new AgentActionExecutionError('The proposed form definition is invalid.');
+  const after = validatedAfter.data;
+  await assertOwnedWorkflow(userId, after.workflowId || null);
+
+  if (actionType === 'form.create') {
+    const [created] = await db.insert(forms).values({
+      userId,
+      name: after.name,
+      description: after.description || null,
+      fields: after.fields,
+      workflowId: after.workflowId || null,
+      isActive: after.isActive,
+      publicSlug: generateFormSlug(),
+    }).returning({ id: forms.id, publicSlug: forms.publicSlug, isActive: forms.isActive });
+    if (!created) throw new AgentActionExecutionError('The form could not be created.');
+    return {
+      kind: 'form_create',
+      formId: created.id,
+      isActive: created.isActive,
+      href: `/dashboard/forms/${created.id}/edit`,
+      publicHref: created.publicSlug ? `/f/${created.publicSlug}` : null,
+    };
+  }
+
+  if (!args.data.formId || !args.data.expectedUpdatedAt) {
+    throw new AgentActionExecutionError('The form proposal is missing its edit version.');
+  }
+  const [current] = await db.select({
+    id: forms.id,
+    updatedAt: forms.updatedAt,
+  }).from(forms)
+    .where(and(eq(forms.id, args.data.formId), eq(forms.userId, userId)))
+    .limit(1);
+  if (!current) throw new AgentActionExecutionError('Form not found.');
+  if (current.updatedAt.toISOString() !== args.data.expectedUpdatedAt) {
+    throw new AgentActionExecutionError('This form changed after the proposal was created. Review it and propose the change again.');
+  }
+
+  let updates: Partial<typeof forms.$inferInsert>;
+  if (actionType === 'form.update') {
+    updates = {
+      name: after.name,
+      description: after.description || null,
+      fields: after.fields,
+    };
+  } else if (actionType === 'form.activate' || actionType === 'form.deactivate') {
+    const expectedState = actionType === 'form.activate';
+    if (after.isActive !== expectedState) throw new AgentActionExecutionError('The proposed form status is invalid.');
+    updates = { isActive: expectedState };
+  } else if (actionType === 'form.link_workflow') {
+    updates = { workflowId: after.workflowId || null };
+  } else {
+    throw new AgentActionExecutionError('This form action is not supported.');
+  }
+
+  const [updated] = await db.update(forms)
+    .set({ ...updates, updatedAt: new Date() })
+    .where(and(
+      eq(forms.id, current.id),
+      eq(forms.userId, userId),
+      eq(forms.updatedAt, current.updatedAt),
+    ))
+    .returning({ id: forms.id, publicSlug: forms.publicSlug, isActive: forms.isActive, workflowId: forms.workflowId });
+  if (!updated) throw new AgentActionExecutionError('The form changed while the approved action was being applied.');
+  return {
+    kind: actionType.replace('.', '_'),
+    formId: updated.id,
+    isActive: updated.isActive,
+    workflowId: updated.workflowId,
+    href: `/dashboard/forms/${updated.id}/edit`,
+    publicHref: updated.publicSlug ? `/f/${updated.publicSlug}` : null,
+  };
+}
+
 async function runAction(userId: string, actionType: string, payload: Record<string, unknown>) {
+  if (isAgentFormActionType(actionType)) {
+    return executeFormAction(userId, actionType, payload);
+  }
   switch (actionType) {
     case 'workflow.run':
       return executeWorkflowRun(userId, payload);
@@ -158,7 +275,7 @@ export async function executeApprovedAgentAction(userId: string, actionId: strin
     ))
     .limit(1);
   if (!currentAction) return { handled: false as const, action: null };
-  if (!isAgentExecutionActionType(currentAction.actionType)) {
+  if (!isAgentExecutionActionType(currentAction.actionType) && !isAgentFormActionType(currentAction.actionType)) {
     return { handled: false as const, action: currentAction };
   }
   if (getAgentActionExecutionDisposition(currentAction.status) !== 'claim') {

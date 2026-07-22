@@ -1,52 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { db, forms, users } from '@execute/db';
-import { eq } from 'drizzle-orm';
+import { db, forms, users, workflows } from '@execute/db';
+import { and, eq } from 'drizzle-orm';
+import { CreateFormInputSchema, formValidationMessage } from '@/lib/form-definition';
 
-/**
- * Generate a unique public slug for a form
- */
-function generateSlug(): string {
+function generateSlug(length = 12): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let slug = '';
-  for (let i = 0; i < 12; i++) {
-    slug += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return slug;
-}
-
-/**
- * Generate a unique ID
- */
-function generateId(): string {
-  return crypto.randomUUID();
-}
-
-/**
- * Validate form fields configuration
- */
-function validateFormFields(fields: any[]): { valid: boolean; error: string } {
-  if (!Array.isArray(fields) || fields.length === 0) {
-    return { valid: false, error: 'Form must have at least one field' };
-  }
-
-  const validTypes = ['text', 'email', 'number', 'textarea', 'select', 'checkbox'];
-
-  for (const field of fields) {
-    if (!field.id || !field.label) {
-      return { valid: false, error: 'Each field must have an id and label' };
-    }
-
-    if (!validTypes.includes(field.type)) {
-      return { valid: false, error: `Invalid field type: ${field.type}. Must be one of: ${validTypes.join(', ')}` };
-    }
-
-    if (field.type === 'select' && (!Array.isArray(field.options) || field.options.length === 0)) {
-      return { valid: false, error: `Select field "${field.id}" must have at least one option` };
-    }
-  }
-
-  return { valid: true, error: '' };
+  return Array.from({ length }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
 }
 
 /**
@@ -110,38 +70,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const body = await request.json();
-    const { name, description, fields, workflowId, isActive = true } = body;
-
-    // Validate required fields
-    if (!name || name.trim().length === 0) {
-      return NextResponse.json({ error: 'Form name is required' }, { status: 400 });
+    const body = await request.json().catch(() => null);
+    const parsed = CreateFormInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: formValidationMessage(parsed.error) }, { status: 400 });
     }
+    const { name, description, fields, workflowId, isActive } = parsed.data;
 
-    // Validate fields configuration
-    const fieldValidation = validateFormFields(fields || []);
-
-    if (!fieldValidation.valid) {
-      return NextResponse.json({ error: fieldValidation.error }, { status: 400 });
+    if (workflowId) {
+      const [ownedWorkflow] = await db.select({ id: workflows.id }).from(workflows)
+        .where(and(eq(workflows.id, workflowId), eq(workflows.userId, internalUser.id)))
+        .limit(1);
+      if (!ownedWorkflow) {
+        return NextResponse.json({ error: 'Workflow not found' }, { status: 404 });
+      }
     }
 
     // Generate unique public slug
     const publicSlug = generateSlug();
 
-    const formId = generateId();
+    const formId = crypto.randomUUID();
 
     await db.insert(forms).values({
       id: formId,
       userId: internalUser.id,
       workflowId: workflowId || null,
-      name: name.trim(),
-      description: description?.trim() || null,
-      fields: fields || [],
+      name,
+      description: description || null,
+      fields,
       publicSlug,
-      isActive: isActive !== false,
+      isActive,
     });
 
-    const [form] = await db.select().from(forms).where(eq(forms.id, formId)).limit(1);
+    const [form] = await db.select().from(forms)
+      .where(and(eq(forms.id, formId), eq(forms.userId, internalUser.id)))
+      .limit(1);
 
     return NextResponse.json({
       form: {

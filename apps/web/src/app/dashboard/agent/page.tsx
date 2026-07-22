@@ -3,7 +3,7 @@
 import { FormEvent, Fragment, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { ArrowLeft, Bot, Check, ChevronRight, Clock3, GitCompareArrows, Loader2, MessageSquare, Plus, Send, ShieldCheck, Square, Workflow as WorkflowIcon, X } from "lucide-react";
+import { ArrowLeft, Bot, Check, ChevronRight, Clock3, FileText, GitCompareArrows, Link2, Loader2, MessageSquare, Plus, Send, ShieldCheck, Square, Workflow as WorkflowIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -225,6 +225,79 @@ function WorkflowProposalPreview({ action }: { action: AgentProposedAction }) {
   );
 }
 
+function FormProposalPreview({ action }: { action: AgentProposedAction }) {
+  if (!['form.create', 'form.update', 'form.activate', 'form.deactivate', 'form.link_workflow'].includes(action.actionType)) {
+    return null;
+  }
+  const after = asRecord(action.payload.after);
+  if (!after) return null;
+  const fields = Array.isArray(after.fields)
+    ? after.fields.map(asRecord).filter((field): field is Record<string, unknown> => Boolean(field))
+    : [];
+  const formName = typeof after.name === 'string' ? after.name : 'Form';
+  const workflowName = typeof after.workflowName === 'string' ? after.workflowName : null;
+  const isActive = after.isActive === true;
+  const result = asRecord(action.result);
+  const formHref = typeof result?.href === 'string' ? result.href : null;
+  const publicHref = typeof result?.publicHref === 'string' ? result.publicHref : null;
+
+  return (
+    <div className="mt-4 overflow-hidden rounded-lg border border-white/[0.07] bg-black/25">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] px-3.5 py-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-violet-200/10 bg-violet-200/[0.05] text-violet-100/55">
+            <FileText className="h-3.5 w-3.5" />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-xs font-medium text-white/75">{formName}</p>
+            <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.15em] text-white/30">
+              {fields.length} field{fields.length === 1 ? '' : 's'} · {isActive ? 'active' : 'inactive'}
+            </p>
+          </div>
+        </div>
+        <span className={cn(
+          "rounded-full border px-2 py-1 font-mono text-[9px] uppercase tracking-wider",
+          isActive
+            ? "border-emerald-200/10 bg-emerald-200/[0.04] text-emerald-100/55"
+            : "border-white/10 bg-white/[0.03] text-white/35",
+        )}>
+          {isActive ? 'Accepting submissions' : 'Closed'}
+        </span>
+      </div>
+
+      {fields.length > 0 && (
+        <ol className="divide-y divide-white/[0.055] px-3.5">
+          {fields.slice(0, 4).map((field, index) => (
+            <li key={typeof field.id === 'string' ? field.id : index} className="grid grid-cols-[1.25rem_minmax(0,1fr)_auto] items-center gap-2 py-2">
+              <span className="font-mono text-[9px] text-violet-100/30">{String(index + 1).padStart(2, '0')}</span>
+              <span className="truncate text-[11px] text-white/60">{typeof field.label === 'string' ? field.label : 'Untitled field'}</span>
+              <span className="font-mono text-[9px] uppercase tracking-wider text-white/25">{typeof field.type === 'string' ? field.type : 'field'}</span>
+            </li>
+          ))}
+          {fields.length > 4 && <li className="py-2 text-[10px] text-white/30">+{fields.length - 4} more fields</li>}
+        </ol>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.07] px-3.5 py-2.5">
+        <div className="flex items-center gap-1.5 text-[10px] text-white/35">
+          <Link2 className="h-3 w-3" />
+          <span className={action.status === 'failed' ? 'text-rose-200/60' : undefined}>
+            {action.status === 'failed'
+              ? action.errorMessage || 'The approved form action failed.'
+              : workflowName ? `Submissions → ${workflowName}` : 'No workflow linked'}
+          </span>
+        </div>
+        {action.status === 'completed' && (formHref || publicHref) && (
+          <div className="flex items-center gap-2">
+            {publicHref && <Link href={publicHref} className="text-[10px] text-white/40 hover:text-white/70">Open form</Link>}
+            {formHref && <Link href={formHref} className="text-[10px] font-medium text-violet-100/60 hover:text-violet-100">Edit form</Link>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ExecutionProposalPreview({ action }: { action: AgentProposedAction }) {
   if (!['workflow.run', 'execution.cancel', 'execution.retry'].includes(action.actionType)) {
     return null;
@@ -357,6 +430,7 @@ function AgentActionCard({
   const details = Object.entries(action.payload).slice(0, 4);
   const isWorkflowProposal = action.actionType === "workflow.create" || action.actionType === "workflow.update";
   const isExecutionProposal = ['workflow.run', 'execution.cancel', 'execution.retry'].includes(action.actionType);
+  const isFormProposal = ['form.create', 'form.update', 'form.activate', 'form.deactivate', 'form.link_workflow'].includes(action.actionType);
 
   return (
     <div className={cn("relative w-full max-w-xl overflow-hidden rounded-xl border", status.tone)}>
@@ -382,8 +456,9 @@ function AgentActionCard({
 
         {isWorkflowProposal && <WorkflowProposalPreview action={action} />}
         {isExecutionProposal && <ExecutionProposalPreview action={action} />}
+        {isFormProposal && <FormProposalPreview action={action} />}
 
-        {!isWorkflowProposal && !isExecutionProposal && details.length > 0 && (
+        {!isWorkflowProposal && !isExecutionProposal && !isFormProposal && details.length > 0 && (
           <dl className="mt-4 divide-y divide-white/[0.07] border-y border-white/[0.07]">
             {details.map(([key, value]) => (
               <div key={key} className="grid grid-cols-[minmax(0,0.38fr)_minmax(0,0.62fr)] gap-3 py-2 text-xs leading-5">

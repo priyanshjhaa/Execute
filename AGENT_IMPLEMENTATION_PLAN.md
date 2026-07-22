@@ -14,6 +14,7 @@ Build the agent through small, independently testable phases. The agent coordina
 - Phase 7 is complete: proposed actions are tenant-scoped, expire safely, handle repeated decisions idempotently, and render as confirmation cards in Agent conversations.
 - Phase 8 is in progress: the agent can generate, validate, and display workflow creation and update proposals without applying them.
 - Phase 9 is complete: confirmed execution proposals run through the existing executor, support cancellation and retry, and return linked execution receipts.
+- Phase 10 is complete: the agent can inspect forms and apply confirmed form creation, editing, status, and workflow-link changes.
 
 ## Phase 1: Conversation Storage - Complete and Stabilized
 
@@ -77,11 +78,11 @@ Build the agent through small, independently testable phases. The agent coordina
 - Cancel or retry executions. - Complete
 - Report and link execution results. - Complete
 
-## Phase 10: Forms
+## Phase 10: Forms - Complete
 
-- Inspect, create, and edit forms.
-- Activate or deactivate forms.
-- Link forms to workflows.
+- Inspect, create, and edit forms. - Complete
+- Activate or deactivate forms. - Complete
+- Link forms to workflows. - Complete
 
 ## Phase 11: Contacts
 

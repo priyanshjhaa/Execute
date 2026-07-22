@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { db, forms, users } from '@execute/db';
+import { db, forms, users, workflows } from '@execute/db';
 import { eq, and } from 'drizzle-orm';
+import { formValidationMessage, UpdateFormInputSchema } from '@/lib/form-definition';
 
 /**
  * GET /api/forms/[id] - Get a single form
@@ -77,8 +78,12 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const body = await request.json();
-    const { name, description, fields, workflowId, isActive } = body;
+    const body = await request.json().catch(() => null);
+    const parsed = UpdateFormInputSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: formValidationMessage(parsed.error) }, { status: 400 });
+    }
+    const { name, description, fields, workflowId, isActive } = parsed.data;
 
     // Check if form exists and belongs to user
     const [existingForm] = await db.select()
@@ -90,38 +95,30 @@ export async function PATCH(
       return NextResponse.json({ error: 'Form not found' }, { status: 404 });
     }
 
-    // Validate fields if provided
-    if (fields !== undefined) {
-      const validTypes = ['text', 'email', 'number', 'textarea', 'select', 'checkbox'];
-
-      for (const field of fields) {
-        if (!field.id || !field.label) {
-          return NextResponse.json({ error: 'Each field must have an id and label' }, { status: 400 });
-        }
-
-        if (!validTypes.includes(field.type)) {
-          return NextResponse.json({ error: `Invalid field type: ${field.type}` }, { status: 400 });
-        }
-
-        if (field.type === 'select' && (!Array.isArray(field.options) || field.options.length === 0)) {
-          return NextResponse.json({ error: `Select field "${field.id}" must have at least one option` }, { status: 400 });
-        }
+    if (workflowId) {
+      const [ownedWorkflow] = await db.select({ id: workflows.id }).from(workflows)
+        .where(and(eq(workflows.id, workflowId), eq(workflows.userId, internalUser.id)))
+        .limit(1);
+      if (!ownedWorkflow) {
+        return NextResponse.json({ error: 'Workflow not found' }, { status: 404 });
       }
     }
 
     // Update form
     await db.update(forms)
       .set({
-        ...(name !== undefined && { name: name.trim() }),
-        ...(description !== undefined && { description: description?.trim() || null }),
+        ...(name !== undefined && { name }),
+        ...(description !== undefined && { description: description || null }),
         ...(fields !== undefined && { fields }),
         ...(workflowId !== undefined && { workflowId: workflowId || null }),
         ...(isActive !== undefined && { isActive }),
         updatedAt: new Date(),
       })
-      .where(eq(forms.id, id));
+      .where(and(eq(forms.id, id), eq(forms.userId, internalUser.id)));
 
-    const [updatedForm] = await db.select().from(forms).where(eq(forms.id, id)).limit(1);
+    const [updatedForm] = await db.select().from(forms)
+      .where(and(eq(forms.id, id), eq(forms.userId, internalUser.id)))
+      .limit(1);
 
     return NextResponse.json({
       form: {
@@ -177,7 +174,7 @@ export async function DELETE(
     }
 
     // Delete form (cascade will delete submissions)
-    await db.delete(forms).where(eq(forms.id, id));
+    await db.delete(forms).where(and(eq(forms.id, id), eq(forms.userId, internalUser.id)));
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
