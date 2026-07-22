@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, Fragment, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Bot, Loader2, MessageSquare, Plus, Send, Square } from "lucide-react";
+import { ArrowLeft, Bot, Check, Clock3, Loader2, MessageSquare, Plus, Send, ShieldCheck, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +24,33 @@ interface AgentMessage {
   role: "user" | "assistant" | "system" | "tool";
   content: AgentContentBlock[];
   createdAt: string;
+}
+
+type AgentActionStatus = "pending" | "approved" | "rejected" | "expired" | "executing" | "completed" | "failed";
+
+interface AgentProposedAction {
+  id: string;
+  threadId: string;
+  assistantMessageId: string | null;
+  actionType: string;
+  title: string;
+  description: string | null;
+  payload: Record<string, unknown>;
+  status: AgentActionStatus;
+  expiresAt: string;
+  decidedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface AgentConversation {
+  messages: AgentMessage[];
+  actions: AgentProposedAction[];
+}
+
+interface AgentActionDecisionResponse {
+  action: AgentProposedAction;
+  idempotent: boolean;
 }
 
 interface SendMessageResponse {
@@ -72,6 +99,149 @@ function getMessageText(message: AgentMessage): string {
     .join("\n");
 }
 
+function formatActionValue(value: unknown): string {
+  const formatted = typeof value === "string" ? value : JSON.stringify(value);
+  if (!formatted) return "—";
+  return formatted.length > 180 ? `${formatted.slice(0, 177)}...` : formatted;
+}
+
+function actionStatusCopy(action: AgentProposedAction) {
+  if (action.status === "pending") {
+    return {
+      label: "Approval required",
+      detail: `Decision closes ${new Date(action.expiresAt).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })}`,
+      tone: "border-amber-300/20 bg-amber-200/[0.045]",
+      rail: "bg-amber-200",
+      icon: <Clock3 className="h-3.5 w-3.5" />,
+    };
+  }
+  if (action.status === "approved" || action.status === "completed") {
+    return {
+      label: action.status === "completed" ? "Completed" : "Approved",
+      detail: action.status === "completed" ? "The approved action completed." : "Ready for the next execution phase.",
+      tone: "border-emerald-300/15 bg-emerald-300/[0.035]",
+      rail: "bg-emerald-300",
+      icon: <Check className="h-3.5 w-3.5" />,
+    };
+  }
+  if (action.status === "rejected") {
+    return {
+      label: "Rejected",
+      detail: "This proposal will not be applied.",
+      tone: "border-rose-300/15 bg-rose-300/[0.03]",
+      rail: "bg-rose-300/70",
+      icon: <X className="h-3.5 w-3.5" />,
+    };
+  }
+  if (action.status === "executing") {
+    return {
+      label: "In progress",
+      detail: "The approved action is being applied.",
+      tone: "border-sky-300/15 bg-sky-300/[0.03]",
+      rail: "bg-sky-300/70",
+      icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />,
+    };
+  }
+  if (action.status === "failed") {
+    return {
+      label: "Failed",
+      detail: "The approved action could not be completed.",
+      tone: "border-rose-300/15 bg-rose-300/[0.03]",
+      rail: "bg-rose-300/70",
+      icon: <X className="h-3.5 w-3.5" />,
+    };
+  }
+  return {
+    label: "Expired",
+    detail: action.status === "expired" ? "The approval window closed without a decision." : "This action is no longer awaiting approval.",
+    tone: "border-white/10 bg-white/[0.025]",
+    rail: "bg-white/30",
+    icon: <Clock3 className="h-3.5 w-3.5" />,
+  };
+}
+
+function AgentActionCard({
+  action,
+  deciding,
+  decisionError,
+  onDecision,
+}: {
+  action: AgentProposedAction;
+  deciding: boolean;
+  decisionError?: string;
+  onDecision: (decision: "approve" | "reject") => void;
+}) {
+  const status = actionStatusCopy(action);
+  const details = Object.entries(action.payload).slice(0, 4);
+
+  return (
+    <div className={cn("relative w-full max-w-xl overflow-hidden rounded-xl border", status.tone)}>
+      <div className={cn("absolute inset-y-0 left-0 w-1", status.rail)} />
+      <div className="px-4 py-4 pl-5 sm:px-5 sm:pl-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-white/40">
+              <ShieldCheck className="h-3.5 w-3.5 text-white/50" />
+              {action.actionType.replaceAll("_", " ").replaceAll(".", " / ")}
+            </div>
+            <h3 className="mt-2 text-sm font-semibold leading-5 text-white">{action.title}</h3>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-white/55">
+            {status.icon}
+            <span>{status.label}</span>
+          </div>
+        </div>
+
+        {action.description && (
+          <p className="mt-2 text-sm leading-5 text-white/55">{action.description}</p>
+        )}
+
+        {details.length > 0 && (
+          <dl className="mt-4 divide-y divide-white/[0.07] border-y border-white/[0.07]">
+            {details.map(([key, value]) => (
+              <div key={key} className="grid grid-cols-[minmax(0,0.38fr)_minmax(0,0.62fr)] gap-3 py-2 text-xs leading-5">
+                <dt className="truncate font-mono text-[10px] uppercase tracking-wider text-white/30">{key}</dt>
+                <dd className="break-words text-white/65">{formatActionValue(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-[11px] text-white/30">{status.detail}</p>
+          {action.status === "pending" && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={deciding}
+                onClick={() => onDecision("reject")}
+                className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-white/55 transition-colors hover:border-white/20 hover:bg-white/5 hover:text-white disabled:pointer-events-none disabled:opacity-50"
+              >
+                Reject
+              </button>
+              <button
+                type="button"
+                disabled={deciding}
+                onClick={() => onDecision("approve")}
+                className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-black transition-colors hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-100/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:pointer-events-none disabled:opacity-50"
+              >
+                {deciding ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                Approve
+              </button>
+            </div>
+          )}
+        </div>
+        {decisionError && <p className="mt-2 text-xs text-rose-300/80">{decisionError}</p>}
+      </div>
+    </div>
+  );
+}
+
 async function readError(response: Response, fallback: string): Promise<Error> {
   const data = await response.json().catch(() => null);
   return new Error(data?.error || fallback);
@@ -98,15 +268,16 @@ export default function AgentPage() {
     },
   });
 
-  const messagesQuery = useQuery<AgentMessage[]>({
+  const messagesQuery = useQuery<AgentConversation>({
     queryKey: agentQueryKeys.messages(selectedThreadId || "new"),
     queryFn: async () => {
       const response = await fetch(`/api/agent/threads/${selectedThreadId}/messages`);
       if (!response.ok) throw await readError(response, "Failed to load conversation");
       const data = await response.json();
-      return data.messages || [];
+      return { messages: data.messages || [], actions: data.actions || [] };
     },
     enabled: !!selectedThreadId,
+    refetchInterval: 30_000,
   });
 
   const sendMessage = useMutation<SendMessageResponse | null, Error, string>({
@@ -189,9 +360,16 @@ export default function AgentPage() {
       if (!data) return;
 
       const threadId = data.thread.id;
-      queryClient.setQueryData<AgentMessage[]>(
+      queryClient.setQueryData<AgentConversation>(
         agentQueryKeys.messages(threadId),
-        (current = []) => [...current, data.messages.user, data.messages.assistant],
+        (current) => ({
+          messages: [
+            ...(current?.messages || []),
+            data.messages.user,
+            data.messages.assistant,
+          ],
+          actions: current?.actions || [],
+        }),
       );
       setSelectedThreadId(threadId);
       setDraft("");
@@ -203,13 +381,44 @@ export default function AgentPage() {
     },
   });
 
+  const decideAction = useMutation<
+    AgentActionDecisionResponse,
+    Error,
+    { action: AgentProposedAction; decision: "approve" | "reject" }
+  >({
+    mutationFn: async ({ action, decision }) => {
+      const response = await fetch(`/api/agent/actions/${action.id}/${decision}`, {
+        method: "POST",
+      });
+      if (!response.ok) throw await readError(response, `Failed to ${decision} action`);
+      return response.json();
+    },
+    onSuccess: ({ action }) => {
+      queryClient.setQueryData<AgentConversation>(
+        agentQueryKeys.messages(action.threadId),
+        (current) => current ? {
+          ...current,
+          actions: current.actions.map((item) => item.id === action.id ? action : item),
+        } : current,
+      );
+    },
+    onError: (_error, { action }) => {
+      queryClient.invalidateQueries({ queryKey: agentQueryKeys.messages(action.threadId) });
+    },
+  });
+
   const threads = threadsQuery.data || [];
-  const messages = selectedThreadId ? (messagesQuery.data || []) : [];
+  const messages = selectedThreadId ? (messagesQuery.data?.messages || []) : [];
+  const actions = selectedThreadId ? (messagesQuery.data?.actions || []) : [];
+  const messageIds = new Set(messages.map((message) => message.id));
+  const detachedActions = actions.filter(
+    (action) => !action.assistantMessageId || !messageIds.has(action.assistantMessageId),
+  );
   const selectedThread = threads.find((thread) => thread.id === selectedThreadId);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, sendMessage.isPending, streamingText]);
+  }, [messages.length, actions.length, sendMessage.isPending, streamingText]);
 
   const startConversation = () => {
     setSelectedThreadId(null);
@@ -371,7 +580,7 @@ export default function AgentPage() {
                     Try again
                   </button>
                 </div>
-              ) : messages.length === 0 && !sendMessage.isPending ? (
+              ) : messages.length === 0 && actions.length === 0 && !sendMessage.isPending ? (
                 <div className="flex h-full flex-col items-center justify-center px-6 text-center">
                   <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5">
                     <Bot className="h-5 w-5 text-white/55" />
@@ -385,22 +594,50 @@ export default function AgentPage() {
                 <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
                   {messages.map((message) => {
                     const isUser = message.role === "user";
+                    const messageActions = actions.filter(
+                      (action) => action.assistantMessageId === message.id,
+                    );
                     return (
-                      <div
-                        key={message.id}
-                        className={cn("flex", isUser ? "justify-end" : "justify-start")}
-                      >
-                        <div className={cn(
-                          "max-w-[88%] whitespace-pre-wrap text-sm leading-6 sm:max-w-[78%]",
-                          isUser
-                            ? "rounded-2xl rounded-br-md bg-white/10 px-4 py-2.5 text-white"
-                            : "text-white/75",
-                        )}>
-                          {getMessageText(message)}
+                      <Fragment key={message.id}>
+                        <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
+                          <div className={cn(
+                            "max-w-[88%] whitespace-pre-wrap text-sm leading-6 sm:max-w-[78%]",
+                            isUser
+                              ? "rounded-2xl rounded-br-md bg-white/10 px-4 py-2.5 text-white"
+                              : "text-white/75",
+                          )}>
+                            {getMessageText(message)}
+                          </div>
                         </div>
-                      </div>
+                        {messageActions.map((action) => (
+                          <AgentActionCard
+                            key={action.id}
+                            action={action}
+                            deciding={decideAction.isPending && decideAction.variables?.action.id === action.id}
+                            decisionError={
+                              decideAction.isError && decideAction.variables?.action.id === action.id
+                                ? decideAction.error.message
+                                : undefined
+                            }
+                            onDecision={(decision) => decideAction.mutate({ action, decision })}
+                          />
+                        ))}
+                      </Fragment>
                     );
                   })}
+                  {detachedActions.map((action) => (
+                    <AgentActionCard
+                      key={action.id}
+                      action={action}
+                      deciding={decideAction.isPending && decideAction.variables?.action.id === action.id}
+                      decisionError={
+                        decideAction.isError && decideAction.variables?.action.id === action.id
+                          ? decideAction.error.message
+                          : undefined
+                      }
+                      onDecision={(decision) => decideAction.mutate({ action, decision })}
+                    />
+                  ))}
                   {sendMessage.isPending && pendingUserText && (
                     <div className="flex justify-end">
                       <div className="max-w-[88%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-white/10 px-4 py-2.5 text-sm leading-6 text-white sm:max-w-[78%]">

@@ -83,7 +83,7 @@ export const agentProposedActions = pgTable('agent_proposed_actions', {
   description: text('description'),
   payload: jsonb('payload').$type<Record<string, unknown>>().notNull(),
   status: varchar('status', { length: 20 }).$type<AgentProposedActionStatus>().notNull().default('pending'),
-  expiresAt: timestamp('expires_at'),
+  expiresAt: timestamp('expires_at').notNull().default(sql`NOW() + INTERVAL '24 hours'`),
   decidedAt: timestamp('decided_at'),
   approvedAt: timestamp('approved_at'),
   rejectedAt: timestamp('rejected_at'),

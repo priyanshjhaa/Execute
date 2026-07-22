@@ -53,7 +53,10 @@ export async function handleAgentActionDecision(
       }, { status: 409 });
     }
 
-    return NextResponse.json({ action: result.action });
+    return NextResponse.json({
+      action: result.action,
+      idempotent: result.kind === 'already_applied',
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error(`Agent action ${decision} error:`, message);

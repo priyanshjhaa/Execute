@@ -15,6 +15,7 @@ const migrationNames = [
   '0017_create_agent_runs.sql',
   '0018_add_agent_summary_metadata.sql',
   '0019_create_agent_proposed_actions.sql',
+  '0020_enforce_agent_action_expiry.sql',
 ];
 
 async function main() {

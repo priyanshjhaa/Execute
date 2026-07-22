@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq, gt, lte } from 'drizzle-orm';
 import {
   agentMessages,
   agentProposedActions,
@@ -8,7 +8,9 @@ import {
 } from '@execute/db';
 import {
   AgentActionDecision,
+  getAgentActionDecisionTransition,
   getAgentActionDecisionStatus,
+  resolveAgentActionTtlMinutes,
 } from '@execute/llm';
 import { z } from 'zod';
 
@@ -60,6 +62,9 @@ function parseProposedActionInput(input: ProposedAgentActionInput) {
 
 export async function createAgentProposedAction(input: ProposedAgentActionInput) {
   const action = parseProposedActionInput(input);
+  const expiresAt = action.expiresAt || new Date(
+    Date.now() + resolveAgentActionTtlMinutes(process.env.AGENT_ACTION_TTL_MINUTES) * 60_000,
+  );
 
   const [ownedThread] = await db.select({ id: agentThreads.id })
     .from(agentThreads)
@@ -120,7 +125,7 @@ export async function createAgentProposedAction(input: ProposedAgentActionInput)
     title: action.title,
     description: action.description,
     payload: action.payload,
-    expiresAt: action.expiresAt,
+    expiresAt,
   }).returning();
 
   if (!createdAction) {
@@ -131,8 +136,56 @@ export async function createAgentProposedAction(input: ProposedAgentActionInput)
 
 export type AgentActionDecisionResult =
   | { kind: 'updated'; action: typeof agentProposedActions.$inferSelect }
+  | { kind: 'already_applied'; action: typeof agentProposedActions.$inferSelect }
   | { kind: 'not_found' }
   | { kind: 'conflict'; status: string };
+
+async function expireAgentAction(userId: string, actionId: string, now: Date) {
+  await db.update(agentProposedActions)
+    .set({ status: 'expired', decidedAt: now, updatedAt: now })
+    .where(and(
+      eq(agentProposedActions.id, actionId),
+      eq(agentProposedActions.userId, userId),
+      eq(agentProposedActions.status, 'pending'),
+      lte(agentProposedActions.expiresAt, now),
+    ));
+}
+
+export async function expirePendingAgentActions(userId: string, threadId: string) {
+  const now = new Date();
+  await db.update(agentProposedActions)
+    .set({ status: 'expired', decidedAt: now, updatedAt: now })
+    .where(and(
+      eq(agentProposedActions.userId, userId),
+      eq(agentProposedActions.threadId, threadId),
+      eq(agentProposedActions.status, 'pending'),
+      lte(agentProposedActions.expiresAt, now),
+    ));
+}
+
+export async function listAgentProposedActionsForThread(userId: string, threadId: string) {
+  await expirePendingAgentActions(userId, threadId);
+
+  return db.select({
+    id: agentProposedActions.id,
+    threadId: agentProposedActions.threadId,
+    assistantMessageId: agentProposedActions.assistantMessageId,
+    actionType: agentProposedActions.actionType,
+    title: agentProposedActions.title,
+    description: agentProposedActions.description,
+    payload: agentProposedActions.payload,
+    status: agentProposedActions.status,
+    expiresAt: agentProposedActions.expiresAt,
+    decidedAt: agentProposedActions.decidedAt,
+    createdAt: agentProposedActions.createdAt,
+    updatedAt: agentProposedActions.updatedAt,
+  }).from(agentProposedActions)
+    .where(and(
+      eq(agentProposedActions.userId, userId),
+      eq(agentProposedActions.threadId, threadId),
+    ))
+    .orderBy(asc(agentProposedActions.createdAt));
+}
 
 export async function decideAgentProposedAction(input: {
   actionId: string;
@@ -143,6 +196,8 @@ export async function decideAgentProposedAction(input: {
   if (!nextStatus) throw new Error('Unsupported agent action decision');
 
   const decidedAt = new Date();
+  await expireAgentAction(input.userId, input.actionId, decidedAt);
+
   const [updatedAction] = await db.update(agentProposedActions)
     .set({
       status: nextStatus,
@@ -155,12 +210,13 @@ export async function decideAgentProposedAction(input: {
       eq(agentProposedActions.id, input.actionId),
       eq(agentProposedActions.userId, input.userId),
       eq(agentProposedActions.status, 'pending'),
+      gt(agentProposedActions.expiresAt, decidedAt),
     ))
     .returning();
 
   if (updatedAction) return { kind: 'updated', action: updatedAction };
 
-  const [currentAction] = await db.select({ status: agentProposedActions.status })
+  const [currentAction] = await db.select()
     .from(agentProposedActions)
     .where(and(
       eq(agentProposedActions.id, input.actionId),
@@ -168,7 +224,16 @@ export async function decideAgentProposedAction(input: {
     ))
     .limit(1);
 
-  return currentAction
-    ? { kind: 'conflict', status: currentAction.status }
-    : { kind: 'not_found' };
+  if (!currentAction) return { kind: 'not_found' };
+  if (
+    (input.decision === 'approve' && currentAction.approvedAt)
+    || (input.decision === 'reject' && currentAction.rejectedAt)
+  ) {
+    return { kind: 'already_applied', action: currentAction };
+  }
+  const transition = getAgentActionDecisionTransition(currentAction.status, input.decision);
+  if (transition.kind === 'already_applied') {
+    return { kind: 'already_applied', action: currentAction };
+  }
+  return { kind: 'conflict', status: currentAction.status };
 }

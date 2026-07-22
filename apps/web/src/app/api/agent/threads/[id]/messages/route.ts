@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { and, asc, eq } from 'drizzle-orm';
 import { agentMessages, agentThreads, db, users } from '@execute/db';
 import { createClient } from '@/lib/supabase/server';
+import { listAgentProposedActionsForThread } from '@/lib/agent-actions';
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -48,20 +49,23 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: 'Thread not found' }, { status: 404 });
     }
 
-    const messages = await db.select({
-      id: agentMessages.id,
-      role: agentMessages.role,
-      content: agentMessages.content,
-      createdAt: agentMessages.createdAt,
-    })
-      .from(agentMessages)
-      .where(and(
-        eq(agentMessages.threadId, thread.id),
-        eq(agentMessages.userId, internalUser.id),
-      ))
-      .orderBy(asc(agentMessages.createdAt));
+    const [messages, actions] = await Promise.all([
+      db.select({
+        id: agentMessages.id,
+        role: agentMessages.role,
+        content: agentMessages.content,
+        createdAt: agentMessages.createdAt,
+      })
+        .from(agentMessages)
+        .where(and(
+          eq(agentMessages.threadId, thread.id),
+          eq(agentMessages.userId, internalUser.id),
+        ))
+        .orderBy(asc(agentMessages.createdAt)),
+      listAgentProposedActionsForThread(internalUser.id, thread.id),
+    ]);
 
-    return NextResponse.json({ thread, messages });
+    return NextResponse.json({ thread, messages, actions });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Agent thread messages error:', message);
