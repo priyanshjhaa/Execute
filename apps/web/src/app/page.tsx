@@ -77,7 +77,7 @@ export default function Home() {
           <img
             src="/execute-hero-scenic.jpg"
             alt=""
-            className="hero-scenic-image h-full w-full object-cover object-[62%_center] sm:object-center opacity-90"
+            className="hero-scenic-image h-[100svh] w-full object-cover object-[62%_center] sm:object-center opacity-90"
             decoding="async"
           />
         </div>
