@@ -7,10 +7,11 @@ Build the agent through small, independently testable phases. The agent coordina
 - Phases 1-3 are complete and were stabilized on July 16, 2026.
 - Phase 4 is complete: provider tokens stream to the UI and active runs can be cancelled safely.
 - Phase 5 is complete: each turn uses a bounded eight-message window, rolling summary memory, and an explicit total context budget.
+- Phase 6 is complete: the agent can inspect tenant-scoped workflows, executions, and logs, diagnose failed executions, and use bounded tool-call rounds while preserving streaming.
 - Successful turns persist the user and assistant messages atomically.
 - Provider failures do not create empty threads or unmatched user messages.
 - Automated tests cover missing configuration, provider fallback, empty responses, output limits, and total provider failure.
-- Phase 6, read-only workspace tools, is next.
+- Phase 7, confirmation infrastructure, is next.
 
 ## Phase 1: Conversation Storage - Complete and Stabilized
 
@@ -46,7 +47,7 @@ Build the agent through small, independently testable phases. The agent coordina
 - Truncate oversized legacy content safely while preserving recent information.
 - Process long summary backlogs in bounded chronological batches.
 
-## Phase 6: Read-Only Workspace Tools
+## Phase 6: Read-Only Workspace Tools - Complete
 
 - Add tools to inspect workflows and executions.
 - Add execution diagnosis.
