@@ -101,6 +101,12 @@ function getMaxOutputTokens(override?: number): number {
   return Math.min(Math.max(configured, 64), 1000);
 }
 
+function getProviderTimeoutMs(): number {
+  const configured = Number.parseInt(process.env.AGENT_PROVIDER_TIMEOUT_MS || '20000', 10);
+  if (!Number.isFinite(configured)) return 20_000;
+  return Math.min(Math.max(configured, 5_000), 45_000);
+}
+
 function toProviderMessages(messages: AgentChatMessage[]) {
   return messages.map((message) => {
     if (message.role === 'assistant' && message.toolCalls?.length) {
@@ -148,8 +154,12 @@ export class AgentModelClient {
     if (groqKey) {
       this.models.push({
         provider: 'groq',
-        model: process.env.AGENT_FAST_MODEL || process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
-        client: new Groq({ apiKey: groqKey }),
+        model: process.env.AGENT_FAST_MODEL || process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+        client: new Groq({
+          apiKey: groqKey,
+          timeout: getProviderTimeoutMs(),
+          maxRetries: 0,
+        }),
         tier: 'fast',
       });
     }
@@ -157,7 +167,7 @@ export class AgentModelClient {
     if (openrouterKey) {
       this.models.push({
         provider: 'openrouter',
-        model: process.env.AGENT_OPENROUTER_MODEL || 'google/gemma-3-4b-it',
+        model: process.env.AGENT_OPENROUTER_MODEL || 'openai/gpt-4o-mini',
         client: new OpenAI({
           apiKey: openrouterKey,
           baseURL: 'https://openrouter.ai/api/v1',
@@ -165,6 +175,8 @@ export class AgentModelClient {
             'HTTP-Referer': process.env.SITE_URL || 'http://localhost:3000',
             'X-Title': 'Execute Agent',
           },
+          timeout: getProviderTimeoutMs(),
+          maxRetries: 0,
         }),
         tier: 'fast',
       });
@@ -181,6 +193,8 @@ export class AgentModelClient {
               'HTTP-Referer': process.env.SITE_URL || 'http://localhost:3000',
               'X-Title': 'Execute Agent',
             },
+            timeout: getProviderTimeoutMs(),
+            maxRetries: 0,
           }),
           tier: 'reasoning',
         };

@@ -47,13 +47,17 @@ export async function prepareAgentContext(input: PrepareAgentContextInput) {
     : input.systemPrompt;
 
   if (!input.thread) {
-    return buildAgentContext({
-      systemPrompt,
-      recentMessages: [],
-      currentMessage: input.currentMessage,
-      maxTokens: maxContextTokens,
-    });
+    return {
+      messages: buildAgentContext({
+        systemPrompt,
+        recentMessages: [],
+        currentMessage: input.currentMessage,
+        maxTokens: maxContextTokens,
+      }),
+      summaryUpdate: Promise.resolve(),
+    };
   }
+  const thread = input.thread;
 
   const [recentRows, totalRows] = await Promise.all([
     db.select({
@@ -64,7 +68,7 @@ export async function prepareAgentContext(input: PrepareAgentContextInput) {
     })
       .from(agentMessages)
       .where(and(
-        eq(agentMessages.threadId, input.thread.id),
+        eq(agentMessages.threadId, thread.id),
         eq(agentMessages.userId, input.userId),
       ))
       .orderBy(desc(agentMessages.createdAt), desc(agentMessages.id))
@@ -72,7 +76,7 @@ export async function prepareAgentContext(input: PrepareAgentContextInput) {
     db.select({ value: count() })
       .from(agentMessages)
       .where(and(
-        eq(agentMessages.threadId, input.thread.id),
+        eq(agentMessages.threadId, thread.id),
         eq(agentMessages.userId, input.userId),
       )),
   ]);
@@ -80,20 +84,23 @@ export async function prepareAgentContext(input: PrepareAgentContextInput) {
   const totalMessages = totalRows[0]?.value || 0;
   const summaryRange = getAgentSummaryRange(
     totalMessages,
-    input.thread.summaryMessageCount,
+    thread.summaryMessageCount,
   );
   const summarizedMessageCount = summaryRange.offset;
   const messagesToSummarize = summaryRange.count;
-  let summary = input.thread.summary ? capAgentSummary(input.thread.summary) : null;
+  let summary = thread.summary ? capAgentSummary(thread.summary) : null;
 
-  if (messagesToSummarize > 0) {
+  // Summary maintenance is deliberately started in parallel with the response
+  // model call. The existing summary plus the latest messages are enough to
+  // answer immediately; waiting for a maintenance call here delays first token.
+  const summaryUpdate = (messagesToSummarize > 0 ? (async () => {
     const summaryRows = await db.select({
       role: agentMessages.role,
       content: agentMessages.content,
     })
       .from(agentMessages)
       .where(and(
-        eq(agentMessages.threadId, input.thread.id),
+        eq(agentMessages.threadId, thread.id),
         eq(agentMessages.userId, input.userId),
       ))
       .orderBy(asc(agentMessages.createdAt), asc(agentMessages.id))
@@ -132,9 +139,9 @@ export async function prepareAgentContext(input: PrepareAgentContextInput) {
           summaryUpdatedAt,
         })
         .where(and(
-          eq(agentThreads.id, input.thread.id),
+          eq(agentThreads.id, thread.id),
           eq(agentThreads.userId, input.userId),
-          eq(agentThreads.summaryMessageCount, input.thread.summaryMessageCount),
+          eq(agentThreads.summaryMessageCount, thread.summaryMessageCount),
         ))
         .returning({ summary: agentThreads.summary });
 
@@ -144,7 +151,7 @@ export async function prepareAgentContext(input: PrepareAgentContextInput) {
         const [currentThread] = await db.select({ summary: agentThreads.summary })
           .from(agentThreads)
           .where(and(
-            eq(agentThreads.id, input.thread.id),
+            eq(agentThreads.id, thread.id),
             eq(agentThreads.userId, input.userId),
           ))
           .limit(1);
@@ -158,7 +165,11 @@ export async function prepareAgentContext(input: PrepareAgentContextInput) {
       // should not prevent the user from receiving a response using recent history.
       console.error('Agent summary update error:', error);
     }
-  }
+  })() : Promise.resolve()).catch((error) => {
+    if (!(error instanceof AgentModelAbortError) && !input.signal?.aborted) {
+      console.error('Agent summary maintenance error:', error);
+    }
+  });
 
   const recentMessages = recentRows
     .reverse()
@@ -168,11 +179,14 @@ export async function prepareAgentContext(input: PrepareAgentContextInput) {
       content: messageText(message.content),
     }));
 
-  return buildAgentContext({
-    systemPrompt,
-    summary,
-    recentMessages,
-    currentMessage: input.currentMessage,
-    maxTokens: maxContextTokens,
-  });
+  return {
+    messages: buildAgentContext({
+      systemPrompt,
+      summary,
+      recentMessages,
+      currentMessage: input.currentMessage,
+      maxTokens: maxContextTokens,
+    }),
+    summaryUpdate,
+  };
 }

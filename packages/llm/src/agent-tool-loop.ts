@@ -25,6 +25,7 @@ export interface AgentToolLoopOptions {
   tools: AgentToolDefinition[];
   executeTool: (toolCall: AgentToolCall) => Promise<unknown>;
   onDelta: (delta: string) => void | Promise<void>;
+  onToolCalls?: (toolCalls: AgentToolCall[]) => void | Promise<void>;
   signal?: AbortSignal;
   maxRounds?: number;
   maxToolCalls?: number;
@@ -106,15 +107,14 @@ export async function runAgentToolLoop(
       toolCalls: response.toolCalls,
     });
 
-    for (const toolCall of response.toolCalls) {
+    await options.onToolCalls?.(response.toolCalls);
+    const toolResults = await Promise.all(response.toolCalls.map(async (toolCall) => {
       if (options.signal?.aborted) throw new AgentModelAbortError();
-
-      let result: unknown;
       try {
-        result = await options.executeTool(toolCall);
+        return await options.executeTool(toolCall);
       } catch {
         if (options.signal?.aborted) throw new AgentModelAbortError();
-        result = {
+        return {
           ok: false,
           error: {
             code: 'TOOL_EXECUTION_FAILED',
@@ -122,16 +122,21 @@ export async function runAgentToolLoop(
           },
         };
       }
+    }));
 
+    response.toolCalls.forEach((toolCall, index) => {
       const remainingChars = Math.max(0, maxTotalToolResultChars - toolResultChars);
-      const serializedResult = serializeToolResult(result, Math.min(maxToolResultChars, remainingChars));
+      const serializedResult = serializeToolResult(
+        toolResults[index],
+        Math.min(maxToolResultChars, remainingChars),
+      );
       toolResultChars += serializedResult.length;
       messages.push({
         role: 'tool',
         toolCallId: toolCall.id,
         content: serializedResult,
       });
-    }
+    });
   }
 
   throw new AgentToolLoopError('The model did not produce a final response');

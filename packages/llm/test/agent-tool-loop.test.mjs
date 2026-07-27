@@ -152,6 +152,57 @@ test('enforces a cumulative tool-output budget across calls', async () => {
   assert.ok(total <= 200);
 });
 
+test('executes independent tool calls concurrently and reports their start', async () => {
+  let round = 0;
+  let activeCalls = 0;
+  let maximumActiveCalls = 0;
+  const announced = [];
+  const modelClient = {
+    async stream() {
+      round += 1;
+      return round === 1
+        ? {
+            content: '',
+            toolCalls: [
+              { id: 'one', name: 'get_execution', arguments: '{}' },
+              { id: 'two', name: 'get_execution', arguments: '{}' },
+            ],
+            provider: 'groq',
+            model: 'fast',
+            tier: 'fast',
+            usage: { inputTokens: 1, outputTokens: 1 },
+            latencyMs: 1,
+          }
+        : {
+            content: 'Done',
+            provider: 'groq',
+            model: 'fast',
+            tier: 'fast',
+            usage: { inputTokens: 1, outputTokens: 1 },
+            latencyMs: 1,
+          };
+    },
+  };
+
+  await runAgentToolLoop({
+    messages: [{ role: 'user', content: 'Inspect both' }],
+    modelClient,
+    tools,
+    onDelta: () => undefined,
+    onToolCalls: (toolCalls) => announced.push(toolCalls.map((call) => call.id)),
+    executeTool: async () => {
+      activeCalls += 1;
+      maximumActiveCalls = Math.max(maximumActiveCalls, activeCalls);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      activeCalls -= 1;
+      return { ok: true };
+    },
+  });
+
+  assert.equal(maximumActiveCalls, 2);
+  assert.deepEqual(announced, [['one', 'two']]);
+});
+
 test('keeps prompt-injection text confined to an untrusted tool message', async () => {
   const requests = [];
   let round = 0;

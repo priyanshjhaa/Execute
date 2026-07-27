@@ -29,10 +29,14 @@ export class WorkflowParser {
 
   constructor(groqKey: string, openrouterKey: string) {
     this.models = [];
+    const configuredTimeout = Number.parseInt(process.env.LLM_PROVIDER_TIMEOUT_MS || '20000', 10);
+    const timeout = Number.isFinite(configuredTimeout)
+      ? Math.min(Math.max(configuredTimeout, 5_000), 45_000)
+      : 20_000;
 
     // Groq models (primary - very fast)
     if (groqKey) {
-      const groq = new Groq({ apiKey: groqKey });
+      const groq = new Groq({ apiKey: groqKey, timeout, maxRetries: 0 });
       this.models.push(
         { provider: 'groq', model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile', client: groq },
         { provider: 'groq', model: 'llama-3.3-8b-8192', client: groq },
@@ -49,6 +53,8 @@ export class WorkflowParser {
           'HTTP-Referer': process.env.SITE_URL || 'http://localhost:3000',
           'X-Title': 'Execute Workflow Automation',
         },
+        timeout,
+        maxRetries: 0,
       });
       this.models.push(
         { provider: 'openrouter', model: 'google/gemma-3-4b-it', client: openrouter },

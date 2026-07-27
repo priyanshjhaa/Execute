@@ -18,6 +18,13 @@ function timestamp(value: Date | null) {
 }
 
 export async function getCompactWorkspaceContext(userId: string) {
+  const now = new Date();
+  const [cached] = await db.select().from(agentWorkspaceContextCache)
+    .where(eq(agentWorkspaceContextCache.userId, userId)).limit(1);
+  if (cached && cached.expiresAt > now) {
+    return cached.content;
+  }
+
   const [workflowStats, formStats, contactStats, integrationStats, attentionStats] = await Promise.all([
     db.select({ value: count(), latest: max(workflows.updatedAt) }).from(workflows).where(eq(workflows.userId, userId)),
     db.select({ value: count(), latest: max(forms.updatedAt) }).from(forms).where(eq(forms.userId, userId)),
@@ -36,12 +43,6 @@ export async function getCompactWorkspaceContext(userId: string) {
     attention: [attentionStats[0]?.value || 0, timestamp(attentionStats[0]?.latest || null)],
   };
   const sourceVersion = JSON.stringify(versionData);
-  const now = new Date();
-  const [cached] = await db.select().from(agentWorkspaceContextCache)
-    .where(eq(agentWorkspaceContextCache.userId, userId)).limit(1);
-  if (cached && cached.sourceVersion === sourceVersion && cached.expiresAt > now) {
-    return cached.content;
-  }
 
   const [recentWorkflows, formStates, integrationStates] = await Promise.all([
     db.select({ name: workflows.name, status: workflows.status, triggerType: workflows.triggerType })

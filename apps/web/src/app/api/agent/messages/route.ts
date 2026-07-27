@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { agentMessages, agentModelCalls, agentProposedActions, agentRuns, agentThreads, db, users } from '@execute/db';
@@ -50,6 +50,14 @@ const AgentMessageRequestSchema = z.object({
 
 const AGENT_SYSTEM_PROMPT = `You are Execute Agent, the assistant for a workflow automation product.
 Respond clearly and concisely. You can explain workflows, forms, schedules, executions, contacts, and integrations.
+Structure every final answer for quick scanning:
+- Lead with the direct outcome, answer, or required clarification.
+- Use short paragraphs. Use a brief heading only when the answer has distinct sections.
+- Use bullets for multiple findings, requirements, or next steps.
+- Put identifiers, statuses, schedule expressions, and exact values in inline code.
+- Do not restate the user's request, narrate tool usage, or repeat details already shown in a confirmation card.
+- For a prepared action, end with one short sentence telling the user to review the confirmation card.
+Do not emit explanatory text before requesting tools; call the tools first, then give one complete final answer.
 You have read-only tools for searching and inspecting contacts, forms, workflows, executions, execution logs, integration status, OAuth guidance, and diagnosing failed executions in the current workspace.
 You can also prepare validated proposals to create, update, activate, or archive workflows. A proposal requires explicit user approval and does not modify workflow data.
 You can prepare confirmation requests to run workflows, cancel active executions, or retry failed executions. These actions execute only after explicit approval.
@@ -207,7 +215,7 @@ export async function POST(request: NextRequest) {
         try {
           sendEvent({ type: 'start', runId: input.runId });
 
-          const modelContext = await prepareAgentContext({
+          const preparedContext = await prepareAgentContext({
             thread: ownedThread,
             userId: internalUser.id,
             currentMessage: input.message,
@@ -215,6 +223,8 @@ export async function POST(request: NextRequest) {
             modelClient,
             signal: runController.signal,
           });
+          after(preparedContext.summaryUpdate);
+          sendEvent({ type: 'status', message: 'Planning the response' });
 
           const workflowProposalCollector = createAgentWorkflowProposalCollector({
             userId: internalUser.id,
@@ -227,12 +237,13 @@ export async function POST(request: NextRequest) {
           const quickProposalCollector = createAgentQuickProposalCollector();
 
           const modelResponse = await runAgentToolLoop({
-            messages: modelContext,
+            messages: preparedContext.messages,
             modelClient,
             tools: AGENT_TOOLS,
             signal: runController.signal,
             tier: modelTier,
             onDelta: (delta) => sendEvent({ type: 'delta', delta }),
+            onToolCalls: () => sendEvent({ type: 'status', message: 'Checking workspace data' }),
             executeTool: (toolCall) => {
               if (workflowProposalCollector.handles(toolCall.name)) {
                 return workflowProposalCollector.execute(toolCall);

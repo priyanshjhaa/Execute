@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, Fragment, KeyboardEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, Fragment, KeyboardEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { ArrowLeft, Bot, Building2, Check, ChevronRight, Clock3, Command, CornerDownLeft, FileText, GitCompareArrows, History, Link2, Loader2, Mail, MessageSquare, Plus, Search, Send, ShieldCheck, Sparkles, Square, Unplug, UserRound, Workflow as WorkflowIcon, X, Zap } from "lucide-react";
@@ -74,6 +74,7 @@ interface SendMessageResponse {
 
 type AgentStreamEvent =
   | { type: "start"; runId: string }
+  | { type: "status"; message: string }
   | { type: "delta"; delta: string }
   | ({ type: "done" } & SendMessageResponse)
   | { type: "cancelled" }
@@ -117,6 +118,108 @@ function getMessageText(message: AgentMessage): string {
     .filter((block) => block.type === "text")
     .map((block) => block.text)
     .join("\n");
+}
+
+function renderAgentInline(text: string): ReactNode[] {
+  return text
+    .split(/(\*\*[^*]+\*\*|`[^`]+`)/g)
+    .filter(Boolean)
+    .map((part, index) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <strong key={index} className="font-semibold text-white/90">{part.slice(2, -2)}</strong>;
+      }
+      if (part.startsWith("`") && part.endsWith("`")) {
+        return <code key={index} className="rounded bg-white/[0.07] px-1.5 py-0.5 font-mono text-[0.9em] text-cyan-100/75">{part.slice(1, -1)}</code>;
+      }
+      return <Fragment key={index}>{part}</Fragment>;
+    });
+}
+
+function AgentResponseText({ text, streaming = false }: { text: string; streaming?: boolean }) {
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const blocks: ReactNode[] = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index].trim();
+    if (!line) {
+      index += 1;
+      continue;
+    }
+
+    const heading = line.match(/^#{1,3}\s+(.+)$/);
+    if (heading) {
+      blocks.push(
+        <h3 key={`heading-${index}`} className="pt-1 text-sm font-semibold tracking-[-0.01em] text-white/90">
+          {renderAgentInline(heading[1])}
+        </h3>,
+      );
+      index += 1;
+      continue;
+    }
+
+    if (/^[-*]\s+/.test(line)) {
+      const items: string[] = [];
+      while (index < lines.length && /^[-*]\s+/.test(lines[index].trim())) {
+        items.push(lines[index].trim().replace(/^[-*]\s+/, ""));
+        index += 1;
+      }
+      blocks.push(
+        <ul key={`list-${index}`} className="space-y-1.5 pl-1">
+          {items.map((item, itemIndex) => (
+            <li key={itemIndex} className="flex gap-2.5">
+              <span className="mt-[0.65rem] h-1 w-1 shrink-0 rounded-full bg-cyan-100/45" />
+              <span className="min-w-0">{renderAgentInline(item)}</span>
+            </li>
+          ))}
+        </ul>,
+      );
+      continue;
+    }
+
+    if (/^\d+\.\s+/.test(line)) {
+      const items: string[] = [];
+      while (index < lines.length && /^\d+\.\s+/.test(lines[index].trim())) {
+        items.push(lines[index].trim().replace(/^\d+\.\s+/, ""));
+        index += 1;
+      }
+      blocks.push(
+        <ol key={`ordered-${index}`} className="space-y-1.5 pl-5">
+          {items.map((item, itemIndex) => (
+            <li key={itemIndex} className="list-decimal pl-1 marker:font-mono marker:text-[10px] marker:text-cyan-100/40">
+              {renderAgentInline(item)}
+            </li>
+          ))}
+        </ol>,
+      );
+      continue;
+    }
+
+    const paragraph: string[] = [line];
+    index += 1;
+    while (
+      index < lines.length
+      && lines[index].trim()
+      && !/^#{1,3}\s+/.test(lines[index].trim())
+      && !/^[-*]\s+/.test(lines[index].trim())
+      && !/^\d+\.\s+/.test(lines[index].trim())
+    ) {
+      paragraph.push(lines[index].trim());
+      index += 1;
+    }
+    blocks.push(
+      <p key={`paragraph-${index}`} className="leading-6">
+        {renderAgentInline(paragraph.join(" "))}
+      </p>,
+    );
+  }
+
+  return (
+    <div className="max-w-3xl space-y-3 text-sm text-white/70">
+      {blocks}
+      {streaming && <span className="ml-1 inline-block h-4 w-0.5 animate-pulse bg-cyan-100/60 align-middle" />}
+    </div>
+  );
 }
 
 function formatActionValue(value: unknown): string {
@@ -725,6 +828,7 @@ export default function AgentPage() {
   const [mobileConversationOpen, setMobileConversationOpen] = useState(false);
   const [pendingUserText, setPendingUserText] = useState("");
   const [streamingText, setStreamingText] = useState("");
+  const [streamingStatus, setStreamingStatus] = useState("Reading workspace context");
 
   useEffect(() => {
     const suggestedPrompt = new URLSearchParams(window.location.search).get('prompt');
@@ -764,6 +868,7 @@ export default function AgentPage() {
       setActiveRunId(runId);
       setPendingUserText(message);
       setStreamingText("");
+      setStreamingStatus("Reading workspace context");
 
       try {
         const response = await fetch("/api/agent/messages", {
@@ -792,6 +897,8 @@ export default function AgentPage() {
 
           if (event.type === "delta") {
             setStreamingText((current) => current + event.delta);
+          } else if (event.type === "status") {
+            setStreamingStatus(event.message);
           } else if (event.type === "done") {
             completedResponse = {
               thread: event.thread,
@@ -1111,7 +1218,7 @@ export default function AgentPage() {
                             <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-violet-200/10 bg-violet-200/[0.05] text-violet-100/60"><Sparkles className="h-3.5 w-3.5" /></div>
                             <div className="min-w-0 max-w-[calc(100%-2.75rem)] flex-1">
                               <div className="mb-1.5 flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.14em] text-white/20"><span className="text-violet-100/40">Execute Agent</span><span>{formatMessageTime(message.createdAt)}</span></div>
-                              <div className="max-w-3xl whitespace-pre-wrap text-sm leading-6 text-white/70">{getMessageText(message)}</div>
+                              <AgentResponseText text={getMessageText(message)} />
                             </div>
                           </div>
                         )}
@@ -1140,9 +1247,9 @@ export default function AgentPage() {
                       <div className="min-w-0 flex-1">
                         <div className="mb-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-violet-100/40">Execute Agent · live</div>
                         {streamingText ? (
-                          <div className="max-w-3xl whitespace-pre-wrap text-sm leading-6 text-white/70">{streamingText}<span className="ml-1 inline-block h-4 w-0.5 animate-pulse bg-cyan-100/60 align-middle" /></div>
+                          <AgentResponseText text={streamingText} streaming />
                         ) : (
-                          <div className="flex items-center gap-2 text-sm text-white/35"><span className="flex gap-1"><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-100/50" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-100/35 [animation-delay:150ms]" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-100/20 [animation-delay:300ms]" /></span><span>Reading workspace context</span></div>
+                          <div className="flex items-center gap-2 text-sm text-white/35"><span className="flex gap-1"><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-100/50" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-100/35 [animation-delay:150ms]" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-100/20 [animation-delay:300ms]" /></span><span>{streamingStatus}</span></div>
                         )}
                       </div>
                     </div>
