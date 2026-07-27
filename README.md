@@ -163,8 +163,8 @@ AGENT_MAX_CONTEXT_TOKENS=12000
 AGENT_DAILY_TOKEN_LIMIT=100000
 AGENT_DAILY_REQUEST_LIMIT=200
 AGENT_WORKSPACE_CACHE_TTL_SECONDS=300
-# disabled, internal, or general. Production defaults to internal.
-AGENT_RELEASE_MODE=internal
+# disabled, internal, or general. General is the default.
+AGENT_RELEASE_MODE=general
 AGENT_ENABLED=true
 FAILURE_MONITOR_ENABLED=true
 AGENT_INTERNAL_EMAILS=owner@example.com
@@ -201,7 +201,7 @@ The resume endpoint checks waiting executions. The failure-monitor endpoint crea
 
 ### Agent release controls
 
-Use `AGENT_RELEASE_MODE=internal` in production until general availability. Only users listed in `AGENT_INTERNAL_EMAILS` or `AGENT_INTERNAL_USER_IDS` can see agent navigation, open agent pages, call agent APIs, or receive failure-monitor scans. `AGENT_ENABLED=false` disables both features; `FAILURE_MONITOR_ENABLED=false` disables only monitoring. Set `AGENT_RELEASE_MODE=general` when the release is ready for all authenticated workspaces.
+Agent access defaults to `general`, so every authenticated workspace can see the Agent navigation, open Agent pages, and use Agent APIs. Set `AGENT_RELEASE_MODE=internal` for an allowlisted rollout; only users listed in `AGENT_INTERNAL_EMAILS` or `AGENT_INTERNAL_USER_IDS` will have access. `AGENT_ENABLED=false` disables both Agent and monitoring features, while `FAILURE_MONITOR_ENABLED=false` disables only monitoring.
 
 During internal rollout, users without Agent access retain the legacy Quick Commands screen. Internal users are directed to the Agent. When release mode becomes `general`, the old Quick Commands page redirects to the Agent and its mutation endpoint returns `410 Gone`; historical command and event rows remain intact.
 

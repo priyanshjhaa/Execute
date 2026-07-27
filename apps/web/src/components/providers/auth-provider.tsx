@@ -8,6 +8,22 @@ import type { AuthChangeEvent, Session, User as SupabaseUser } from '@supabase/s
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+async function syncUser(supabaseUser: SupabaseUser): Promise<boolean> {
+  const response = await fetch('/api/auth/sync', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      supabaseId: supabaseUser.id,
+      email: supabaseUser.email!,
+      name: supabaseUser.user_metadata?.name,
+    }),
+  })
+
+  return response.ok
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
@@ -16,25 +32,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Get initial session and sync user
-    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }: { data: { session: Session | null } }) => {
       const currentUser = session?.user ? transformUser(session.user) : null
-      setUser(currentUser)
 
-      // Sync existing user to database on page load
       if (session?.user) {
-        fetch('/api/auth/sync', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            supabaseId: session.user.id,
-            email: session.user.email!,
-            name: session.user.user_metadata?.name
-          })
-        }).catch(err => console.error('Failed to sync user:', err))
+        await syncUser(session.user).catch(() => false)
       }
 
+      setUser(currentUser)
       setLoading(false)
     })
 
@@ -42,23 +47,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        await syncUser(session.user).catch(() => false)
+      }
+
       const currentUser = session?.user ? transformUser(session.user) : null
       setUser(currentUser)
-
-      // Sync user to database on signup/login
-      if (event === 'SIGNED_IN' && session?.user) {
-        await fetch('/api/auth/sync', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            supabaseId: session.user.id,
-            email: session.user.email!,
-            name: session.user.user_metadata?.name
-          })
-        })
-      }
 
       // Redirect on sign out
       if (event === 'SIGNED_OUT') {

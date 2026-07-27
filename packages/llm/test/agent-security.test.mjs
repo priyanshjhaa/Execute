@@ -7,10 +7,10 @@ import {
   serializeUntrustedWorkspaceContext,
 } from '../dist/agent-security.js';
 
-test('production defaults to an internal-only agent release', () => {
+test('production defaults to the general agent release', () => {
   const policy = resolveAgentFeaturePolicy({ NODE_ENV: 'production' });
-  assert.equal(policy.releaseMode, 'internal');
-  assert.equal(canUserAccessAgent({ id: 'user-1', email: 'user@example.com' }, policy), false);
+  assert.equal(policy.releaseMode, 'general');
+  assert.equal(canUserAccessAgent({ id: 'user-1', email: 'user@example.com' }, policy), true);
 });
 
 test('internal release accepts only exact IDs or case-insensitive emails', () => {

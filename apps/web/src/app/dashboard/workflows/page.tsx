@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Bot, CheckCircle2, XCircle, Clock, Eye, Play, Plus, Loader2, Edit } from "lucide-react";
 import { useWorkflows, type Workflow } from "@/lib/query/hooks";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/components/providers/auth-provider";
+import { fetchAgentFeatureAccess, type AgentFeatureAccess } from "@/lib/query/agent-access";
 
 function getStatusIcon(status: string) {
   switch (status) {
@@ -71,15 +73,14 @@ function getTriggerHint(triggerType: string) {
 }
 
 export default function WorkflowsPage() {
+  const { user } = useAuth();
   const { data: workflows = [], isLoading: loading } = useWorkflows();
-  const agentAccess = useQuery<{ agent: boolean }>({
+  const agentAccess = useQuery<AgentFeatureAccess>({
     queryKey: ["agent-feature-access"],
-    queryFn: async () => {
-      const response = await fetch('/api/agent/access');
-      if (!response.ok) return { agent: false };
-      return response.json();
-    },
+    queryFn: fetchAgentFeatureAccess,
+    enabled: Boolean(user),
     staleTime: 60_000,
+    retry: 1,
   });
 
   return (

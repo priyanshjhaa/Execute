@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/providers/auth-provider";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { fetchAgentFeatureAccess, type AgentFeatureAccess } from "@/lib/query/agent-access";
 
 const navItems: Array<{
   name: string;
@@ -78,15 +79,12 @@ export default function DashboardLayout({
   const { user, signOut, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const featureAccess = useQuery<{ agent: boolean; monitor: boolean }>({
+  const featureAccess = useQuery<AgentFeatureAccess>({
     queryKey: ["agent-feature-access"],
-    queryFn: async () => {
-      const response = await fetch('/api/agent/access');
-      if (!response.ok) return { agent: false, monitor: false };
-      return response.json();
-    },
+    queryFn: fetchAgentFeatureAccess,
     enabled: Boolean(user),
     staleTime: 60_000,
+    retry: 1,
   });
   const attentionCount = useQuery<number>({
     queryKey: ["failure-findings", "count"],

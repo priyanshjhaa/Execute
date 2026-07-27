@@ -26,7 +26,7 @@ export function resolveAgentFeaturePolicy(
     || configuredMode === 'internal'
     || configuredMode === 'general'
     ? configuredMode
-    : env.NODE_ENV === 'production' ? 'internal' : 'general';
+    : 'general';
   const agentEnabled = booleanFlag(env.AGENT_ENABLED, true) && releaseMode !== 'disabled';
   return {
     agentEnabled,

@@ -17,21 +17,22 @@ import {
 } from "lucide-react";
 import { useWorkflows, useExecutions, useForms, formatTimeAgo, type Workflow, type Execution, type Form } from "@/lib/query/hooks";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/components/providers/auth-provider";
+import { fetchAgentFeatureAccess, type AgentFeatureAccess } from "@/lib/query/agent-access";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { user } = useAuth();
   // TanStack Query hooks with caching - data persists across navigation
   const { data: workflows = [], isLoading: workflowsLoading } = useWorkflows();
   const { data: executions = [], isLoading: executionsLoading } = useExecutions(5);
   const { data: forms = [], isLoading: formsLoading } = useForms();
-  const agentAccess = useQuery<{ agent: boolean }>({
+  const agentAccess = useQuery<AgentFeatureAccess>({
     queryKey: ["agent-feature-access"],
-    queryFn: async () => {
-      const response = await fetch('/api/agent/access');
-      if (!response.ok) return { agent: false };
-      return response.json();
-    },
+    queryFn: fetchAgentFeatureAccess,
+    enabled: Boolean(user),
     staleTime: 60_000,
+    retry: 1,
   });
 
   // Show initial loading on first visit only
